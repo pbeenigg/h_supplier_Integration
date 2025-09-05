@@ -1505,6 +1505,645 @@ class HotelServiceImplTest {
         request.setRoomCount(1);
         request.setGuestCount(2);
         
+        HotelSearchResponse mockResponse1 = createMockHotelSearchResponse("supplier1");
+        HotelSearchResponse mockResponse2 = createMockHotelSearchResponse("supplier2");
+        
+        when(supplierAdapter1.isAvailable()).thenReturn(true);
+        when(supplierAdapter2.isAvailable()).thenReturn(true);
+        when(supplierAdapter1.searchHotels(request)).thenReturn(mockResponse1);
+        when(supplierAdapter2.searchHotels(request)).thenReturn(mockResponse2);
+        
+        // When
+        HotelSearchResponse result = hotelService.searchHotels(request);
+        
+        // Then
+        assertNotNull(result);
+        assertFalse(result.getHotels().isEmpty());
+        verify(supplierAdapter1).searchHotels(request);
+        verify(supplierAdapter2).searchHotels(request);
+    }
+    
+    @Test
+    void testSearchHotels_InvalidRequest() {
+        // Given
+        HotelSearchRequest request = new HotelSearchRequest();
+        request.setCity("北京");
+        request.setCheckInDate(LocalDate.now().minusDays(1)); // 过去的日期
+        request.setCheckOutDate(LocalDate.now().plusDays(1));
+        
+        // When & Then
+        assertThrows(BusinessException.class, () -> hotelService.searchHotels(request));
+    }
+    
+    private HotelSearchResponse createMockHotelSearchResponse(String supplierName) {
+        HotelSearchResponse response = new HotelSearchResponse();
+        HotelInfo hotel = new HotelInfo();
+        hotel.setSupplierName(supplierName);
+        hotel.setHotelName("测试酒店");
+        hotel.setLowestPrice(BigDecimal.valueOf(299.00));
+        response.setHotels(Arrays.asList(hotel));
+        return response;
+    }
+}
+```
+
+#### 5.4.2 集成测试
+
+创建集成测试验证整个API流程：
+
+```java
+package com.heytrip.hotel.supplier.integration;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.heytrip.hotel.supplier.dto.request.HotelSearchRequest;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureWebMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+@SpringBootTest
+@AutoConfigureWebMvc
+@ActiveProfiles("test")
+@Transactional
+class HotelSearchIntegrationTest {
+    
+    @Autowired
+    private MockMvc mockMvc;
+    
+    @Autowired
+    private ObjectMapper objectMapper;
+    
+    @Test
+    void testHotelSearchEndpoint() throws Exception {
+        HotelSearchRequest request = new HotelSearchRequest();
+        request.setCity("北京");
+        request.setCheckInDate(LocalDate.now().plusDays(1));
+        request.setCheckOutDate(LocalDate.now().plusDays(3));
+        request.setRoomCount(1);
+        request.setGuestCount(2);
+        
+        mockMvc.perform(post("/hotels/search")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request))
+                .header("X-API-Key", "test-api-key"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.hotels").isArray());
+    }
+}
+```
+
+## 6. API接口文档
+
+### 6.1 接口概览
+
+本系统提供三大类API接口：
+
+1. **静态数据类接口**：获取供应商信息、支持的城市、货币等静态数据
+2. **报价类接口**：酒店搜索、房型查询、价格获取等功能
+3. **订单类接口**：订单创建、取消、状态查询等订单管理功能
+
+### 6.2 认证机制
+
+所有API请求都需要在HTTP头中包含以下认证信息：
+
+```
+X-App-Id: your-app-id
+X-Timestamp: 1609459200000
+X-Signature: calculated-md5-signature
+```
+
+签名计算方式：
+```
+signature = MD5(appId + timestamp + secretKey + requestBody)
+```
+
+### 6.3 静态数据类接口
+
+#### 6.3.1 获取供应商列表
+
+**接口地址**：`GET /suppliers`
+
+**请求参数**：无
+
+**响应示例**：
+```json
+{
+    "code": "SUCCESS",
+    "message": "操作成功",
+    "data": [
+        {
+            "supplierId": 1,
+            "supplierName": "booking.com",
+            "isActive": true,
+            "supportedCities": ["北京", "上海", "广州"],
+            "supportedCurrencies": ["CNY", "USD"]
+        }
+    ]
+}
+```
+
+#### 6.3.2 获取支持的城市列表
+
+**接口地址**：`GET /cities`
+
+**请求参数**：
+- `country`（可选）：国家代码，如"CN"
+
+**响应示例**：
+```json
+{
+    "code": "SUCCESS",
+    "message": "操作成功",
+    "data": [
+        {
+            "cityCode": "BJ",
+            "cityName": "北京",
+            "countryCode": "CN",
+            "countryName": "中国"
+        }
+    ]
+}
+```
+
+### 6.4 报价类接口
+
+#### 6.4.1 酒店搜索
+
+**接口地址**：`POST /hotels/search`
+
+**请求参数**：
+```json
+{
+    "city": "北京",
+    "checkInDate": "2024-03-15",
+    "checkOutDate": "2024-03-17",
+    "roomCount": 1,
+    "guestCount": 2,
+    "starRating": 4,
+    "priceRange": {
+        "minPrice": 200,
+        "maxPrice": 800
+    }
+}
+```
+
+**响应示例**：
+```json
+{
+    "code": "SUCCESS",
+    "message": "操作成功",
+    "data": {
+        "hotels": [
+            {
+                "hotelId": "12345",
+                "hotelName": "北京国际酒店",
+                "address": "北京市朝阳区建国门外大街1号",
+                "starRating": 5.0,
+                "latitude": 39.9042,
+                "longitude": 116.4074,
+                "lowestPrice": 599.00,
+                "currency": "CNY",
+                "supplierName": "booking.com",
+                "images": [
+                    "https://example.com/hotel1.jpg"
+                ],
+                "amenities": ["WiFi", "停车场", "健身房"],
+                "rooms": [
+                    {
+                        "roomType": "标准双人间",
+                        "price": 599.00,
+                        "currency": "CNY",
+                        "availability": 5
+                    }
+                ]
+            }
+        ],
+        "totalCount": 1,
+        "searchTime": 1609459200000
+    }
+}
+```
+
+#### 6.4.2 获取酒店详情
+
+**接口地址**：`GET /hotels/{hotelId}`
+
+**路径参数**：
+- `hotelId`：酒店ID
+
+**响应示例**：
+```json
+{
+    "code": "SUCCESS",
+    "message": "操作成功",
+    "data": {
+        "hotelId": "12345",
+        "hotelName": "北京国际酒店",
+        "description": "位于市中心的豪华酒店...",
+        "facilities": ["餐厅", "会议室", "商务中心"],
+        "policies": {
+            "checkInTime": "14:00",
+            "checkOutTime": "12:00",
+            "cancellationPolicy": "免费取消至入住前24小时"
+        }
+    }
+}
+```
+
+### 6.5 订单类接口
+
+#### 6.5.1 创建订单
+
+**接口地址**：`POST /orders`
+
+**请求参数**：
+```json
+{
+    "hotelId": "12345",
+    "roomType": "标准双人间",
+    "checkInDate": "2024-03-15",
+    "checkOutDate": "2024-03-17",
+    "guestInfo": {
+        "name": "张三",
+        "email": "zhangsan@example.com",
+        "phone": "13800138000"
+    },
+    "roomCount": 1,
+    "guestCount": 2,
+    "specialRequests": "高层房间"
+}
+```
+
+**响应示例**：
+```json
+{
+    "code": "SUCCESS",
+    "message": "订单创建成功",
+    "data": {
+        "orderId": "ORD20240315001",
+        "supplierOrderId": "SUP123456",
+        "status": "CONFIRMED",
+        "totalAmount": 1198.00,
+        "currency": "CNY",
+        "confirmationNumber": "CONF789012",
+        "createdAt": "2024-03-15T10:30:00Z"
+    }
+}
+```
+
+#### 6.5.2 取消订单
+
+**接口地址**：`DELETE /orders/{orderId}`
+
+**路径参数**：
+- `orderId`：订单ID
+
+**响应示例**：
+```json
+{
+    "code": "SUCCESS",
+    "message": "订单取消成功",
+    "data": {
+        "orderId": "ORD20240315001",
+        "status": "CANCELLED",
+        "refundAmount": 1198.00,
+        "refundCurrency": "CNY",
+        "cancelledAt": "2024-03-15T15:45:00Z"
+    }
+}
+```
+
+#### 6.5.3 查询订单状态
+
+**接口地址**：`GET /orders/{orderId}`
+
+**路径参数**：
+- `orderId`：订单ID
+
+**响应示例**：
+```json
+{
+    "code": "SUCCESS",
+    "message": "查询成功",
+    "data": {
+        "orderId": "ORD20240315001",
+        "status": "CONFIRMED",
+        "hotelInfo": {
+            "hotelName": "北京国际酒店",
+            "address": "北京市朝阳区建国门外大街1号"
+        },
+        "bookingDetails": {
+            "checkInDate": "2024-03-15",
+            "checkOutDate": "2024-03-17",
+            "roomType": "标准双人间",
+            "guestCount": 2
+        },
+        "paymentInfo": {
+            "totalAmount": 1198.00,
+            "currency": "CNY",
+            "paymentStatus": "PAID"
+        }
+    }
+}
+```
+
+### 6.6 错误响应格式
+
+所有错误响应都遵循统一格式：
+
+```json
+{
+    "code": "ERROR_CODE",
+    "message": "错误描述信息",
+    "timestamp": 1609459200000,
+    "path": "/hotels/search",
+    "details": {
+        "field": "checkInDate",
+        "rejectedValue": "2024-02-30",
+        "message": "日期格式无效"
+    }
+}
+```
+
+常见错误代码：
+- `INVALID_REQUEST`：请求参数无效
+- `SUPPLIER_ERROR`：供应商API调用失败
+- `BUSINESS_ERROR`：业务逻辑错误
+- `AUTHENTICATION_FAILED`：认证失败
+- `RATE_LIMIT_EXCEEDED`：请求频率超限
+
+## 7. 部署和运维指南
+
+### 7.1 环境要求
+
+**系统要求**：
+- Java 17+
+- MySQL 8.0+
+- Redis 6.0+（可选，用于分布式缓存）
+- Docker 20.0+（容器化部署）
+
+**硬件要求**：
+- CPU：2核心以上
+- 内存：4GB以上
+- 磁盘：20GB以上可用空间
+- 网络：稳定的互联网连接
+
+### 7.2 部署步骤
+
+#### 7.2.1 传统部署
+
+1. **准备数据库**：
+```sql
+CREATE DATABASE hotel_supplier CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'hotel_user'@'%' IDENTIFIED BY 'secure_password';
+GRANT ALL PRIVILEGES ON hotel_supplier.* TO 'hotel_user'@'%';
+FLUSH PRIVILEGES;
+```
+
+2. **编译应用**：
+```bash
+mvn clean package -DskipTests
+```
+
+3. **配置环境变量**：
+```bash
+export SPRING_PROFILES_ACTIVE=prod
+export DB_HOST=localhost
+export DB_PORT=3306
+export DB_NAME=hotel_supplier
+export DB_USERNAME=hotel_user
+export DB_PASSWORD=secure_password
+export ENCRYPTION_KEY=your-32-char-encryption-key-here
+```
+
+4. **启动应用**：
+```bash
+java -jar target/supplier-integration-1.0.0.jar
+```
+
+#### 7.2.2 Docker部署
+
+1. **构建镜像**：
+```bash
+docker build -t hotel-supplier:latest .
+```
+
+2. **使用Docker Compose启动**：
+```bash
+docker-compose up -d
+```
+
+3. **查看服务状态**：
+```bash
+docker-compose ps
+docker-compose logs hotel-supplier
+```
+
+### 7.3 监控和日志
+
+#### 7.3.1 健康检查
+
+应用提供以下健康检查端点：
+
+- `/actuator/health`：应用整体健康状态
+- `/actuator/health/db`：数据库连接状态
+- `/actuator/health/suppliers`：供应商可用性状态
+
+#### 7.3.2 指标监控
+
+通过Prometheus收集以下指标：
+
+- HTTP请求数量和响应时间
+- 数据库连接池状态
+- 缓存命中率
+- 供应商API调用成功率
+- JVM内存和GC指标
+
+#### 7.3.3 日志管理
+
+日志配置支持：
+
+- 按日期轮转日志文件
+- 不同级别的日志输出
+- 结构化日志格式（JSON）
+- 集中化日志收集（ELK Stack）
+
+### 7.4 性能调优
+
+#### 7.4.1 JVM参数优化
+
+```bash
+-Xms512m -Xmx2g
+-XX:+UseG1GC
+-XX:MaxGCPauseMillis=200
+-XX:+PrintGCDetails
+-XX:+PrintGCTimeStamps
+-XX:+HeapDumpOnOutOfMemoryError
+-XX:HeapDumpPath=/var/log/hotel-supplier/
+```
+
+#### 7.4.2 数据库优化
+
+- 合理设置连接池大小
+- 添加适当的数据库索引
+- 定期分析和优化慢查询
+- 配置读写分离（如需要）
+
+#### 7.4.3 缓存优化
+
+- 调整缓存过期时间
+- 监控缓存命中率
+- 合理设置缓存大小
+- 考虑使用Redis集群
+
+## 8. 故障排除
+
+### 8.1 常见问题
+
+#### 8.1.1 应用启动失败
+
+**问题**：应用无法启动，提示数据库连接失败
+
+**解决方案**：
+1. 检查数据库服务是否正常运行
+2. 验证数据库连接配置是否正确
+3. 确认数据库用户权限是否足够
+4. 检查网络连接是否正常
+
+#### 8.1.2 供应商API调用失败
+
+**问题**：供应商API调用超时或返回错误
+
+**解决方案**：
+1. 检查供应商API服务状态
+2. 验证认证信息是否正确
+3. 调整超时配置
+4. 检查网络连接和防火墙设置
+
+#### 8.1.3 内存溢出
+
+**问题**：应用出现OutOfMemoryError
+
+**解决方案**：
+1. 增加JVM堆内存大小
+2. 分析内存泄漏问题
+3. 优化缓存配置
+4. 检查是否有大对象未及时释放
+
+### 8.2 日志分析
+
+#### 8.2.1 关键日志位置
+
+- 应用日志：`/var/log/hotel-supplier/application.log`
+- 访问日志：`/var/log/hotel-supplier/access.log`
+- 错误日志：`/var/log/hotel-supplier/error.log`
+- GC日志：`/var/log/hotel-supplier/gc.log`
+
+#### 8.2.2 日志级别说明
+
+- `ERROR`：系统错误，需要立即处理
+- `WARN`：警告信息，可能影响功能
+- `INFO`：一般信息，记录重要操作
+- `DEBUG`：调试信息，用于问题排查
+
+## 9. 扩展和维护
+
+### 9.1 添加新供应商
+
+1. **实现供应商适配器**：
+```java
+@Component
+public class NewSupplierAdapter implements SupplierAdapter {
+    // 实现接口方法
+}
+```
+
+2. **添加供应商配置**：
+```sql
+INSERT INTO supplier_config (supplier_name, api_base_url, auth_type, auth_config) 
+VALUES ('new_supplier', 'https://api.newsupplier.com', 'API_KEY', '{"apiKey": "your-key"}');
+```
+
+3. **更新测试用例**：
+```java
+@Test
+void testNewSupplierIntegration() {
+    // 添加新供应商的测试用例
+}
+```
+
+### 9.2 版本升级
+
+1. **数据库迁移**：
+```sql
+-- V3__Add_new_features.sql
+ALTER TABLE hotel_info ADD COLUMN new_field VARCHAR(100);
+```
+
+2. **配置更新**：
+```yaml
+# 添加新的配置项
+app:
+  new-feature:
+    enabled: true
+```
+
+3. **向后兼容性**：
+- 保持API接口向后兼容
+- 提供版本控制机制
+- 逐步废弃旧功能
+
+### 9.3 性能监控
+
+定期监控以下指标：
+
+- API响应时间
+- 数据库查询性能
+- 缓存命中率
+- 供应商API成功率
+- 系统资源使用情况
+
+## 10. 总结
+
+本项目实现了一个完整的酒店供应商集成系统，具有以下特点：
+
+**技术优势**：
+- 基于Spring Boot的现代化架构
+- 模块化设计，易于扩展和维护
+- 完善的错误处理和重试机制
+- 多层缓存策略，提升性能
+- 容器化部署，便于运维
+
+**业务价值**：
+- 统一的API接口，简化集成复杂度
+- 多供应商支持，提高可用性
+- 实时数据聚合，提供最优价格
+- 完整的订单生命周期管理
+- 详细的监控和日志，保障系统稳定
+
+**扩展性**：
+- 插件化的供应商适配器
+- 灵活的配置管理
+- 支持水平扩展
+- 预留分布式架构升级路径
+
+该系统为酒店业务提供了稳定、高效、可扩展的供应商集成解决方案，能够满足当前业务需求，并为未来发展奠定了良好基础。
+        request.setCity("北京");
+        request.setCheckInDate(LocalDate.now().plusDays(1));
+        request.setCheckOutDate(LocalDate.now().plusDays(3));
+        request.setRoomCount(1);
+        request.setGuestCount(2);
+        
         HotelSearchResponse response1 = new HotelSearchResponse();
         HotelSearchResponse response2 = new HotelSearchResponse();
         

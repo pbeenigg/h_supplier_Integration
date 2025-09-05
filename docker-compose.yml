@@ -1,0 +1,55 @@
+version: '3.8'
+
+name:  heytrip-supplier-integration
+services:
+  # HeyTrip Supplier Integration Service
+  heytrip-supplier-service:
+    build: .
+    container_name: heytrip-supplier-integration
+    environment:
+      # Database Configuration
+      DB_URL: jdbc:mysql://mysql:3306/supplier_pax?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      DB_USERNAME: pax
+      DB_PASSWORD: pax_password
+
+      # Application Configuration
+      SERVER_NAME: heytrip-supplier-integration
+      SERVER_PATH: /pax/api/xiwanSupplier/supp
+      SERVER_PORT: 8080
+      SPRING_PROFILES_ACTIVE: prod
+      ENCRYPTION_KEY: 427ae41e4649b934ca495991b7852b855
+      
+      # JVM Options
+      JAVA_OPTS: -Xmx1g -Xms512m -XX:+UseG1GC
+    ports:
+      - "8080:8080"
+    networks:
+      - heytrip-supplier-network
+    volumes:
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
+  # Nginx
+  nginx:
+    image: nginx:alpine
+    container_name:  heytrip-supplier-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - heytrip-supplier-integration
+    networks:
+      - heytrip-supplier-network
+    restart: unless-stopped
+
+networks:
+  heytrip-supplier-network:
+    driver: bridge

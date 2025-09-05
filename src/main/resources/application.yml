@@ -1,0 +1,98 @@
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    context-path: ${SERVER_PATH:/pax/api/xiwanSupplier/supp}
+
+spring:
+  application:
+    name: ${SERVER_NAME:heytrip-supplier-integration}
+
+  # 数据源配置
+  datasource:
+    url: ${DB_URL:jdbc:mysql://127.0.0.1:3306/supplier_pax?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:Root@123456}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      pool-name: HeyTripSupplier-HikariCP
+
+  #Spring Data JPA配置
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+        format_sql: true
+        use_sql_comments: true
+        jdbc:
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
+
+    # 缓存配置
+  cache:
+    type: caffeine
+    caffeine:
+      spec: maximumSize=1000,expireAfterWrite=30m
+  # JSON配置
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+    default-property-inclusion: non_null
+
+# 日志配置
+logging:
+  level:
+    com.heytrip.hotel.supplier: DEBUG
+    org.springframework.web: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/heytrip-supplier-integration.log
+
+
+# SpringDoc配置
+springdoc:
+  api-docs:
+    path: /v1/api-docs
+  swagger-ui:
+    enabled: false
+    tags-sorter: alpha
+    operations-sorter: alpha
+  packages-to-scan: com.heytrip.hotel.supplier.controller
+
+
+
+# 管理端点配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+# 自定义配置
+app:
+  supplier:
+    timeout: 30000
+    retry:
+      max-attempts: 3
+      delay: 1000
+      multiplier: 2
+  encryption:
+    key: ${ENCRYPTION_KEY:427ae41e4649b934ca495991b7852b855}
+  api:
+    rate-limit:
+      requests-per-minute: 1000
