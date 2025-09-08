@@ -1,59 +1,296 @@
--- Hotel Supplier Integration Service Initial Data
--- Version 2.0 - Insert initial configuration and sample data
+-- =====================================================
+-- HeyTrip 酒店供应商集成服务初始化数据
+-- 创建时间: 2025-09-08
+-- 作者: Pax
+-- =====================================================
 
--- 插入供应商配置
-INSERT INTO supplier_config (supplier_name, api_base_url, auth_type, auth_config, timeout, retry_count, is_active, priority) VALUES
-('AsianOverland', 'https://api.asianoverland.com', 'MD5', '{"appId":"test_app_id","secretKey":"test_secret_key"}', 30000, 3, TRUE, 10),
-('TestSupplier', 'https://api.testsupplier.com', 'MD5', '{"appId":"test_app_2","secretKey":"test_secret_2"}', 25000, 2, FALSE, 20);
+-- =====================================================
+-- 插入供应商配置数据
+-- =====================================================
+INSERT INTO supplier_config (
+    supplier_name, 
+    supplier_code, 
+    api_base_url, 
+    auth_type, 
+    auth_config, 
+    timeout_ms, 
+    retry_count, 
+    max_concurrent_requests,
+    rate_limit_per_second,
+    is_active, 
+    priority,
+    description,
+    contact_info,
+    supported_countries,
+    supported_cities,
+    created_by,
+    updated_by
+) VALUES
+(
+    'AsianOverland', 
+    'AO_QTECH', 
+    'https://colosseum.otrams.com/ws/index.php', 
+    'MD5', 
+    '{"appId":"Heytrip_Test","secretKey":"Welcome@@123","username":"Heytrip_Test","password":"Welcome@@123"}', 
+    30000, 
+    3, 
+    10,
+    50,
+    TRUE, 
+    10,
+    'AsianOverland供应商通过QTECH技术通道提供马来西亚酒店资源',
+    '{"email":"support@asianoverland.com","phone":"+60-3-1234-5678","contact_person":"技术支持团队"}',
+    '["MY"]',
+    '["Kuala Lumpur","Penang","Johor Bahru","Malacca","Ipoh","Kota Kinabalu","Kuching"]',
+    'system',
+    'system'
+),
+(
+    'TestSupplier', 
+    'TEST_DEMO', 
+    'https://api.testsupplier.com/v1', 
+    'MD5', 
+    '{"appId":"test_app_demo","secretKey":"demo_secret_key_123"}', 
+    25000, 
+    2, 
+    5,
+    20,
+    FALSE, 
+    20,
+    '测试供应商，用于开发和测试环境',
+    '{"email":"test@testsupplier.com","phone":"+1-555-0123","contact_person":"Test Support"}',
+    '["US","CA"]',
+    '["New York","Los Angeles","Toronto","Vancouver"]',
+    'system',
+    'system'
+);
 
--- 插入示例酒店数据 (AsianOverland供应商)
-INSERT INTO hotel_info (supplier_id, supplier_hotel_id, hotel_name, address, city, country, star_rating, latitude, longitude, description, amenities, is_active) VALUES
-(1, 'AO_KL_001', 'Grand Millennium Kuala Lumpur', '160, Jalan Bukit Bintang, Bukit Bintang, 55100 Kuala Lumpur', 'Kuala Lumpur', 'Malaysia', 5.0, 3.1478, 101.7089, 'Luxury hotel in the heart of Kuala Lumpur', 'WiFi,Pool,Gym,Spa,Restaurant,Bar', TRUE),
-(1, 'AO_KL_002', 'Hotel Maya Kuala Lumpur', '138, Jalan Ampang, Kuala Lumpur City Centre, 50450 Kuala Lumpur', 'Kuala Lumpur', 'Malaysia', 5.0, 3.1570, 101.7123, 'Contemporary luxury hotel with modern amenities', 'WiFi,Pool,Gym,Spa,Restaurant,Business Center', TRUE),
-(1, 'AO_PG_001', 'Eastern & Oriental Hotel', '10, Lebuh Farquhar, George Town, 10200 George Town, Penang', 'Penang', 'Malaysia', 5.0, 5.4164, 100.3327, 'Historic colonial hotel with heritage charm', 'WiFi,Pool,Spa,Restaurant,Heritage Tours', TRUE),
-(1, 'AO_JB_001', 'Renaissance Johor Bahru Hotel', 'No. 2, Jalan Permas 11, Bandar Baru Permas Jaya, 81750 Masai, Johor', 'Johor Bahru', 'Malaysia', 4.5, 1.4927, 103.8018, 'Modern business hotel near Singapore border', 'WiFi,Pool,Gym,Restaurant,Business Center', TRUE),
-(1, 'AO_ML_001', 'The Majestic Malacca', '188, Jalan Bunga Raya, 75100 Melaka', 'Malacca', 'Malaysia', 5.0, 2.1896, 102.2501, 'Heritage luxury hotel in historic Malacca', 'WiFi,Pool,Spa,Restaurant,Heritage Tours,Museum', TRUE);
+-- =====================================================
+-- 插入系统配置数据
+-- =====================================================
+INSERT INTO system_config (
+    config_key,
+    config_value,
+    config_type,
+    description,
+    is_encrypted,
+    is_active,
+    created_by,
+    updated_by
+) VALUES
+('system.default.timeout_ms', '30000', 'NUMBER', '系统默认API调用超时时间（毫秒）', FALSE, TRUE, 'system', 'system'),
+('system.default.retry_count', '3', 'NUMBER', '系统默认重试次数', FALSE, TRUE, 'system', 'system'),
+('system.max_concurrent_requests', '100', 'NUMBER', '系统最大并发请求数', FALSE, TRUE, 'system', 'system'),
+('system.health_check.interval_seconds', '60', 'NUMBER', '健康检查间隔时间（秒）', FALSE, TRUE, 'system', 'system'),
+('system.log.retention_days', '30', 'NUMBER', 'API调用日志保留天数', FALSE, TRUE, 'system', 'system'),
+('system.cache.enabled', 'true', 'BOOLEAN', '是否启用缓存', FALSE, TRUE, 'system', 'system'),
+('system.cache.ttl_seconds', '300', 'NUMBER', '缓存过期时间（秒）', FALSE, TRUE, 'system', 'system'),
+('system.security.encryption_key', 'heytrip_secret_key_2025', 'STRING', '系统加密密钥', TRUE, TRUE, 'system', 'system'),
+('system.notification.email.enabled', 'false', 'BOOLEAN', '是否启用邮件通知', FALSE, TRUE, 'system', 'system'),
+('system.notification.webhook.url', '', 'STRING', 'Webhook通知地址', FALSE, FALSE, 'system', 'system');
 
--- 插入示例房间数据
-INSERT INTO room_info (hotel_id, supplier_room_id, room_name, room_type, bed_type, max_occupancy, room_size, has_window, has_private_bathroom, smoking_allowed, amenities, is_active) VALUES
--- Grand Millennium Kuala Lumpur rooms
-(1, 'AO_KL_001_R001', 'Deluxe Room', 'Deluxe', 'King Bed', 2, 35, TRUE, TRUE, FALSE, 'WiFi,AC,TV,Minibar,Safe', TRUE),
-(1, 'AO_KL_001_R002', 'Premier Room', 'Premier', 'King Bed', 2, 40, TRUE, TRUE, FALSE, 'WiFi,AC,TV,Minibar,Safe,City View', TRUE),
-(1, 'AO_KL_001_R003', 'Executive Suite', 'Suite', 'King Bed', 4, 60, TRUE, TRUE, FALSE, 'WiFi,AC,TV,Minibar,Safe,Living Area,City View', TRUE),
+-- =====================================================
+-- 插入示例API调用日志数据
+-- =====================================================
+INSERT INTO api_call_log (
+    supplier_id, 
+    trace_id,
+    api_endpoint, 
+    http_method, 
+    request_headers,
+    request_params,
+    request_body, 
+    response_headers,
+    response_body, 
+    response_status, 
+    response_time_ms,
+    error_code,
+    error_message,
+    retry_count,
+    is_success,
+    business_type,
+    channel, 
+    client_ip, 
+    user_agent,
+    app_id,
+    user_id,
+    session_id,
+    request_size_bytes,
+    response_size_bytes
+) VALUES
+(
+    1, 
+    'trace-001-20250908-001',
+    '/hotel/search', 
+    'POST', 
+    '{"Content-Type":"application/json","Authorization":"Bearer token123"}',
+    '{"supplierType":"AO_QTECH"}',
+    '{"city":"Kuala Lumpur","checkInDate":"2025-02-15","checkOutDate":"2025-02-18","roomCount":1,"adultCount":2}', 
+    '{"Content-Type":"application/json","Server":"nginx/1.18.0"}',
+    '{"code":0,"message":"success","data":{"hotels":[{"hotelId":"AO_KL_001","hotelName":"Grand Hyatt Kuala Lumpur"}]}}', 
+    200, 
+    1250,
+    NULL,
+    NULL,
+    0,
+    TRUE,
+    'hotel_search',
+    'API', 
+    '192.168.1.100', 
+    'HeyTrip-Client/1.0',
+    'heytrip_web_app',
+    'user_12345',
+    'session_abc123',
+    512,
+    2048
+),
+(
+    1, 
+    'trace-002-20250908-002',
+    '/booking/create', 
+    'POST', 
+    '{"Content-Type":"application/json","Authorization":"Bearer token123"}',
+    '{"supplierType":"AO_QTECH"}',
+    '{"hotelId":"AO_KL_001","roomId":"AO_KL_001_R001","ratePlanId":"RP_001","guestName":"John Smith","checkInDate":"2025-02-15","checkOutDate":"2025-02-18"}', 
+    '{"Content-Type":"application/json","Server":"nginx/1.18.0"}',
+    '{"code":0,"message":"success","data":{"bookingReference":"AO_BK_001","supplierOrderId":"SO_001","status":"CONFIRMED"}}', 
+    200, 
+    2100,
+    NULL,
+    NULL,
+    0,
+    TRUE,
+    'booking_create',
+    'API', 
+    '192.168.1.100', 
+    'HeyTrip-Client/1.0',
+    'heytrip_web_app',
+    'user_12345',
+    'session_abc123',
+    768,
+    1024
+),
+(
+    1, 
+    'trace-003-20250908-003',
+    '/hotel/search', 
+    'POST', 
+    '{"Content-Type":"application/json","Authorization":"Bearer token456"}',
+    '{"supplierType":"AO_QTECH"}',
+    '{"city":"Penang","checkInDate":"2025-03-01","checkOutDate":"2025-03-05","roomCount":2,"adultCount":4}', 
+    '{"Content-Type":"application/json","Server":"nginx/1.18.0"}',
+    '{"code":0,"message":"success","data":{"hotels":[{"hotelId":"AO_PG_001","hotelName":"Eastern & Oriental Hotel"}]}}', 
+    200, 
+    980,
+    NULL,
+    NULL,
+    0,
+    TRUE,
+    'hotel_search',
+    'API', 
+    '192.168.1.101', 
+    'HeyTrip-Mobile/2.1',
+    'heytrip_mobile_app',
+    'user_67890',
+    'session_def456',
+    456,
+    1536
+),
+(
+    1, 
+    'trace-004-20250908-004',
+    '/booking/cancel', 
+    'POST', 
+    '{"Content-Type":"application/json","Authorization":"Bearer token789"}',
+    '{"supplierType":"AO_QTECH"}',
+    '{"bookingReference":"AO_BK_005","reason":"Customer request","cancelReason":"Change of plans"}', 
+    '{"Content-Type":"application/json","Server":"nginx/1.18.0"}',
+    '{"code":0,"message":"success","data":{"cancelled":true,"refundAmount":500.00,"currency":"MYR"}}', 
+    200, 
+    1800,
+    NULL,
+    NULL,
+    0,
+    TRUE,
+    'booking_cancel',
+    'API', 
+    '192.168.1.102', 
+    'HeyTrip-Client/1.0',
+    'heytrip_web_app',
+    'user_11111',
+    'session_ghi789',
+    384,
+    512
+),
+(
+    2, 
+    'trace-005-20250908-005',
+    '/api/v1/hotels', 
+    'GET', 
+    '{"Content-Type":"application/json","X-API-Key":"demo_key"}',
+    '{"city":"New York","checkin":"2025-04-01","checkout":"2025-04-03"}',
+    NULL, 
+    '{"Content-Type":"application/json","Server":"Apache/2.4.41"}',
+    '{"error":"Supplier not available","code":503}', 
+    503, 
+    5000,
+    'SUPPLIER_UNAVAILABLE',
+    'Supplier service is temporarily unavailable',
+    2,
+    FALSE,
+    'hotel_search',
+    'API', 
+    '10.0.0.50', 
+    'HeyTrip-Client/1.0',
+    'heytrip_web_app',
+    'user_22222',
+    'session_jkl012',
+    256,
+    128
+);
 
--- Hotel Maya Kuala Lumpur rooms
-(2, 'AO_KL_002_R001', 'Maya Room', 'Standard', 'King Bed', 2, 32, TRUE, TRUE, FALSE, 'WiFi,AC,TV,Minibar,Safe', TRUE),
-(2, 'AO_KL_002_R002', 'Maya Premier', 'Premier', 'King Bed', 2, 38, TRUE, TRUE, FALSE, 'WiFi,AC,TV,Minibar,Safe,Pool View', TRUE),
+-- =====================================================
+-- 插入供应商健康检查日志数据
+-- =====================================================
+INSERT INTO supplier_health_log (
+    supplier_id,
+    check_type,
+    health_status,
+    response_time_ms,
+    error_message,
+    check_details
+) VALUES
+(1, 'ping', 'UP', 150, NULL, '{"endpoint":"/health","method":"GET","timestamp":"2025-09-08T15:30:00Z"}'),
+(1, 'api_test', 'UP', 800, NULL, '{"test_endpoint":"/hotel/search","sample_request_success":true,"timestamp":"2025-09-08T15:30:30Z"}'),
+(2, 'ping', 'DOWN', NULL, 'Connection timeout', '{"endpoint":"/health","method":"GET","error":"timeout after 5000ms","timestamp":"2025-09-08T15:31:00Z"}'),
+(2, 'api_test', 'DOWN', NULL, 'Service unavailable', '{"test_endpoint":"/api/v1/status","error":"503 Service Unavailable","timestamp":"2025-09-08T15:31:30Z"}');
 
--- Eastern & Oriental Hotel rooms
-(3, 'AO_PG_001_R001', 'Heritage Room', 'Heritage', 'Queen Bed', 2, 30, TRUE, TRUE, FALSE, 'WiFi,AC,TV,Minibar,Safe,Heritage Decor', TRUE),
-(3, 'AO_PG_001_R002', 'Victory Suite', 'Suite', 'King Bed', 4, 55, TRUE, TRUE, FALSE, 'WiFi,AC,TV,Minibar,Safe,Living Area,Sea View', TRUE),
+-- =====================================================
+-- 创建额外的性能优化索引
+-- =====================================================
 
--- Renaissance Johor Bahru Hotel rooms
-(4, 'AO_JB_001_R001', 'Deluxe Room', 'Deluxe', 'King Bed', 2, 33, TRUE, TRUE, FALSE, 'WiFi,AC,TV,Minibar,Safe,Work Desk', TRUE),
-(4, 'AO_JB_001_R002', 'Club Level Room', 'Club', 'King Bed', 2, 36, TRUE, TRUE, FALSE, 'WiFi,AC,TV,Minibar,Safe,Club Lounge Access', TRUE),
+-- API调用日志表的额外索引
+CREATE INDEX idx_api_log_trace_id ON api_call_log(trace_id);
+CREATE INDEX idx_api_log_business_success ON api_call_log(business_type, is_success);
+CREATE INDEX idx_api_log_response_time_range ON api_call_log(response_time_ms) WHERE response_time_ms > 1000;
 
--- The Majestic Malacca rooms
-(5, 'AO_ML_001_R001', 'Heritage Deluxe', 'Heritage Deluxe', 'King Bed', 2, 34, TRUE, TRUE, FALSE, 'WiFi,AC,TV,Minibar,Safe,Heritage Decor', TRUE),
-(5, 'AO_ML_001_R002', 'Majestic Suite', 'Suite', 'King Bed', 4, 65, TRUE, TRUE, FALSE, 'WiFi,AC,TV,Minibar,Safe,Living Area,River View', TRUE);
+-- 供应商健康检查日志表的额外索引  
+CREATE INDEX idx_health_log_status_time ON supplier_health_log(status, created_at);
+CREATE INDEX idx_health_log_check_type_supplier ON supplier_health_log(check_type, supplier_id);
 
--- 插入示例预订记录
-INSERT INTO booking_record (booking_reference, supplier_booking_id, distributor_order_id, supplier_id, hotel_id, guest_name, guest_email, guest_phone, check_in_date, check_out_date, room_count, guest_count, total_amount, currency, booking_status, channel) VALUES
-('HT20240101001', 'AO_BK_001', 'HT1704067200001', 1, 1, 'John Smith', 'john.smith@email.com', '+60123456789', '2024-02-15', '2024-02-18', 1, 2, 450.00, 'MYR', 2, 'API'),
-('HT20240101002', 'AO_BK_002', 'HT1704067200002', 1, 2, 'Jane Doe', 'jane.doe@email.com', '+60198765432', '2024-02-20', '2024-02-22', 1, 1, 320.00, 'MYR', 2, 'API'),
-('HT20240101003', 'AO_BK_003', 'HT1704067200003', 1, 3, 'Bob Johnson', 'bob.johnson@email.com', '+60187654321', '2024-03-01', '2024-03-05', 2, 4, 800.00, 'MYR', 1, 'API'),
-('HT20240101004', 'AO_BK_004', 'HT1704067200004', 1, 4, 'Alice Brown', 'alice.brown@email.com', '+60176543210', '2024-03-10', '2024-03-12', 1, 2, 280.00, 'MYR', 2, 'API'),
-('HT20240101005', 'AO_BK_005', 'HT1704067200005', 1, 5, 'Charlie Wilson', 'charlie.wilson@email.com', '+60165432109', '2024-03-15', '2024-03-20', 1, 3, 650.00, 'MYR', 9, 'API');
-
--- 插入示例API调用日志
-INSERT INTO api_call_log (supplier_id, api_endpoint, http_method, request_data, response_data, response_status, response_time_ms, channel, client_ip, app_id) VALUES
-(1, '/hotel/search', 'POST', '{"city":"Kuala Lumpur","checkInDate":"2024-02-15","checkOutDate":"2024-02-18"}', '{"code":0,"hotels":[...]}', 200, 1250, 'API', '192.168.1.100', 'test_app_id'),
-(1, '/booking/create', 'POST', '{"hotelId":"AO_KL_001","roomId":"AO_KL_001_R001","guestName":"John Smith"}', '{"code":0,"bookingReference":"AO_BK_001"}', 200, 2100, 'API', '192.168.1.100', 'test_app_id'),
-(1, '/hotel/search', 'POST', '{"city":"Penang","checkInDate":"2024-03-01","checkOutDate":"2024-03-05"}', '{"code":0,"hotels":[...]}', 200, 980, 'API', '192.168.1.101', 'test_app_id'),
-(1, '/booking/cancel', 'POST', '{"bookingReference":"AO_BK_005","reason":"Customer request"}', '{"code":0,"cancelled":true}', 200, 1800, 'API', '192.168.1.102', 'test_app_id');
-
--- 创建索引优化查询性能
-CREATE INDEX idx_hotel_city_active ON hotel_info(city, is_active);
-CREATE INDEX idx_booking_dates ON booking_record(check_in_date, check_out_date);
-CREATE INDEX idx_api_log_supplier_endpoint ON api_call_log(supplier_id, api_endpoint);
-CREATE INDEX idx_booking_status_created ON booking_record(booking_status, created_at);
+-- =====================================================
+-- 插入初始化完成标记
+-- =====================================================
+INSERT INTO system_config (
+    config_key,
+    config_value,
+    config_type,
+    description,
+    is_encrypted,
+    is_active,
+    created_by,
+    updated_by
+) VALUES
+('system.init.completed', 'true', 'BOOLEAN', '系统初始化完成标记', FALSE, TRUE, 'system', 'system'),
+('system.init.version', '2.0', 'STRING', '系统初始化版本', FALSE, TRUE, 'system', 'system'),
+('system.init.timestamp', NOW(), 'STRING', '系统初始化时间戳', FALSE, TRUE, 'system', 'system');

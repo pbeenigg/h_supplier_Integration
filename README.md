@@ -726,38 +726,36 @@ app:
 ```java
 package com.heytrip.hotel.supplier.integration.supplier;
 
-import com.heytrip.hotel.supplier.dto.request.HotelSearchRequest;
 import com.heytrip.hotel.supplier.dto.request.BookingRequest;
-import com.heytrip.hotel.supplier.dto.response.HotelSearchResponse;
 import com.heytrip.hotel.supplier.dto.response.BookingResponse;
 
 public interface SupplierAdapter {
-    
+
     /**
      * 获取供应商名称
      */
     String getSupplierName();
-    
+
     /**
      * 搜索酒店
      */
     HotelSearchResponse searchHotels(HotelSearchRequest request);
-    
+
     /**
      * 创建预订
      */
     BookingResponse createBooking(BookingRequest request);
-    
+
     /**
      * 取消预订
      */
     BookingResponse cancelBooking(String bookingReference);
-    
+
     /**
      * 查询预订状态
      */
     BookingResponse getBookingStatus(String bookingReference);
-    
+
     /**
      * 检查供应商可用性
      */
@@ -772,9 +770,7 @@ package com.heytrip.hotel.supplier.integration.supplier.impl;
 
 import com.heytrip.hotel.supplier.integration.supplier.SupplierAdapter;
 import com.heytrip.hotel.supplier.integration.client.SupplierClient;
-import com.heytrip.hotel.supplier.dto.request.HotelSearchRequest;
 import com.heytrip.hotel.supplier.dto.request.BookingRequest;
-import com.heytrip.hotel.supplier.dto.response.HotelSearchResponse;
 import com.heytrip.hotel.supplier.dto.response.BookingResponse;
 import com.heytrip.hotel.supplier.entity.SupplierConfig;
 import com.heytrip.hotel.supplier.repository.SupplierConfigRepository;
@@ -785,132 +781,132 @@ import org.springframework.cache.annotation.Cacheable;
 
 @Component
 public class BookingComAdapter implements SupplierAdapter {
-    
+
     private static final String SUPPLIER_NAME = "booking.com";
-    
+
     @Autowired
     private SupplierClient supplierClient;
-    
+
     @Autowired
     private SupplierConfigRepository configRepository;
-    
+
     @Override
     public String getSupplierName() {
         return SUPPLIER_NAME;
     }
-    
+
     @Override
     @Cacheable(value = "hotelSearch", key = "#request.city + '_' + #request.checkInDate + '_' + #request.checkOutDate")
     public HotelSearchResponse searchHotels(HotelSearchRequest request) {
         try {
             SupplierConfig config = getSupplierConfig();
-            
+
             // 构建Booking.com特定的请求参数
             Map<String, Object> params = buildSearchParams(request);
-            
+
             // 调用供应商API
             String response = supplierClient.get(
-                config.getApiBaseUrl() + "/hotels/search", 
-                params, 
-                buildHeaders(config)
+                    config.getApiBaseUrl() + "/hotels/search",
+                    params,
+                    buildHeaders(config)
             );
-            
+
             // 转换响应数据为标准格式
             return transformSearchResponse(response);
-            
+
         } catch (Exception e) {
             throw new SupplierException("Booking.com酒店搜索失败: " + e.getMessage(), e);
         }
     }
-    
+
     @Override
     public BookingResponse createBooking(BookingRequest request) {
         try {
             SupplierConfig config = getSupplierConfig();
-            
+
             // 构建预订请求数据
             Map<String, Object> bookingData = buildBookingData(request);
-            
+
             // 调用预订API
             String response = supplierClient.post(
-                config.getApiBaseUrl() + "/bookings", 
-                bookingData, 
-                buildHeaders(config)
+                    config.getApiBaseUrl() + "/bookings",
+                    bookingData,
+                    buildHeaders(config)
             );
-            
+
             // 转换响应数据
             return transformBookingResponse(response);
-            
+
         } catch (Exception e) {
             throw new SupplierException("Booking.com预订创建失败: " + e.getMessage(), e);
         }
     }
-    
+
     @Override
     public BookingResponse cancelBooking(String bookingReference) {
         try {
             SupplierConfig config = getSupplierConfig();
-            
+
             String response = supplierClient.delete(
-                config.getApiBaseUrl() + "/bookings/" + bookingReference,
-                buildHeaders(config)
+                    config.getApiBaseUrl() + "/bookings/" + bookingReference,
+                    buildHeaders(config)
             );
-            
+
             return transformCancelResponse(response);
-            
+
         } catch (Exception e) {
             throw new SupplierException("Booking.com预订取消失败: " + e.getMessage(), e);
         }
     }
-    
+
     @Override
     public BookingResponse getBookingStatus(String bookingReference) {
         try {
             SupplierConfig config = getSupplierConfig();
-            
+
             String response = supplierClient.get(
-                config.getApiBaseUrl() + "/bookings/" + bookingReference,
-                null,
-                buildHeaders(config)
+                    config.getApiBaseUrl() + "/bookings/" + bookingReference,
+                    null,
+                    buildHeaders(config)
             );
-            
+
             return transformStatusResponse(response);
-            
+
         } catch (Exception e) {
             throw new SupplierException("Booking.com预订状态查询失败: " + e.getMessage(), e);
         }
     }
-    
+
     @Override
     public boolean isAvailable() {
         try {
             SupplierConfig config = getSupplierConfig();
-            
+
             String response = supplierClient.get(
-                config.getApiBaseUrl() + "/health",
-                null,
-                buildHeaders(config)
+                    config.getApiBaseUrl() + "/health",
+                    null,
+                    buildHeaders(config)
             );
-            
+
             return response != null && response.contains("\"status\":\"ok\"");
-            
+
         } catch (Exception e) {
             return false;
         }
     }
-    
+
     private SupplierConfig getSupplierConfig() {
         return configRepository.findBySupplierNameAndIsActive(SUPPLIER_NAME, true)
-            .orElseThrow(() -> new SupplierException("未找到" + SUPPLIER_NAME + "的配置信息"));
+                .orElseThrow(() -> new SupplierException("未找到" + SUPPLIER_NAME + "的配置信息"));
     }
-    
+
     private Map<String, String> buildHeaders(SupplierConfig config) {
         Map<String, String> headers = new HashMap<>();
         headers.put("Content-Type", "application/json");
         headers.put("Authorization", "Bearer " + decryptAuthToken(config.getAuthConfig()));
         return headers;
     }
-    
+
     private Map<String, Object> buildSearchParams(HotelSearchRequest request) {
         Map<String, Object> params = new HashMap<>();
         params.put("destination", request.getCity());
@@ -920,7 +916,7 @@ public class BookingComAdapter implements SupplierAdapter {
         params.put("rooms", request.getRoomCount());
         return params;
     }
-    
+
     private HotelSearchResponse transformSearchResponse(String response) {
         // 将Booking.com的响应格式转换为系统标准格式
         // 这里需要根据实际的API响应格式进行实现
@@ -928,11 +924,11 @@ public class BookingComAdapter implements SupplierAdapter {
         try {
             JsonNode jsonNode = mapper.readTree(response);
             HotelSearchResponse result = new HotelSearchResponse();
-            
+
             // 解析酒店列表
             JsonNode hotels = jsonNode.get("hotels");
             List<HotelInfo> hotelList = new ArrayList<>();
-            
+
             for (JsonNode hotel : hotels) {
                 HotelInfo hotelInfo = new HotelInfo();
                 hotelInfo.setSupplierHotelId(hotel.get("id").asText());
@@ -942,17 +938,17 @@ public class BookingComAdapter implements SupplierAdapter {
                 // ... 其他字段映射
                 hotelList.add(hotelInfo);
             }
-            
+
             result.setHotels(hotelList);
             result.setTotalCount(jsonNode.get("total_count").asInt());
-            
+
             return result;
-            
+
         } catch (Exception e) {
             throw new SupplierException("响应数据解析失败", e);
         }
     }
-    
+
     // 其他转换方法的实现...
 }
 ```
@@ -1555,7 +1551,6 @@ class HotelServiceImplTest {
 package com.heytrip.hotel.supplier.integration;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.heytrip.hotel.supplier.dto.request.HotelSearchRequest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureWebMvc;
@@ -1575,13 +1570,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("test")
 @Transactional
 class HotelSearchIntegrationTest {
-    
+
     @Autowired
     private MockMvc mockMvc;
-    
+
     @Autowired
     private ObjectMapper objectMapper;
-    
+
     @Test
     void testHotelSearchEndpoint() throws Exception {
         HotelSearchRequest request = new HotelSearchRequest();
@@ -1590,11 +1585,11 @@ class HotelSearchIntegrationTest {
         request.setCheckOutDate(LocalDate.now().plusDays(3));
         request.setRoomCount(1);
         request.setGuestCount(2);
-        
+
         mockMvc.perform(post("/hotels/search")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request))
-                .header("X-API-Key", "test-api-key"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request))
+                        .header("X-API-Key", "test-api-key"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.hotels").isArray());

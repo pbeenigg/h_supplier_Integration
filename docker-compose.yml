@@ -12,7 +12,11 @@ services:
       DB_USERNAME: pax
       DB_PASSWORD: pax_password
 
+
       # Application Configuration
+      APP_ID: heytrip_supplier_integration_pax
+      APP_SECRET: HeyTrip@Pax#SupplierIntegration!2025
+
       SERVER_NAME: heytrip-supplier-integration
       SERVER_PATH: /pax/api/xiwanSupplier/supp
       SERVER_PORT: 8080

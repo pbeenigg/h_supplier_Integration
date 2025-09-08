@@ -27,6 +27,7 @@ public class CacheConfig {
     private static final String rooms_cache = "rooms"; // 房型缓存
     private static final String ratePlans_cache = "ratePlans"; // 价格计划缓存
     private static final String supplierConfig_cache = "supplierConfig"; // 供应商配置缓存
+    private static final String systemConfig_cache = "systemConfig"; // 系统配置缓存
 
 
     
@@ -51,7 +52,9 @@ public class CacheConfig {
                         countries_cache,
                         hotel_cache,
                         rooms_cache,
-                        ratePlans_cache
+                        ratePlans_cache,
+                        supplierConfig_cache,
+                        systemConfig_cache
                 )
         );
         

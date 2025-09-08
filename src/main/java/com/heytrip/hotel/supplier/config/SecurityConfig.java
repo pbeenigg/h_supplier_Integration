@@ -44,10 +44,10 @@ public class SecurityConfig {
                 .requestMatchers("/version").permitAll()
                 
                 // Swagger文档接口
-                .requestMatchers("/swagger-ui/**", "/v1/api-docs/**").permitAll()
+                .requestMatchers("/swagger-ui/**", "/v1/api-docs").permitAll()
                 
                 // 所有API接口需要认证
-                .requestMatchers("/static/**", "/quota/**", "/orders/**", "/common/**").authenticated()
+                .requestMatchers("/static/**", "/pax/**", "/suppliers/**", "/common/**","/config/**").authenticated()
                 
                 // 其他请求拒绝访问
                 .anyRequest().denyAll()

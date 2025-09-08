@@ -35,10 +35,10 @@ public class SecurityFilter extends OncePerRequestFilter {
     
     private static final long MAX_TIME_SKEW_SECONDS = 300; // 5分钟时间偏差
     
-    @Value("${app.supplier.authorization.app-id:defaultAppId}")
+    @Value("${app.supplier.authorization.app-id:pax}")
     private String validAppId;
     
-    @Value("${app.supplier.authorization.secret-key:defaultSecretKey}")
+    @Value("${app.supplier.authorization.secret-key:pax123456}")
     private String secretKey;
     
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -50,7 +50,7 @@ public class SecurityFilter extends OncePerRequestFilter {
         String requestUri = request.getRequestURI();
         
         // 跳过不需要认证的接口
-        if (shouldSkipAuthentication(requestUri)) {
+        if (skipAuthentication(requestUri)) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -103,12 +103,13 @@ public class SecurityFilter extends OncePerRequestFilter {
     /**
      * 判断是否跳过认证
      */
-    private boolean shouldSkipAuthentication(String requestUri) {
-        return requestUri.contains("/actuator/") ||
-               requestUri.contains("/swagger-ui/") ||
-               requestUri.contains("/v3/api-docs/") ||
-               requestUri.endsWith("/version") ||
-               requestUri.endsWith("/suppliers/health");
+    private boolean skipAuthentication(String requestUri) {
+        return requestUri.startsWith("/actuator/") ||
+               requestUri.startsWith("/swagger-ui/") ||
+               requestUri.equals("/version") ||
+               requestUri.startsWith("/monitor/") ||
+               requestUri.equals("/v1/api-docs") ||
+               requestUri.startsWith("/v1/api-docs/");
     }
     
     /**

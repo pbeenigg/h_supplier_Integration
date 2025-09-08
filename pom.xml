@@ -25,6 +25,7 @@
         <springdoc.version>2.2.0</springdoc.version>
         <therapi.version>0.15.0</therapi.version>
         <lombok.version>1.18.30</lombok.version>
+        <supplier-data-standard-version>1.2.2-RELEASES</supplier-data-standard-version>
     </properties>
 
     <dependencyManagement>
@@ -42,11 +43,11 @@
     <dependencies>
 
 
-        <!-- HeyTrip 供应商对接标准 -->
+        <!-- HeyTrip 供应商对接标准接口 -->
         <dependency>
             <groupId>com.heytrip</groupId>
             <artifactId>supplier-data-standard</artifactId>
-            <version>1.2.2-RELEASES</version>
+            <version>${supplier-data-standard-version}</version>
         </dependency>
 
 

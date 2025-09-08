@@ -1,116 +1,104 @@
 package com.heytrip.hotel.supplier.controller;
 
-import com.heytrip.hotel.supplier.dto.response.HotelSearchResponse;
-import com.heytrip.hotel.supplier.service.HotelSearchService;
+import com.heytrip.common.apiservice.ISupplierApiService;
+import com.heytrip.common.request.XSupplierCheckRequest;
+import com.heytrip.common.request.XSupplierPriceRequest;
+import com.heytrip.common.response.base.XRoom;
+import com.heytrip.common.response.other.XOrderCheckResponse;
+import com.heytrip.common.result.Result;
+import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import reactor.core.publisher.Mono;
 
-import java.math.BigDecimal;
+import java.util.List;
+import java.util.Map;
 
 /**
+ * Quotation
  * 报价类控制器
- * 提供酒店搜索相关的API接口
- * 
- * @author  Pax
+ * 提供酒店报价、验单相关的API接口
+ *
+ * @author Pax
  */
 @RestController
 @Validated
-@RequestMapping("/quota")
+@RequestMapping("/pax/api/xiwanSupplier/supp")
 public class HotelQuotationController {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(HotelQuotationController.class);
-    
-    @Autowired
-    private HotelSearchService hotelSearchService;
-    
 
-    
+    @Resource
+    private ISupplierApiService supplierApiService;
 
-    
     /**
-     * 按价格范围过滤酒店搜索结果
-     * POST /pax/api/xiwanSupplier/supp/hotels/filter/price
+     * 获取报价（单酒店）
+     *
+     * @param xwPriceRequest 报价请求
+     * @return 酒店房型列表
      */
-    @PostMapping("/hotels/filter/price")
-    public Mono<ResponseEntity<HotelSearchResponse>> filterByPrice(
-            @RequestBody HotelSearchResponse searchResponse,
-            @RequestParam(required = false) BigDecimal minPrice,
-            @RequestParam(required = false) BigDecimal maxPrice) {
-        
-        logger.info("Filtering hotels by price range: {} - {}", minPrice, maxPrice);
-        
-        return Mono.fromCallable(() -> 
-                hotelSearchService.filterByPriceRange(searchResponse, minPrice, maxPrice))
-                .map(ResponseEntity::ok)
-                .onErrorResume(error -> {
-                    logger.error("Failed to filter hotels by price", error);
-                    return Mono.just(ResponseEntity.badRequest().build());
-                });
+    @GetMapping("/getPrice")
+    public Result<List<XRoom>> getPrice(@ModelAttribute XSupplierPriceRequest xwPriceRequest) {
+        xwPriceRequest.setHotelIds(xwPriceRequest.getHotelId());
+        return supplierApiService.getPrice(xwPriceRequest);
     }
-    
+
     /**
-     * 按星级过滤酒店搜索结果
-     * POST /pax/api/xiwanSupplier/supp/hotels/filter/stars
+     * 获取报价(多酒店)
+     *
+     * @param xwPriceRequest 报价请求
+     * @return 酒店ID到房型列表的映射
      */
-    @PostMapping("/hotels/filter/stars")
-    public Mono<ResponseEntity<HotelSearchResponse>> filterByStars(
-            @RequestBody HotelSearchResponse searchResponse,
-            @RequestParam(required = false) BigDecimal minStars,
-            @RequestParam(required = false) BigDecimal maxStars) {
-        
-        logger.info("Filtering hotels by star rating: {} - {}", minStars, maxStars);
-        
-        return Mono.fromCallable(() -> 
-                hotelSearchService.filterByStarRating(searchResponse, minStars, maxStars))
-                .map(ResponseEntity::ok)
-                .onErrorResume(error -> {
-                    logger.error("Failed to filter hotels by star rating", error);
-                    return Mono.just(ResponseEntity.badRequest().build());
-                });
+    @GetMapping("/getPrices")
+    public Result<Map<String, List<XRoom>>> getPrices(@ModelAttribute XSupplierPriceRequest xwPriceRequest) {
+        return supplierApiService.getPrices(xwPriceRequest);
     }
-    
+
     /**
-     * 按价格排序酒店搜索结果
-     * POST /pax/api/xiwanSupplier/supp/hotels/sort/price
+     * 验单
+     *
+     * @param xwCheckRequest 验单请求
+     * @return 验单响应
      */
-    @PostMapping("/hotels/sort/price")
-    public Mono<ResponseEntity<HotelSearchResponse>> sortByPrice(
-            @RequestBody HotelSearchResponse searchResponse,
-            @RequestParam(defaultValue = "true") boolean ascending) {
-        
-        logger.info("Sorting hotels by price, ascending: {}", ascending);
-        
-        return Mono.fromCallable(() -> 
-                hotelSearchService.sortByPrice(searchResponse, ascending))
-                .map(ResponseEntity::ok)
-                .onErrorResume(error -> {
-                    logger.error("Failed to sort hotels by price", error);
-                    return Mono.just(ResponseEntity.badRequest().build());
-                });
+    @GetMapping("/orderCheck")
+    public Result<XOrderCheckResponse> checkOrder(@ModelAttribute XSupplierCheckRequest xwCheckRequest) {
+        return supplierApiService.orderCheck(xwCheckRequest);
     }
-    
+
+
     /**
-     * 按星级排序酒店搜索结果
-     * POST /pax/api/xiwanSupplier/supp/hotels/sort/stars
+     * 获取报价(单酒店)原文
+     *
+     * @param xwPriceRequest 报价请求
+     * @return 原文响应
      */
-    @PostMapping("/hotels/sort/stars")
-    public Mono<ResponseEntity<HotelSearchResponse>> sortByStars(
-            @RequestBody HotelSearchResponse searchResponse,
-            @RequestParam(defaultValue = "false") boolean ascending) {
-        
-        logger.info("Sorting hotels by star rating, ascending: {}", ascending);
-        
-        return Mono.fromCallable(() -> 
-                hotelSearchService.sortByStarRating(searchResponse, ascending))
-                .map(ResponseEntity::ok)
-                .onErrorResume(error -> {
-                    logger.error("Failed to sort hotels by star rating", error);
-                    return Mono.just(ResponseEntity.badRequest().build());
-                });
+    @GetMapping("/getPriceOrg")
+    public Object getPriceOrig(@ModelAttribute XSupplierPriceRequest xwPriceRequest) {
+        xwPriceRequest.setHotelIds(xwPriceRequest.getHotelId());
+        return supplierApiService.getPriceOrig(xwPriceRequest);
+    }
+
+    /**
+     * 获取报价(多酒店)原文
+     *
+     * @param xwPriceRequest 报价请求
+     * @return 原文响应
+     */
+    @GetMapping("/getPricesOrg")
+    public Object getPricesOrig(@ModelAttribute XSupplierPriceRequest xwPriceRequest) {
+        return supplierApiService.getPricesOrg(xwPriceRequest);
+    }
+
+
+    /**
+     * 验单原文
+     *
+     * @param xwCheckRequest 验单请求
+     * @return 原文响应
+     */
+    @GetMapping("/checkOrderOrg")
+    public Object checkOrderOrg(@ModelAttribute XSupplierCheckRequest xwCheckRequest) {
+        return supplierApiService.orderCheckOrg(xwCheckRequest);
     }
 }

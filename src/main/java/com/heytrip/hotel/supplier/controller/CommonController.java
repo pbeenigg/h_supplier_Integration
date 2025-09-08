@@ -5,6 +5,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
+ * Common
  * 通用功能控制器
  *
  * @author  Pax
@@ -12,4 +13,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/common")
 public class CommonController {
+
+
 }

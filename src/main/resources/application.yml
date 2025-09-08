@@ -1,7 +1,7 @@
 server:
   port: ${SERVER_PORT:8080}
   servlet:
-    context-path: ${SERVER_PATH:/pax/api/xiwanSupplier/supp}
+    context-path: ${SERVER_PATH:/}
 
 spring:
   application:
@@ -73,6 +73,8 @@ springdoc:
 
 
 
+
+
 # 管理端点配置
 management:
   endpoints:
@@ -91,6 +93,9 @@ app:
       max-attempts: 3
       delay: 1000
       multiplier: 2
+  authorization:
+    app-id: ${APP_ID:heytrip_supplier_integration_pax}
+    secret-key: ${APP_SECRET:HeyTrip@Pax#SupplierIntegration!2025}
   encryption:
     key: ${ENCRYPTION_KEY:427ae41e4649b934ca495991b7852b855}
   api:

@@ -41,12 +41,7 @@ public interface ApiCallLogRepository extends JpaRepository<ApiCallLog, Long> {
      * 根据渠道查找调用日志
      */
     List<ApiCallLog> findByChannel(String channel);
-    
-    /**
-     * 根据渠道公司查找调用日志
-     */
-    List<ApiCallLog> findByChannelCompany(String channelCompany);
-    
+
     /**
      * 根据应用ID查找调用日志
      */
@@ -122,4 +117,34 @@ public interface ApiCallLogRepository extends JpaRepository<ApiCallLog, Long> {
      */
     @Query("SELECT AVG(acl.responseTimeMs) FROM ApiCallLog acl")
     Double findAverageResponseTime();
+    
+    /**
+     * 统计成功的API调用次数（基于isSuccess字段）
+     */
+    Long countByIsSuccessTrue();
+    
+    /**
+     * 统计失败的API调用次数（基于isSuccess字段）
+     */
+    Long countByIsSuccessFalse();
+    
+    /**
+     * 根据业务类型查找调用日志
+     */
+    List<ApiCallLog> findByBusinessType(String businessType);
+    
+    /**
+     * 根据跟踪ID查找调用日志
+     */
+    ApiCallLog findByTraceId(String traceId);
+    
+    /**
+     * 根据用户ID查找调用日志
+     */
+    List<ApiCallLog> findByUserId(String userId);
+    
+    /**
+     * 根据会话ID查找调用日志
+     */
+    List<ApiCallLog> findBySessionId(String sessionId);
 }

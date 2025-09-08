@@ -1,8 +1,16 @@
 package com.heytrip.hotel.supplier.controller;
 
+import com.heytrip.common.apiservice.ISupplierApiService;
+import com.heytrip.common.response.base.XHotel;
+import com.heytrip.common.response.other.XCityResponse;
+import com.heytrip.common.response.other.XCountryResponse;
+import com.heytrip.common.response.other.XHotelIncrement;
+import com.heytrip.common.response.other.XRoomIncrement;
+import com.heytrip.common.result.Result;
 import com.heytrip.hotel.supplier.adapter.SupplierAdapterManager;
 import com.heytrip.hotel.supplier.entity.SupplierConfig;
 import com.heytrip.hotel.supplier.repository.SupplierConfigRepository;
+import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,220 +23,160 @@ import java.util.List;
 import java.util.Map;
 
 /**
+ * StaticData
  * 静态数据控制器
- * 提供供应商配置、支持城市,酒店信息，国家国籍等静态数据API
- * 
- * @author  Pax
+ * 提供城市,酒店信息，房型，床型，语言，国家,国籍等静态数据API
+ *
+ * @author Pax
  */
 @RestController
 @Validated
-@RequestMapping("/static")
+@RequestMapping("/pax/api/xiwanSupplier/supp")
 public class StaticDataController {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(StaticDataController.class);
-    
-    @Autowired
-    private SupplierAdapterManager supplierAdapterManager;
-    
-    @Autowired
-    private SupplierConfigRepository supplierConfigRepository;
-    
+
+
+    @Resource
+    private ISupplierApiService supplierApiService;
+
     /**
-     * 获取所有启用的供应商列表
-     * GET /pax/api/xiwanSupplier/supp/suppliers
+     * 获取国家信息 (国际供应商要实现)
+     *
+     * @param supplierType 供应商类型
+     * @param language     语言
+     * @return 国家列表
      */
-    @GetMapping("/suppliers")
-    public ResponseEntity<Map<String, Object>> getEnabledSuppliers() {
-        logger.info("Getting enabled suppliers list");
-        
-        try {
-            List<String> suppliers = supplierAdapterManager.getEnabledSuppliers();
-            Map<String, Object> response = Map.of(
-                    "suppliers", suppliers,
-                    "count", suppliers.size(),
-                    "message", "Success"
-            );
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            logger.error("Failed to get enabled suppliers", e);
-            Map<String, Object> errorResponse = Map.of(
-                    "suppliers", List.of(),
-                    "count", 0,
-                    "message", "Failed to get suppliers: " + e.getMessage()
-            );
-            return ResponseEntity.internalServerError().body(errorResponse);
-        }
+    @GetMapping("/getCountries")
+    public Result<List<XCountryResponse>> getCountries(@RequestParam(value = "supplierType") String supplierType,
+                                                       @RequestParam(value = "language", required = false) String language
+    ) {
+        return supplierApiService.getCountries(supplierType, language);
     }
-    
+
     /**
-     * 获取供应商配置信息
-     * GET /pax/api/xiwanSupplier/supp/suppliers/{supplierName}/config
+     * 获取城市信息 (国际供应商要实现)
+     *
+     * @param supplierType 供应商类型
+     * @param countryId    国家ID
+     * @param language     语言
+     * @return 城市列表
      */
-    @GetMapping("/suppliers/{supplierName}/config")
-    public ResponseEntity<SupplierConfig> getSupplierConfig(@PathVariable String supplierName) {
-        logger.info("Getting config for supplier: {}", supplierName);
-        
-        try {
-            return supplierConfigRepository.findBySupplierNameAndIsActive(supplierName, true)
-                    .map(ResponseEntity::ok)
-                    .orElse(ResponseEntity.notFound().build());
-        } catch (Exception e) {
-            logger.error("Failed to get supplier config for: {}", supplierName, e);
-            return ResponseEntity.internalServerError().build();
-        }
+    @GetMapping("/getCities")
+    public Result<List<XCityResponse>> getCities(@RequestParam(value = "supplierType") String supplierType,
+                                                 @RequestParam(value = "countryId", required = false) String countryId,
+                                                 @RequestParam(value = "language", required = false) String language
+    ) {
+        return supplierApiService.getCities(supplierType, countryId, language);
     }
-    
+
+
     /**
-     * 检查供应商健康状态
-     * GET /pax/api/xiwanSupplier/supp/suppliers/{supplierName}/health
+     * 获取可售酒店编号 (获取到没有数据就代表最后一页)
+     *
+     * @param supplierType 供应商类型
+     * @param pageIndex    页码
+     * @param pageSize     每页数量
+     * @param ext          扩展参数
+     * @return 酒店ID列表
      */
-    @GetMapping("/suppliers/{supplierName}/health")
-    public Mono<ResponseEntity<Map<String, Object>>> checkSupplierHealth(@PathVariable String supplierName) {
-        logger.info("Checking health for supplier: {}", supplierName);
-        
-        return supplierAdapterManager.checkSupplierHealth(supplierName)
-                .map(healthy -> {
-                    Map<String, Object> response = Map.of(
-                            "supplierName", supplierName,
-                            "healthy", healthy,
-                            "status", healthy ? "UP" : "DOWN",
-                            "timestamp", System.currentTimeMillis()
-                    );
-                    return ResponseEntity.ok(response);
-                })
-                .onErrorResume(error -> {
-                    logger.error("Health check failed for supplier: {}", supplierName, error);
-                    Map<String, Object> errorResponse = Map.of(
-                            "supplierName", supplierName,
-                            "healthy", false,
-                            "status", "ERROR",
-                            "error", error.getMessage(),
-                            "timestamp", System.currentTimeMillis()
-                    );
-                    return Mono.just(ResponseEntity.internalServerError().body(errorResponse));
-                });
+    @GetMapping("/getBookableHotelIds")
+    public Result<List<String>> getBookableHotelIds(@RequestParam(value = "supplierType") String supplierType,
+                                                    @RequestParam("pageIndex") int pageIndex,
+                                                    @RequestParam("pageSize") int pageSize,
+                                                    @RequestParam(value = "ext", required = false) String ext
+    ) {
+        return supplierApiService.getBookableHotelIds(supplierType, pageIndex, pageSize, ext);
     }
-    
+
     /**
-     * 检查所有供应商健康状态
-     * GET /pax/api/xiwanSupplier/supp/suppliers/health
+     * 获取酒店信息
+     *
+     * @param supplierType 供应商类型
+     * @param hotelId      酒店ID
+     * @param language     语言
+     * @param ext          扩展参数
+     * @return 酒店信息
      */
-    @GetMapping("/suppliers/health")
-    public Mono<ResponseEntity<Map<String, Object>>> checkAllSuppliersHealth() {
-        logger.info("Checking health for all suppliers");
-        
-        return supplierAdapterManager.checkAllSuppliersHealth()
-                .map(healthStatuses -> {
-                    long healthyCount = healthStatuses.stream()
-                            .mapToLong(status -> status.isHealthy() ? 1 : 0)
-                            .sum();
-                    
-                    Map<String, Object> response = Map.of(
-                            "suppliers", healthStatuses,
-                            "totalCount", healthStatuses.size(),
-                            "healthyCount", healthyCount,
-                            "unhealthyCount", healthStatuses.size() - healthyCount,
-                            "timestamp", System.currentTimeMillis()
-                    );
-                    return ResponseEntity.ok(response);
-                })
-                .onErrorResume(error -> {
-                    logger.error("Health check failed for all suppliers", error);
-                    Map<String, Object> errorResponse = Map.of(
-                            "suppliers", List.of(),
-                            "totalCount", 0,
-                            "healthyCount", 0,
-                            "unhealthyCount", 0,
-                            "error", error.getMessage(),
-                            "timestamp", System.currentTimeMillis()
-                    );
-                    return Mono.just(ResponseEntity.internalServerError().body(errorResponse));
-                });
+    @GetMapping("/getHotel")
+    public Result<XHotel> getHotel(@RequestParam(value = "supplierType") String supplierType,
+                                   @RequestParam("hotelId") String hotelId,
+                                   @RequestParam(value = "language", required = false) String language,
+                                   @RequestParam(value = "ext", required = false) String ext
+    ) {
+        return supplierApiService.getHotel(supplierType, hotelId, language, ext);
     }
-    
+
     /**
-     * 获取支持的城市列表
-     * GET /pax/api/xiwanSupplier/supp/cities
+     * 获取基础房型信息
+     *
+     * @param supplierType 供应商类型
+     * @param hotelId      酒店ID
+     * @param language     语言
+     * @param ext          扩展参数
+     * @return       房型列表
+     *
      */
-    @GetMapping("/cities")
-    public ResponseEntity<Map<String, Object>> getSupportedCities() {
-        logger.info("Getting supported cities");
-        
-        try {
-            // 硬编码支持的城市列表，实际项目中应从配置或数据库获取
-            List<String> cities = List.of(
-                    "Kuala Lumpur", "Penang", "Johor Bahru", "Malacca", "Ipoh", 
-                    "Kota Kinabalu", "Kuching", "Langkawi", "Genting Highlands", "Cameron Highlands"
-            );
-            
-            Map<String, Object> response = Map.of(
-                    "cities", cities,
-                    "count", cities.size(),
-                    "country", "Malaysia",
-                    "message", "Success"
-            );
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            logger.error("Failed to get supported cities", e);
-            Map<String, Object> errorResponse = Map.of(
-                    "cities", List.of(),
-                    "count", 0,
-                    "message", "Failed to get cities: " + e.getMessage()
-            );
-            return ResponseEntity.internalServerError().body(errorResponse);
-        }
+    @GetMapping("/getRooms")
+    public Object getRooms(
+            @RequestParam(value = "supplierType") String supplierType,
+            @RequestParam("hotelId") String hotelId,
+            @RequestParam(value = "language", required = false) String language,
+            @RequestParam(value = "ext", required = false) String ext
+    ) {
+        return supplierApiService.getRooms(supplierType, hotelId, language, ext);
     }
-    
+
     /**
-     * 获取支持的货币列表
-     * GET /pax/api/xiwanSupplier/supp/currencies
+     * 获取供应商酒店房型基础信息(原文)
+     *
+     * @param supplierType 供应商类型
+     * @param hotelId      酒店ID
+     * @param language     语言
+     * @param ext          扩展参数
+     * @return             原文数据
      */
-    @GetMapping("/currencies")
-    public ResponseEntity<Map<String, Object>> getSupportedCurrencies() {
-        logger.info("Getting supported currencies");
-        
-        try {
-            List<Map<String, String>> currencies = List.of(
-                    Map.of("code", "MYR", "name", "Malaysian Ringgit", "symbol", "RM"),
-                    Map.of("code", "USD", "name", "US Dollar", "symbol", "$"),
-                    Map.of("code", "SGD", "name", "Singapore Dollar", "symbol", "S$"),
-                    Map.of("code", "CNY", "name", "Chinese Yuan", "symbol", "¥")
-            );
-            
-            Map<String, Object> response = Map.of(
-                    "currencies", currencies,
-                    "count", currencies.size(),
-                    "defaultCurrency", "MYR",
-                    "message", "Success"
-            );
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            logger.error("Failed to get supported currencies", e);
-            Map<String, Object> errorResponse = Map.of(
-                    "currencies", List.of(),
-                    "count", 0,
-                    "message", "Failed to get currencies: " + e.getMessage()
-            );
-            return ResponseEntity.internalServerError().body(errorResponse);
-        }
+    @GetMapping("/getHotelRoomOrigContent")
+    public Object getHotelRoomOrigContent(
+            @RequestParam(value = "supplierType") String supplierType,
+            @RequestParam("hotelId") String hotelId,
+            @RequestParam(value = "language", required = false) String language,
+            @RequestParam(value = "ext", required = false) String ext
+    ) {
+        return supplierApiService.getHotelRoomOrigContent(supplierType, hotelId, language, ext);
     }
-    
+
     /**
-     * 获取API版本信息
-     * GET /pax/api/xiwanSupplier/supp/version
+     * 获取酒店基础信息关键信息变化增量（例如名称，坐标，地址，电话，城市，国家）
+     *
+     * @param supplierType 供应商类型
+     * @param maxId        最大ID
+     * @param query        查询参数
+     * @return             酒店增量信息
      */
-    @GetMapping("/version")
-    public ResponseEntity<Map<String, Object>> getApiVersion() {
-        logger.info("Getting API version info");
-        
-        Map<String, Object> response = Map.of(
-                "apiVersion", "1.0.0",
-                "serviceName", "Hotel Supplier Integration Service",
-                "buildTime", "2024-01-01T00:00:00Z",
-                "environment", "development",
-                "supportedFormats", List.of("JSON"),
-                "documentation", "/swagger-ui.html"
-        );
-        return ResponseEntity.ok(response);
+    @GetMapping("/getHotelIncrement")
+    public Result<XHotelIncrement> getHotelIncrement(@RequestParam(value = "supplierType") String supplierType,
+                                                     @RequestParam("maxId") Long maxId,
+                                                     @RequestParam(value = "query", required = false) String query
+    ) {
+        return supplierApiService.getHotelIncrement(supplierType, maxId, query);
     }
+
+    /**
+     * 获取房型基础信息关键信息变化增量（例如名称，床型，入住人数，面积，窗型，景观）
+     *
+     * @param supplierType 供应商类型
+     * @param maxId        最大ID
+     * @param query        查询参数
+     * @return             房型增量信息
+     */
+    @GetMapping("/getRoomIncrement")
+    public Result<XRoomIncrement> getRoomIncrement(@RequestParam(value = "supplierType") String supplierType,
+                                                   @RequestParam("maxId") Long maxId,
+                                                   @RequestParam(value = "query", required = false) String query
+    ) {
+        return supplierApiService.getRoomIncrement(supplierType, maxId, query);
+    }
+
+
 }

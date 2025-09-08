@@ -221,15 +221,17 @@ public class HttpClientService {
                            String responseData, int statusCode, long responseTime, String errorMessage) {
         try {
             ApiCallLog log = new ApiCallLog();
-            log.setSupplierId(extractSupplierFromUrl(baseUrl));
+            log.setSupplierId(extractSupplierIdFromUrl(baseUrl));
             log.setApiEndpoint(endpoint);
             log.setHttpMethod(method);
-            log.setRequestData(truncateData(requestData, 4000));
-            log.setResponseData(truncateData(responseData, 4000));
+            log.setRequestBody(truncateData(requestData, 4000));
+            log.setResponseBody(truncateData(responseData, 4000));
             log.setResponseStatus(statusCode);
             log.setResponseTimeMs(responseTime);
             log.setErrorMessage(errorMessage);
-            log.setCreatedAt(LocalDateTime.now());
+            log.setIsSuccess(statusCode >= 200 && statusCode < 300);
+            log.setBusinessType("api_call");
+            log.setChannel("HTTP_CLIENT");
             
             // 异步保存日志，不影响主流程
             CompletableFuture.runAsync(() -> {
@@ -277,17 +279,20 @@ public class HttpClientService {
     }
     
     /**
-     * 从URL提取供应商名称
+     * 从URL提取供应商ID
      */
-    private String extractSupplierFromUrl(String baseUrl) {
+    private Long extractSupplierIdFromUrl(String baseUrl) {
         try {
             // 简单的URL解析，实际项目中可能需要更复杂的逻辑
-            if (baseUrl.contains("asianoverland")) {
-                return "AsianOverland";
+            if (baseUrl.contains("asianoverland") || baseUrl.contains("colosseum.otrams.com")) {
+                return 1L; // AsianOverland供应商ID
             }
-            return "Unknown";
+            if (baseUrl.contains("testsupplier")) {
+                return 2L; // TestSupplier供应商ID
+            }
+            return null; // 未知供应商
         } catch (Exception e) {
-            return "Unknown";
+            return null;
         }
     }
     

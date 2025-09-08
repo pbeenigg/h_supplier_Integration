@@ -1,23 +1,33 @@
 package com.heytrip.hotel.supplier.controller;
 
 import com.heytrip.hotel.supplier.adapter.SupplierAdapterManager;
-import com.heytrip.hotel.supplier.repository.BookingRecordRepository;
-import com.heytrip.hotel.supplier.repository.HotelRepository;
 import com.heytrip.hotel.supplier.repository.ApiCallLogRepository;
+import com.heytrip.hotel.supplier.repository.SupplierConfigRepository;
+import com.heytrip.hotel.supplier.repository.SupplierHealthLogRepository;
+import com.heytrip.hotel.supplier.repository.SystemConfigRepository;
+import com.heytrip.hotel.supplier.entity.ApiCallLog;
+import com.heytrip.hotel.supplier.entity.SupplierConfig;
+import com.heytrip.hotel.supplier.entity.SupplierHealthLog;
+import com.heytrip.hotel.supplier.entity.SystemConfig;
+import com.heytrip.hotel.supplier.service.SystemConfigService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
+ * Monitoring
  * 监控控制器
  * 提供系统监控、健康检查和统计信息API
  * 
@@ -33,13 +43,19 @@ public class MonitoringController implements HealthIndicator {
     private SupplierAdapterManager supplierAdapterManager;
     
     @Autowired
-    private BookingRecordRepository bookingRecordRepository;
-    
-    @Autowired
-    private HotelRepository hotelRepository;
+    private SupplierConfigRepository supplierConfigRepository;
     
     @Autowired
     private ApiCallLogRepository apiCallLogRepository;
+    
+    @Autowired
+    private SupplierHealthLogRepository supplierHealthLogRepository;
+    
+    @Autowired
+    private SystemConfigRepository systemConfigRepository;
+    
+    @Autowired
+    private SystemConfigService systemConfigService;
     
     /**
      * 系统健康检查
@@ -57,14 +73,33 @@ public class MonitoringController implements HealthIndicator {
         
         try {
             // 检查数据库连接
-            long hotelCount = hotelRepository.count();
+            long apiCallCount = apiCallLogRepository.count();
+            long supplierCount = supplierConfigRepository.countActiveSuppliers();
+            long healthLogCount = supplierHealthLogRepository.count();
+            
             health.put("database", Map.of(
                     "status", "UP",
-                    "hotelCount", hotelCount
+                    "apiCallCount", apiCallCount,
+                    "supplierCount", supplierCount,
+                    "healthLogCount", healthLogCount
             ));
             
             // 检查供应商状态
-            health.put("suppliers", supplierAdapterManager.getEnabledSuppliers());
+            List<String> enabledSuppliers = supplierAdapterManager.getEnabledSuppliers();
+            List<SupplierHealthLog> latestHealthStatus = supplierHealthLogRepository.findLatestHealthStatusForAllSuppliers();
+            
+            health.put("suppliers", Map.of(
+                    "enabled", enabledSuppliers,
+                    "count", enabledSuppliers.size(),
+                    "healthChecks", latestHealthStatus.size()
+            ));
+            
+            // 检查系统配置
+            long activeConfigs = systemConfigRepository.countActiveConfigs();
+            health.put("systemConfig", Map.of(
+                    "activeConfigs", activeConfigs,
+                    "status", "UP"
+            ));
             
         } catch (Exception e) {
             logger.error("Health check failed", e);
@@ -86,40 +121,36 @@ public class MonitoringController implements HealthIndicator {
         
         try {
             Map<String, Object> stats = new HashMap<>();
-            
-            // 酒店统计
-            long totalHotels = hotelRepository.count();
-            long activeHotels = hotelRepository.countByIsActive(true);
-            stats.put("hotels", Map.of(
-                    "total", totalHotels,
-                    "active", activeHotels,
-                    "inactive", totalHotels - activeHotels
-            ));
-            
-            // 预订统计
-            long totalBookings = bookingRecordRepository.count();
-            long confirmedBookings = bookingRecordRepository.countByBookingStatus(2);
-            long cancelledBookings = bookingRecordRepository.countByBookingStatus(9);
-            stats.put("bookings", Map.of(
-                    "total", totalBookings,
-                    "confirmed", confirmedBookings,
-                    "cancelled", cancelledBookings,
-                    "pending", totalBookings - confirmedBookings - cancelledBookings
-            ));
-            
+
             // API调用统计
             long totalApiCalls = apiCallLogRepository.count();
-            long successfulCalls = apiCallLogRepository.countByResponseStatus(200);
+            long successfulCalls = apiCallLogRepository.countByIsSuccessTrue();
             stats.put("apiCalls", Map.of(
                     "total", totalApiCalls,
                     "successful", successfulCalls,
-                    "failed", totalApiCalls - successfulCalls
+                    "failed", totalApiCalls - successfulCalls,
+                    "successRate", totalApiCalls > 0 ? (double) successfulCalls / totalApiCalls * 100 : 0.0
             ));
             
             // 供应商统计
+            long totalSuppliers = supplierConfigRepository.countAllSuppliers();
+            long activeSuppliers = supplierConfigRepository.countActiveSuppliers();
             stats.put("suppliers", Map.of(
+                    "total", totalSuppliers,
+                    "active", activeSuppliers,
+                    "inactive", totalSuppliers - activeSuppliers,
                     "enabled", supplierAdapterManager.getEnabledSuppliers().size(),
                     "list", supplierAdapterManager.getEnabledSuppliers()
+            ));
+            
+            // 系统配置统计
+            long totalConfigs = systemConfigRepository.countAllConfigs();
+            long activeConfigs = systemConfigRepository.countActiveConfigs();
+            long encryptedConfigs = systemConfigRepository.countEncryptedConfigs();
+            stats.put("systemConfig", Map.of(
+                    "total", totalConfigs,
+                    "active", activeConfigs,
+                    "encrypted", encryptedConfigs
             ));
             
             stats.put("timestamp", LocalDateTime.now());
@@ -239,7 +270,7 @@ public class MonitoringController implements HealthIndicator {
         
         try {
             // 检查数据库连接
-            hotelRepository.count();
+            apiCallLogRepository.count();
             
             // 检查至少有一个供应商可用
             boolean hasEnabledSuppliers = !supplierAdapterManager.getEnabledSuppliers().isEmpty();
@@ -272,13 +303,228 @@ public class MonitoringController implements HealthIndicator {
     }
     
     /**
-     * Spring Boot Actuator Health Indicator implementation
+     * 获取供应商健康状态监控信息
+     */
+    @GetMapping("/supplier-health")
+    public ResponseEntity<Map<String, Object>> getSupplierHealthStatus() {
+        try {
+            Map<String, Object> healthStatus = new HashMap<>();
+            
+            // 获取所有供应商配置
+            List<SupplierConfig> suppliers = supplierConfigRepository.findAll();
+            List<Map<String, Object>> supplierHealthList = new ArrayList<>();
+            
+            for (SupplierConfig supplier : suppliers) {
+                Map<String, Object> supplierHealth = new HashMap<>();
+                supplierHealth.put("supplierId", supplier.getId());
+                supplierHealth.put("supplierName", supplier.getSupplierName());
+                supplierHealth.put("supplierCode", supplier.getSupplierCode());
+                supplierHealth.put("enabled", supplier.getIsActive());
+                
+                // 获取最近的健康检查日志
+                List<SupplierHealthLog> recentHealthLogs = supplierHealthLogRepository
+                    .findRecentLogsBySupplierId(supplier.getId(), PageRequest.of(0, 1));
+                
+                if (!recentHealthLogs.isEmpty()) {
+                    SupplierHealthLog latestLog = recentHealthLogs.get(0);
+                    supplierHealth.put("lastCheckTime", latestLog.getCreatedAt());
+                    supplierHealth.put("healthStatus", latestLog.getHealthStatus());
+                    supplierHealth.put("responseTime", latestLog.getResponseTimeMs());
+                    supplierHealth.put("errorMessage", latestLog.getErrorMessage());
+                } else {
+                    supplierHealth.put("lastCheckTime", null);
+                    supplierHealth.put("healthStatus", "UNKNOWN");
+                    supplierHealth.put("responseTime", null);
+                    supplierHealth.put("errorMessage", "No health check data available");
+                }
+                
+                // 获取最近24小时的API调用统计
+                LocalDateTime yesterday = LocalDateTime.now().minusDays(1);
+                LocalDateTime now = LocalDateTime.now();
+                
+                Long totalCalls = apiCallLogRepository.countCallsBySupplierId(supplier.getId());
+                Long successCalls = apiCallLogRepository.countSuccessfulCallsBetween(yesterday, now);
+                Long failedCalls = apiCallLogRepository.countFailedCallsBetween(yesterday, now);
+                Double avgResponseTime = apiCallLogRepository.calculateAverageResponseTime(yesterday, now);
+                
+                supplierHealth.put("totalCalls", totalCalls != null ? totalCalls : 0);
+                supplierHealth.put("successCalls24h", successCalls != null ? successCalls : 0);
+                supplierHealth.put("failedCalls24h", failedCalls != null ? failedCalls : 0);
+                supplierHealth.put("avgResponseTime24h", avgResponseTime != null ? avgResponseTime : 0.0);
+                
+                // 计算成功率
+                if (totalCalls != null && totalCalls > 0) {
+                    double successRate = (successCalls != null ? successCalls : 0) * 100.0 / totalCalls;
+                    supplierHealth.put("successRate", Math.round(successRate * 100.0) / 100.0);
+                } else {
+                    supplierHealth.put("successRate", 0.0);
+                }
+                
+                supplierHealthList.add(supplierHealth);
+            }
+            
+            healthStatus.put("suppliers", supplierHealthList);
+            healthStatus.put("totalSuppliers", suppliers.size());
+            healthStatus.put("enabledSuppliers", suppliers.stream().mapToLong(s -> s.getIsActive() ? 1 : 0).sum());
+            healthStatus.put("timestamp", LocalDateTime.now());
+            
+            return ResponseEntity.ok(healthStatus);
+            
+        } catch (Exception e) {
+            logger.error("Failed to get supplier health status", e);
+            Map<String, Object> errorResponse = Map.of(
+                    "error", "Failed to retrieve supplier health status",
+                    "message", e.getMessage(),
+                    "timestamp", LocalDateTime.now()
+            );
+            return ResponseEntity.status(500).body(errorResponse);
+        }
+    }
+    
+    /**
+     * 获取指定供应商的详细健康状态
+     */
+    @GetMapping("/supplier-health/{supplierId}")
+    public ResponseEntity<Map<String, Object>> getSupplierHealthDetail(@PathVariable Long supplierId) {
+        try {
+            Optional<SupplierConfig> supplierOpt = supplierConfigRepository.findById(supplierId);
+            if (supplierOpt.isEmpty()) {
+                Map<String, Object> errorResponse = Map.of(
+                        "error", "Supplier not found",
+                        "supplierId", supplierId,
+                        "timestamp", LocalDateTime.now()
+                );
+                return ResponseEntity.status(404).body(errorResponse);
+            }
+            
+            SupplierConfig supplier = supplierOpt.get();
+            Map<String, Object> healthDetail = new HashMap<>();
+            
+            // 基本信息
+            healthDetail.put("supplierId", supplier.getId());
+            healthDetail.put("supplierName", supplier.getSupplierName());
+            healthDetail.put("supplierCode", supplier.getSupplierCode());
+            healthDetail.put("enabled", supplier.getIsActive());
+            healthDetail.put("baseUrl", supplier.getApiBaseUrl());
+            healthDetail.put("maxConcurrentRequests", supplier.getMaxConcurrentRequests());
+            healthDetail.put("rateLimitPerSecond", supplier.getRateLimitPerSecond());
+            
+            // 最近的健康检查日志（最近10条）
+            List<SupplierHealthLog> recentHealthLogs = supplierHealthLogRepository
+                .findRecentLogsBySupplierId(supplierId, PageRequest.of(0, 10));
+            healthDetail.put("recentHealthLogs", recentHealthLogs);
+            
+            // 最近的API调用日志（最近20条）
+            List<ApiCallLog> recentApiCalls = apiCallLogRepository
+                .findRecentCallsBySupplierId(supplierId).stream()
+                .limit(20)
+                .collect(Collectors.toList());
+            healthDetail.put("recentApiCalls", recentApiCalls);
+            
+            // 统计信息
+            LocalDateTime yesterday = LocalDateTime.now().minusDays(1);
+            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime lastWeek = LocalDateTime.now().minusDays(7);
+            
+            Map<String, Object> statistics = new HashMap<>();
+            statistics.put("totalCalls", apiCallLogRepository.countCallsBySupplierId(supplierId));
+            statistics.put("successCalls24h", apiCallLogRepository.countSuccessfulCallsBetween(yesterday, now));
+            statistics.put("failedCalls24h", apiCallLogRepository.countFailedCallsBetween(yesterday, now));
+            statistics.put("avgResponseTime24h", apiCallLogRepository.calculateAverageResponseTime(yesterday, now));
+            statistics.put("successCalls7d", apiCallLogRepository.countSuccessfulCallsBetween(lastWeek, now));
+            statistics.put("failedCalls7d", apiCallLogRepository.countFailedCallsBetween(lastWeek, now));
+            statistics.put("avgResponseTime7d", apiCallLogRepository.calculateAverageResponseTime(lastWeek, now));
+            
+            healthDetail.put("statistics", statistics);
+            healthDetail.put("timestamp", LocalDateTime.now());
+            
+            return ResponseEntity.ok(healthDetail);
+            
+        } catch (Exception e) {
+            logger.error("Failed to get supplier health detail for supplier: " + supplierId, e);
+            Map<String, Object> errorResponse = Map.of(
+                    "error", "Failed to retrieve supplier health detail",
+                    "supplierId", supplierId,
+                    "message", e.getMessage(),
+                    "timestamp", LocalDateTime.now()
+            );
+            return ResponseEntity.status(500).body(errorResponse);
+        }
+    }
+    
+    /**
+     * 获取供应商健康检查历史记录
+     */
+    @GetMapping("/supplier-health/{supplierId}/history")
+    public ResponseEntity<Map<String, Object>> getSupplierHealthHistory(
+            @PathVariable Long supplierId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String checkType) {
+        try {
+            Pageable pageable = PageRequest.of(page, size);
+            Page<SupplierHealthLog> healthLogs;
+            
+            if (status != null && checkType != null) {
+                SupplierHealthLog.HealthStatus healthStatus = SupplierHealthLog.HealthStatus.valueOf(status.toUpperCase());
+                SupplierHealthLog.CheckType checkTypeEnum = SupplierHealthLog.CheckType.valueOf(checkType.toUpperCase());
+                healthLogs = supplierHealthLogRepository.findBySupplierIdAndHealthStatusAndCheckType(
+                    supplierId, healthStatus, checkTypeEnum, pageable);
+            } else if (status != null) {
+                SupplierHealthLog.HealthStatus healthStatus = SupplierHealthLog.HealthStatus.valueOf(status.toUpperCase());
+                healthLogs = supplierHealthLogRepository.findBySupplierIdAndHealthStatus(
+                    supplierId, healthStatus, pageable);
+            } else if (checkType != null) {
+                SupplierHealthLog.CheckType checkTypeEnum = SupplierHealthLog.CheckType.valueOf(checkType.toUpperCase());
+                healthLogs = supplierHealthLogRepository.findBySupplierIdAndCheckType(
+                    supplierId, checkTypeEnum, pageable);
+            } else {
+                healthLogs = supplierHealthLogRepository.findBySupplierId(supplierId, pageable);
+            }
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("content", healthLogs.getContent());
+            response.put("totalElements", healthLogs.getTotalElements());
+            response.put("totalPages", healthLogs.getTotalPages());
+            response.put("currentPage", healthLogs.getNumber());
+            response.put("size", healthLogs.getSize());
+            response.put("timestamp", LocalDateTime.now());
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (IllegalArgumentException e) {
+            Map<String, Object> errorResponse = Map.of(
+                    "error", "Invalid parameter value",
+                    "message", e.getMessage(),
+                    "timestamp", LocalDateTime.now()
+            );
+            return ResponseEntity.status(400).body(errorResponse);
+        } catch (Exception e) {
+            logger.error("Failed to get supplier health history for supplier: " + supplierId, e);
+            Map<String, Object> errorResponse = Map.of(
+                    "error", "Failed to retrieve supplier health history",
+                    "supplierId", supplierId,
+                    "message", e.getMessage(),
+                    "timestamp", LocalDateTime.now()
+            );
+            return ResponseEntity.status(500).body(errorResponse);
+        }
+    }
+    
+
+
+
+    /**
+     * Spring Boot Actuator 健康指标实现
+     *
+     * @return Health 指标
      */
     @Override
     public Health health() {
         try {
             // 检查数据库
-            hotelRepository.count();
+            apiCallLogRepository.count();
             
             // 检查供应商
             boolean hasEnabledSuppliers = !supplierAdapterManager.getEnabledSuppliers().isEmpty();
@@ -301,4 +547,6 @@ public class MonitoringController implements HealthIndicator {
                     .build();
         }
     }
+    
+
 }

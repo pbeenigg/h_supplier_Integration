@@ -1,9 +1,5 @@
 package com.heytrip.hotel.supplier.adapter;
 
-import com.heytrip.hotel.supplier.dto.request.HotelSearchRequest;
-import com.heytrip.hotel.supplier.dto.request.CreateOrderRequest;
-import com.heytrip.hotel.supplier.dto.response.HotelSearchResponse;
-import com.heytrip.hotel.supplier.dto.response.CreateOrderResponse;
 import reactor.core.publisher.Mono;
 
 /**
@@ -26,35 +22,7 @@ public interface SupplierAdapter {
      * @return 是否支持
      */
     boolean supportsCity(String city);
-    
-    /**
-     * 酒店搜索
-     * @param request 搜索请求
-     * @return 搜索结果
-     */
-    Mono<HotelSearchResponse> searchHotels(HotelSearchRequest request);
-    
-    /**
-     * 创建订单
-     * @param request 订单请求
-     * @return 订单响应
-     */
-    Mono<CreateOrderResponse> createOrder(CreateOrderRequest request);
-    
-    /**
-     * 取消订单
-     * @param bookingReference 订单号
-     * @param reason 取消原因
-     * @return 取消结果
-     */
-    Mono<Boolean> cancelOrder(String bookingReference, String reason);
-    
-    /**
-     * 查询订单状态
-     * @param bookingReference 订单号
-     * @return 订单状态
-     */
-    Mono<Integer> getOrderStatus(String bookingReference);
+
     
     /**
      * 健康检查
