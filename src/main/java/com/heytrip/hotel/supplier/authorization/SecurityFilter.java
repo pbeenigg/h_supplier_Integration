@@ -1,6 +1,9 @@
 package com.heytrip.hotel.supplier.authorization;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.heytrip.hotel.supplier.config.Config;
+import com.heytrip.hotel.supplier.utils.SignUtil;
+import jakarta.annotation.Resource;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -35,11 +38,8 @@ public class SecurityFilter extends OncePerRequestFilter {
 
     private static final long MAX_TIME_SKEW_SECONDS = 300; // 5分钟时间偏差
 
-    @Value("${app.supplier.authorization.app-id:pax}")
-    private String validAppId;
-
-    @Value("${app.supplier.authorization.secret-key:pax123456}")
-    private String secretKey;
+    @Resource
+    private Config CONFIG;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -58,7 +58,7 @@ public class SecurityFilter extends OncePerRequestFilter {
         try {
             // 验证认证头部
             if (!validateAuthHeaders(request)) {
-                sendAuthenticationError(response, "Missing or invalid authentication headers");
+                returnAuthenticationError(response, "缺失或无效的认证头");
                 return;
             }
 
@@ -68,19 +68,19 @@ public class SecurityFilter extends OncePerRequestFilter {
 
             // 验证时间戳
             if (!validateTimestamp(timestamp)) {
-                sendAuthenticationError(response, "Invalid or expired timestamp");
+                returnAuthenticationError(response, "无效或已经过期");
                 return;
             }
 
             // 验证AppId
             if (!validateAppId(appId)) {
-                sendAuthenticationError(response, "Invalid app ID");
+                returnAuthenticationError(response, "无效的APP ID");
                 return;
             }
 
             // 验证签名
             if (!validateSignature(appId, timestamp, signature)) {
-                sendAuthenticationError(response, "Invalid signature");
+                returnAuthenticationError(response, "无效签名");
                 return;
             }
 
@@ -89,11 +89,11 @@ public class SecurityFilter extends OncePerRequestFilter {
                     new UsernamePasswordAuthenticationToken(appId, null, new ArrayList<>());
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
-            logger.debug("Authentication successful for app ID: {}", appId);
+            logger.debug("认证成功，APP ID: {}", appId);
 
         } catch (Exception e) {
             logger.error("Authentication error", e);
-            sendAuthenticationError(response, "Authentication failed: " + e.getMessage());
+            returnAuthenticationError(response, "认证失败: " + e.getMessage());
             return;
         }
 
@@ -138,7 +138,7 @@ public class SecurityFilter extends OncePerRequestFilter {
 
             return timeDiff <= MAX_TIME_SKEW_SECONDS;
         } catch (NumberFormatException e) {
-            logger.warn("Invalid timestamp format: {}", timestampStr);
+            logger.warn("无效的时间戳格式: {}", timestampStr);
             return false;
         }
     }
@@ -147,7 +147,7 @@ public class SecurityFilter extends OncePerRequestFilter {
      * 验证AppId
      */
     private boolean validateAppId(String appId) {
-        return validAppId.equals(appId);
+        return CONFIG.getAuthorization().getAppId().equals(appId);
     }
 
     /**
@@ -155,38 +155,20 @@ public class SecurityFilter extends OncePerRequestFilter {
      */
     private boolean validateSignature(String appId, String timestamp, String signature) {
         try {
-            String expectedSignature = generateSignature(appId, timestamp, secretKey);
+            String expectedSignature = SignUtil.generateSignature(appId, timestamp, CONFIG.getAuthorization().getSecretKey());
             return expectedSignature.equalsIgnoreCase(signature);
         } catch (Exception e) {
-            logger.error("Error validating signature", e);
+            logger.error("验证签名时出错", e);
             return false;
         }
     }
 
-    /**
-     * 生成MD5签名
-     */
-    private String generateSignature(String appId, String timestamp, String secretKey) {
-        try {
-            String data = appId + timestamp + secretKey;
-            MessageDigest md = MessageDigest.getInstance("MD5");
-            byte[] hashBytes = md.digest(data.getBytes());
 
-            StringBuilder sb = new StringBuilder();
-            for (byte b : hashBytes) {
-                sb.append(String.format("%02x", b));
-            }
-            return sb.toString();
-        } catch (Exception e) {
-            logger.error("Error generating signature", e);
-            throw new RuntimeException("Failed to generate signature", e);
-        }
-    }
 
     /**
      * 发送认证错误响应
      */
-    private void sendAuthenticationError(HttpServletResponse response, String message) throws IOException {
+    private void returnAuthenticationError(HttpServletResponse response, String message) throws IOException {
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");

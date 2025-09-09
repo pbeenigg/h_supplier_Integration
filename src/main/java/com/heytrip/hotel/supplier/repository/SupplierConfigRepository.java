@@ -59,11 +59,7 @@ public interface SupplierConfigRepository extends JpaRepository<SupplierConfig, 
      */
     List<SupplierConfig> findByAuthTypeAndIsActive(String authType, Boolean isActive);
     
-    /**
-     * 根据优先级范围查找供应商配置
-     */
-    List<SupplierConfig> findByPriorityBetweenAndIsActiveTrueOrderByPriority(Integer minPriority, Integer maxPriority);
-    
+
     /**
      * 查询超时时间大于指定值的供应商配置
      */

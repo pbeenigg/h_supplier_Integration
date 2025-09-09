@@ -1,6 +1,8 @@
 package com.heytrip.hotel.supplier.controller;
 
+import cn.hutool.core.util.StrUtil;
 import com.heytrip.hotel.supplier.adapter.SupplierAdapterManager;
+import com.heytrip.hotel.supplier.config.Config;
 import com.heytrip.hotel.supplier.repository.ApiCallLogRepository;
 import com.heytrip.hotel.supplier.repository.SupplierConfigRepository;
 import com.heytrip.hotel.supplier.repository.SupplierHealthLogRepository;
@@ -10,9 +12,12 @@ import com.heytrip.hotel.supplier.entity.SupplierConfig;
 import com.heytrip.hotel.supplier.entity.SupplierHealthLog;
 import com.heytrip.hotel.supplier.entity.SystemConfig;
 import com.heytrip.hotel.supplier.service.SystemConfigService;
+import com.heytrip.hotel.supplier.utils.SignUtil;
+import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
 import org.springframework.data.domain.Page;
@@ -22,6 +27,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
+import java.security.MessageDigest;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -56,10 +62,12 @@ public class MonitoringController implements HealthIndicator {
     
     @Autowired
     private SystemConfigService systemConfigService;
+
+    @Resource
+    private Config config;
     
     /**
      * 系统健康检查
-     * GET /pax/api/xiwanSupplier/supp/health
      */
     @GetMapping("/health")
     public ResponseEntity<Map<String, Object>> healthCheck() {
@@ -113,7 +121,6 @@ public class MonitoringController implements HealthIndicator {
     
     /**
      * 获取系统统计信息
-     * GET /pax/api/xiwanSupplier/supp/stats
      */
     @GetMapping("/stats")
     public ResponseEntity<Map<String, Object>> getSystemStats() {
@@ -169,7 +176,6 @@ public class MonitoringController implements HealthIndicator {
     
     /**
      * 获取供应商性能指标
-     * GET /pax/api/xiwanSupplier/supp/metrics/suppliers
      */
     @GetMapping("/metrics/suppliers")
     public Mono<ResponseEntity<Map<String, Object>>> getSupplierMetrics() {
@@ -222,7 +228,6 @@ public class MonitoringController implements HealthIndicator {
     
     /**
      * 获取系统性能指标
-     * GET /pax/api/xiwanSupplier/supp/metrics/performance
      */
     @GetMapping("/metrics/performance")
     public ResponseEntity<Map<String, Object>> getPerformanceMetrics() {
@@ -262,7 +267,6 @@ public class MonitoringController implements HealthIndicator {
     
     /**
      * 系统就绪检查
-     * GET /pax/api/xiwanSupplier/supp/ready
      */
     @GetMapping("/ready")
     public ResponseEntity<Map<String, Object>> readinessCheck() {
@@ -548,5 +552,185 @@ public class MonitoringController implements HealthIndicator {
         }
     }
     
+    // ==================== 开发环境工具方法 ====================
+    
+    /**
+     * 生成API认证头部信息（仅用于开发环境）
+     *
+     *
+     * @param customTimestamp 可选的自定义时间戳，如果不提供则使用当前时间
+     * @return 包含认证头部信息的响应
+     */
+    @GetMapping("/gen-auth")
+    public ResponseEntity<Map<String, Object>> generateAuthHeaders(@RequestParam(required = false) String customTimestamp) {
+        try {
+            // 使用当前时间戳或自定义时间戳
+            String timestamp = StrUtil.isNotBlank(customTimestamp) ?
+                    customTimestamp.trim() : String.valueOf(System.currentTimeMillis() / 1000);
+
+            String appId = config.getAuthorization().getAppId();
+            String secretKey = config.getAuthorization().getSecretKey();
+
+            // 生成MD5签名
+            String signature =  SignUtil.generateSignature(appId, timestamp, secretKey);
+            
+            // 构建响应数据
+            Map<String, Object> response = new HashMap<>();
+            
+            // 认证头部信息
+            Map<String, String> headers = new HashMap<>();
+            headers.put("X-App-Id", appId);
+            headers.put("X-Timestamp", timestamp);
+            headers.put("X-Signature", signature);
+            
+            response.put("headers", headers);
+            response.put("appId", appId);
+            response.put("timestamp", timestamp);
+            response.put("signature", signature);
+            response.put("signatureAlgorithm", "MD5(appId + timestamp + secretKey)");
+            response.put("generatedAt", LocalDateTime.now());
+            
+            // 使用示例
+            Map<String, Object> example = new HashMap<>();
+            example.put("description", "使用这些头部信息调用需要认证的API");
+            example.put("curlExample", String.format(
+                    "curl -X GET 'http://localhost:8080/pax/api/xiwanSupplier/supp/suppliers' " +
+                    "  -H 'X-App-Id: %s' " +
+                    "  -H 'X-Timestamp: %s' " +
+                    "  -H 'X-Signature: %s' " +
+                    "  -H 'Content-Type: application/json'",
+                    appId, timestamp, signature
+            ));
+            
+            Map<String, String> postmanHeaders = new HashMap<>();
+            postmanHeaders.put("X-App-Id", appId);
+            postmanHeaders.put("X-Timestamp", timestamp);
+            postmanHeaders.put("X-Signature", signature);
+            postmanHeaders.put("Content-Type", "application/json");
+            
+            example.put("postmanHeaders", postmanHeaders);
+            response.put("usage", example);
+            
+            // 签名生成说明
+            Map<String, Object> signatureInfo = new HashMap<>();
+            signatureInfo.put("algorithm", "MD5");
+            signatureInfo.put("inputFormat", "appId + timestamp + secretKey");
+            signatureInfo.put("inputExample", appId + timestamp + secretKey);
+            signatureInfo.put("outputFormat", "32位小写十六进制字符串");
+            signatureInfo.put("timestampFormat", "Unix时间戳（秒）");
+            signatureInfo.put("timestampTolerance", "±300秒（5分钟）");
+            
+            response.put("signatureInfo", signatureInfo);
+            
+            logger.info("Generated auth headers for development - AppId: {}, Timestamp: {}", appId, timestamp);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            logger.error("Failed to generate auth headers", e);
+            Map<String, Object> errorResponse = Map.of(
+                    "error", "Failed to generate auth headers",
+                    "message", e.getMessage(),
+                    "timestamp", LocalDateTime.now()
+            );
+            return ResponseEntity.status(500).body(errorResponse);
+        }
+    }
+    
+    /**
+     * 验证认证头部信息（仅用于开发环境）
+     *
+     * @param appIdParam 应用ID
+     * @param timestampParam 时间戳
+     * @param signatureParam 签名
+     * @return 验证结果
+     */
+    @GetMapping("/validate-auth")
+    public ResponseEntity<Map<String, Object>> validateAuthHeaders(@RequestParam("appId") String appIdParam, @RequestParam("timestamp") String timestampParam, @RequestParam("signature") String signatureParam) {
+        try {
+            Map<String, Object> response = new HashMap<>();
+            Map<String, Object> validation = new HashMap<>();
+
+            // 获取配置的AppId和SecretKey
+            String appId = config.getAuthorization().getAppId();
+            String secretKey = config.getAuthorization().getSecretKey();
+            
+            // 验证AppId
+            boolean appIdValid = appId.equals(appIdParam);
+            validation.put("appIdValid", appIdValid);
+            validation.put("expectedAppId", appId);
+            validation.put("providedAppId", appIdParam);
+            
+            // 验证时间戳格式和有效性
+            boolean timestampValid = false;
+            boolean timestampInRange = false;
+            try {
+                long timestamp = Long.parseLong(timestampParam);
+                timestampValid = true;
+                
+                long currentTime = System.currentTimeMillis() / 1000;
+                long timeDiff = Math.abs(currentTime - timestamp);
+                timestampInRange = timeDiff <= 300; // 5分钟容差
+                
+                validation.put("timestampDiff", timeDiff);
+                validation.put("maxAllowedDiff", 300);
+            } catch (NumberFormatException e) {
+                validation.put("timestampFormatError", "时间戳必须是数字格式");
+            }
+            
+            validation.put("timestampValid", timestampValid);
+            validation.put("timestampInRange", timestampInRange);
+            
+            // 验证签名
+            boolean signatureValid = false;
+            String expectedSignature = null;
+            if (timestampValid) {
+                expectedSignature = SignUtil.generateSignature(appIdParam, timestampParam, secretKey);
+                signatureValid = expectedSignature.equalsIgnoreCase(signatureParam);
+            }
+            
+            validation.put("signatureValid", signatureValid);
+            validation.put("expectedSignature", expectedSignature);
+            validation.put("providedSignature", signatureParam);
+            
+            // 整体验证结果
+            boolean overallValid = appIdValid && timestampValid && timestampInRange && signatureValid;
+            validation.put("overallValid", overallValid);
+            
+            response.put("validation", validation);
+            response.put("timestamp", LocalDateTime.now());
+            
+            if (overallValid) {
+                response.put("message", "认证头部验证通过");
+                response.put("status", "VALID");
+            } else {
+                response.put("message", "认证头部验证失败");
+                response.put("status", "INVALID");
+                
+                List<String> errors = new ArrayList<>();
+                if (!appIdValid) errors.add("AppId不匹配");
+                if (!timestampValid) errors.add("时间戳格式无效");
+                if (!timestampInRange) errors.add("时间戳超出允许范围");
+                if (!signatureValid) errors.add("签名验证失败");
+                
+                response.put("errors", errors);
+            }
+            
+            logger.info("Validated auth headers - AppId: {}, Valid: {}", appIdParam, overallValid);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            logger.error("Failed to validate auth headers", e);
+            Map<String, Object> errorResponse = Map.of(
+                    "error", "Failed to validate auth headers",
+                    "message", e.getMessage(),
+                    "timestamp", LocalDateTime.now()
+            );
+            return ResponseEntity.status(500).body(errorResponse);
+        }
+    }
+    
+
 
 }
