@@ -12,6 +12,17 @@
 ---
 
 
+```
+请注意以下限制：
+    - 每笔预订的夜数：30晚
+    - 每笔预订的客人数量：5间房 10位客人
+    - 儿童年龄0-12岁
+    - 每间房儿童数量：3名儿童
+    - 所选服务日期不应超过365天
+```
+
+
+
 ### 接入方式
 
 #### 测试API详情：
@@ -40,6 +51,71 @@ API接口地址
 
 --- 
 
+---
+- QTECH API工作流程：
+- 步骤 1 hotel_search 此 API 用于获取指定搜索的酒店 - 必选
+- 步骤 2 hotel_detail 此 API 用于获取特定酒店的详细信息。 - 可选
+- 步骤 3 hotel_cancellation_policy 此 API 用于获取酒店下特定房间的取消政策。 - 必选
+- 步骤 4 hotel_reservation 此 API 用于预订请求的房间。 - 必选
+- 步骤 5 booking_detail 此 API 用于获取特定预订的详细信息。  - 可选
+- 步骤 6 get_cancellation_charges 此 API 用于获取特定预订在该时间点的取消费用。   - 必选
+- 步骤 7 cancel_the_booking 此 API 用于取消特定预订。  - 必选
+--- 
+酒店搜索接口说明：
+
+```text
+http://colosseum.otrams.com:8087/ws/index.php?action=hotel_search&username=Heytrip_Test&password=Welcome@@123&checkin_date=22/04/2020&checkout_date=23/04/2020&sel_country=138&sel_city=71649&ch 
+k_ratings=1.0,2.0,3.0,4.0,5.0&sel_nationality=106&country_of_residence=106&sel_currency=INR&availableonly=1&number_of_rooms=1&roomDetail 
+s=[{"numberOfAdults":1}]&sel_hotel=&gzip=no&timeout=30&static_data=1&limit_hotel_room_type=5 
+```
+
+参数说明：
+```text
+
+
+action - 接口名称 示例：hotel_search
+username - 用户名 示例：Heytrip_Test
+password - 密码 示例：Welcome@@123
+
+checkin_date - 入住日期，格式DD/MM/YYYY 示例：22/04/2020
+checkout_date - 退房日期，格式DD/MM/YYYY 示例：23/04/202
+sel_country - 国家ID 示例：138
+sel_city - 城市ID 示例：71649
+chk_ratings - 酒店星级，多个星级用逗号分隔 示例：1.0,2.0,3.0,4.0,5.0
+sel_nationality - 国籍ID 示例：106
+country_of_residence - 居住国家ID 示例：106
+sel_currency - 货币代码 示例：INR
+availableonly - 是否仅显示有房酒店 1-是 0-否 示例：1
+sel_hotel - 酒店ID，多个ID用逗号分隔 示例：
+gzip - 是否启用gzip压缩 1-是 0-否 示例：no/yes
+static_data - 是否返回静态数据 1-是 0-否 示例：1
+limit_hotel_room_type - 每个酒店返回的房型数量限制 示例：5
+timeout - 请求超时时间，单位秒 示例：30
+
+number_of_rooms - 房间数量 示例：1
+roomDetails - 房间详细信息，JSON格式，数组形式，数组长度与number_of_rooms一致
+房间详细信息示例： [{"numberOfAdults":2,"numberOfChild":1,"ChildAge":"5"}]
+- numberOfAdults - 成人数量 示例：2
+- numberOfChild - 儿童数量 示例：1
+- ChildAge - 儿童年龄，多个年龄用逗号分隔 示例：5
+
+```
+
+酒店详情接口说明：
+
+```text
+http://colosseum.otrams.com/ws/index.php?action=hotel_detail&username=Heytrip_Test&password=Welcome@@123&hotel_id=OT000016097&unique_id=824-010-20250909112150-010-981795-010-1757416910823714670-010-
+```
+参数说明：
+```text
+action - 接口名称 示例：hotel_detail
+username - 用户名 示例：Heytrip_Test
+password - 密码 示例：Welcome@@123
+hotel_id - 酒店ID 示例：OT000016097
+unique_id - 酒店搜索接口返回的请求ID，来自hotel_search接口的响应 示例：824-010-20250909112150-010-981795-010-175741691082371
+```
+
+
 #### FTP访问服务
 ```
 主机名：18.170.183.159
@@ -53,10 +129,21 @@ static_data_cities.csv - 城市静态数据
 static_data_countries.csv - 国家静态数据
 static_data_hotels.csv - 酒店静态数据
 static_data_nationality.csv - 国籍静态数据
+
+
 ```
 注意：API对白名单的IP数量没有限制，但对于FTP，只能有两个IP被列入白名单。
 
+### 静态数据说明
+• 测试环境和实时环境的静态数据文件不同。
 
+• 静态数据文件将按日期生成在日期文件夹中。
+
+• 将与测试访问一起通过电子邮件共享FTP。
+
+• 要访问FTP，应在我们端将访问FTP的IP列入白名单。
+
+• 静态数据应每15天或每月更新一次。
 
 
 ### 过程分析 

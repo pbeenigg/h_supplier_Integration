@@ -632,15 +632,6 @@ public class MonitoringController implements HealthIndicator {
         }
     }
 
-    public static void main(String[] args) {
-        String curlCommand = "curl --location --request GET 'http://localhost:8080/monitor/gen-auth' \\\n" +
-                "  --header 'X-App-Id: heytrip_supplier_integration_pax' \\\n" +
-                "  --header 'X-Timestamp: 1757408351' \\\n" +
-                "  --header 'X-Signature: 147541c82d73b94843ecf442bf75f260'";
-
-        System.out.println(curlCommand);
-    }
-    
     /**
      * 验证认证头部信息（仅用于开发环境）
      *
