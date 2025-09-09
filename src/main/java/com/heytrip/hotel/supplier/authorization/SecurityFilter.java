@@ -12,12 +12,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.context.SecurityContextImpl;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
-import reactor.util.context.Context;
 
 import java.io.IOException;
 import java.security.MessageDigest;
@@ -87,19 +84,16 @@ public class SecurityFilter extends OncePerRequestFilter {
                 return;
             }
 
-            // 创建认证信息
+            //需要设置认证信息到请求属性
+            request.setAttribute("AUTHENTICATED", true);
+            request.setAttribute("APP_ID", appId);
+            request.setAttribute("AUTH_TIMESTAMP", timestamp);
+            request.setAttribute("AUTH_SIGNATURE", signature);
+
+            // 设置认证信息
             UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(appId, null, new ArrayList<>());
-            
-            // 创建SecurityContext并设置认证信息
-            SecurityContext securityContext = new SecurityContextImpl();
-            securityContext.setAuthentication(authentication);
-            SecurityContextHolder.setContext(securityContext);
-            
-            // 为响应式编程设置SecurityContext到请求属性中
-            // 这样可以在Controller中通过ReactiveSecurityContextHolder访问
-            request.setAttribute("SECURITY_CONTEXT", securityContext);
-            request.setAttribute("AUTHENTICATED_USER", appId);
+            SecurityContextHolder.getContext().setAuthentication(authentication);
 
             logger.debug("认证成功，APP ID: {}", appId);
 
@@ -109,7 +103,9 @@ public class SecurityFilter extends OncePerRequestFilter {
             return;
         }
 
+        logger.debug("认证处理完成，继续执行过滤器链，URI: {}", requestUri);
         filterChain.doFilter(request, response);
+        logger.debug("过滤器链执行完成，URI: {}", requestUri);
     }
 
     /**

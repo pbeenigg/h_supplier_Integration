@@ -79,17 +79,16 @@
 该模块实现具体的业务逻辑，包括酒店信息查询、房间可用性检查、价格计算、预订处理等功能。
 
 主要组件包括：
-- 酒店静态数据服务（Static Data Service）：处理酒店相关的业务逻辑
-- 酒店报价类服务（ Hotel Quotation Service）：处理预订相关的业务逻辑
-- 酒店订单类服务（Hotel Orders Service）：处理价格计算和比较逻辑
-- 其他服务（ Other Service）：处理房间库存管理逻辑
+- 酒店静态数据服务（Static Data Service）：处理酒店静态数据相关逻辑
+- 酒店报价类服务（ Hotel Quotation Service）：处理酒店报价类相关逻辑
+- 酒店订单类服务（Hotel Orders Service）：处理酒店订单相关逻辑
+- 其他服务（ Other Service）：处理通用逻辑
 
 **配置管理模块（Configuration Management Module）**
 该模块负责管理系统的配置信息，包括供应商API的配置、业务规则配置、系统参数配置等。
 
 主要功能包括：
 - 供应商配置管理：API端点、认证信息、超时设置等
-- 业务规则配置：价格策略、库存阈值、预订规则等
 - 系统参数配置：缓存设置、日志级别、性能参数等
 - 动态配置更新：支持运行时配置更新，无需重启系统
 

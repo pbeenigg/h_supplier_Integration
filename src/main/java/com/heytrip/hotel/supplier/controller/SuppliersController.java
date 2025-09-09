@@ -3,14 +3,13 @@ package com.heytrip.hotel.supplier.controller;
 import com.heytrip.hotel.supplier.adapter.SupplierAdapterManager;
 import com.heytrip.hotel.supplier.entity.SupplierConfig;
 import com.heytrip.hotel.supplier.repository.SupplierConfigRepository;
-import com.heytrip.hotel.supplier.utils.ReactiveSecurityContextHelper;
+import com.heytrip.hotel.supplier.utils.AuthHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -90,68 +89,83 @@ public class SuppliersController {
      * @return 供应商健康状态
      */
     @GetMapping("/suppliers/{supplierName}/health")
-    public Mono<ResponseEntity<Map<String, Object>>> checkSupplierHealth(@PathVariable String supplierName) {
+    public ResponseEntity<Map<String, Object>> checkSupplierHealth(@PathVariable String supplierName) {
         logger.info("Checking health for supplier: {}", supplierName);
         
-        return supplierAdapterManager.checkSupplierHealth(supplierName)
-                .map(healthy -> {
-                    Map<String, Object> response = Map.of(
-                            "supplierName", supplierName,
-                            "healthy", healthy,
-                            "status", healthy ? "UP" : "DOWN",
-                            "timestamp", System.currentTimeMillis()
-                    );
-                    return ResponseEntity.ok(response);
-                })
-                .onErrorResume(error -> {
-                    logger.error("Health check failed for supplier: {}", supplierName, error);
-                    Map<String, Object> errorResponse = Map.of(
-                            "supplierName", supplierName,
-                            "healthy", false,
-                            "status", "ERROR",
-                            "error", error.getMessage(),
-                            "timestamp", System.currentTimeMillis()
-                    );
-                    return Mono.just(ResponseEntity.internalServerError().body(errorResponse));
-                });
+        // 记录认证信息（用于调试）
+        AuthHelper.logAuthInfo("supplier-health-check-" + supplierName);
+        
+        try {
+            // 同步调用供应商健康检查
+            Boolean healthy = supplierAdapterManager.checkSupplierHealth(supplierName).block();
+            
+            Map<String, Object> response = Map.of(
+                    "supplierName", supplierName,
+                    "healthy", healthy != null ? healthy : false,
+                    "status", (healthy != null && healthy) ? "UP" : "DOWN",
+                    "timestamp", System.currentTimeMillis()
+            );
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception error) {
+            logger.error("Health check failed for supplier: {}", supplierName, error);
+            Map<String, Object> errorResponse = Map.of(
+                    "supplierName", supplierName,
+                    "healthy", false,
+                    "status", "ERROR",
+                    "error", error.getMessage(),
+                    "timestamp", System.currentTimeMillis()
+            );
+            return ResponseEntity.internalServerError().body(errorResponse);
+        }
     }
-    
+
     /**
      * 检查所有供应商健康状态
      *
      * @return 各供应商健康状态列表
      */
     @GetMapping("/suppliers/health")
-    public Mono<ResponseEntity<Map<String, Object>>> checkAllSuppliersHealth() {
+    public ResponseEntity<Map<String, Object>> checkAllSuppliersHealth() {
         logger.info("Checking health for all suppliers");
-        
-        return supplierAdapterManager.checkAllSuppliersHealth()
-                .map(healthStatuses -> {
-                    long healthyCount = healthStatuses.stream()
-                            .mapToLong(status -> status.isHealthy() ? 1 : 0)
-                            .sum();
 
-                    Map<String, Object> response = Map.of(
-                            "suppliers", healthStatuses,
-                            "totalCount", healthStatuses.size(),
-                            "healthyCount", healthyCount,
-                            "unhealthyCount", healthStatuses.size() - healthyCount,
-                            "timestamp", System.currentTimeMillis()
-                    );
-                    return ResponseEntity.ok(response);
-                })
-                .onErrorResume(error -> {
-                    logger.error("Health check failed for all suppliers", error);
-                    Map<String, Object> errorResponse = Map.of(
-                            "suppliers", List.of(),
-                            "totalCount", 0,
-                            "healthyCount", 0,
-                            "unhealthyCount", 0,
-                            "error", error.getMessage(),
-                            "timestamp", System.currentTimeMillis()
-                    );
-                    return Mono.just(ResponseEntity.internalServerError().body(errorResponse));
-                });
+        try {
+            // 同步调用所有供应商健康检查
+            List<SupplierAdapterManager.SupplierHealthStatus> healthStatuses = supplierAdapterManager.checkAllSuppliersHealth().block();
+
+            if (healthStatuses == null) {
+                healthStatuses = List.of();
+            }
+            long healthyCount = healthStatuses.stream()
+                    .mapToLong(status -> {
+                        if (status instanceof SupplierAdapterManager.SupplierHealthStatus) {
+                            return ((SupplierAdapterManager.SupplierHealthStatus) status).isHealthy() ? 1 : 0;
+                        }
+                        return 0;
+                    })
+                    .sum();
+
+            Map<String, Object> response = Map.of(
+                    "suppliers", healthStatuses,
+                    "totalCount", healthStatuses.size(),
+                    "healthyCount", healthyCount,
+                    "unhealthyCount", healthStatuses.size() - healthyCount,
+                    "timestamp", System.currentTimeMillis()
+            );
+            return ResponseEntity.ok(response);
+
+        } catch (Exception error) {
+            logger.error("Health check failed for all suppliers", error);
+            Map<String, Object> errorResponse = Map.of(
+                    "suppliers", List.of(),
+                    "totalCount", 0,
+                    "healthyCount", 0,
+                    "unhealthyCount", 0,
+                    "error", error.getMessage(),
+                    "timestamp", System.currentTimeMillis()
+            );
+            return ResponseEntity.internalServerError().body(errorResponse);
+        }
     }
 
 
