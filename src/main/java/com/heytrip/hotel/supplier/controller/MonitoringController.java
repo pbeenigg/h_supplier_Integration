@@ -593,14 +593,9 @@ public class MonitoringController implements HealthIndicator {
             // 使用示例
             Map<String, Object> example = new HashMap<>();
             example.put("description", "使用这些头部信息调用需要认证的API");
-            example.put("curlExample", String.format(
-                    "curl -X GET 'http://localhost:8080/pax/api/xiwanSupplier/supp/suppliers' " +
-                    "  -H 'X-App-Id: %s' " +
-                    "  -H 'X-Timestamp: %s' " +
-                    "  -H 'X-Signature: %s' " +
-                    "  -H 'Content-Type: application/json'",
-                    appId, timestamp, signature
-            ));
+            String curlCommand = String.format("curl --location --request GET 'http://localhost:8080/monitor/gen-auth' --header 'X-App-Id: %s' --header 'X-Timestamp: %s' --header 'X-Signature: %s'", appId, timestamp, signature);
+            example.put("curlCommand", curlCommand);
+
             
             Map<String, String> postmanHeaders = new HashMap<>();
             postmanHeaders.put("X-App-Id", appId);
@@ -635,6 +630,15 @@ public class MonitoringController implements HealthIndicator {
             );
             return ResponseEntity.status(500).body(errorResponse);
         }
+    }
+
+    public static void main(String[] args) {
+        String curlCommand = "curl --location --request GET 'http://localhost:8080/monitor/gen-auth' \\\n" +
+                "  --header 'X-App-Id: heytrip_supplier_integration_pax' \\\n" +
+                "  --header 'X-Timestamp: 1757408351' \\\n" +
+                "  --header 'X-Signature: 147541c82d73b94843ecf442bf75f260'";
+
+        System.out.println(curlCommand);
     }
     
     /**

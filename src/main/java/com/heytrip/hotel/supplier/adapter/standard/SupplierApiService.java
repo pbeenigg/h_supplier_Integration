@@ -6,6 +6,8 @@ import com.heytrip.common.response.base.XHotel;
 import com.heytrip.common.response.base.XRoom;
 import com.heytrip.common.response.other.*;
 import com.heytrip.common.result.Result;
+import com.heytrip.hotel.supplier.adapter.SupplierAdapterManager;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -22,6 +24,8 @@ import java.util.Map;
 public class SupplierApiService implements ISupplierApiService {
 
 
+    @Autowired
+    private SupplierAdapterManager supplierAdapterManager;
 
     /**
      * 获取城市信息 (国际供应商要实现)
