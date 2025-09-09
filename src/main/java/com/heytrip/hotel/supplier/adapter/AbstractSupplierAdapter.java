@@ -222,7 +222,7 @@ public abstract class AbstractSupplierAdapter implements SupplierAdapter {
         
         return executeWithLimits(
                 webClient.get()
-                        .uri("/health")
+                        .uri("/monitor/health")
                         .retrieve()
                         .toBodilessEntity()
                         .map(response -> {

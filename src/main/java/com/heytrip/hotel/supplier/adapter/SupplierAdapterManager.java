@@ -65,7 +65,6 @@ public class SupplierAdapterManager {
         if (adapter == null) {
             return Mono.just(false);
         }
-        
         return adapter.healthCheck()
                 .timeout(Duration.ofSeconds(10))
                 .onErrorReturn(false);

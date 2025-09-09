@@ -3,6 +3,9 @@ package com.heytrip.hotel.supplier.config;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
+import java.util.Arrays;
+import java.util.List;
+
 /**
  * 应用配置类
  * 映射application.yml中的自定义配置
@@ -17,6 +20,7 @@ public class Config {
     private Authorization authorization = new Authorization();
     private Encryption encryption = new Encryption();
     private Api api = new Api();
+    private Security security = new Security();
     
     // Getter和Setter方法
     public Supplier getSupplier() {
@@ -49,6 +53,14 @@ public class Config {
     
     public void setApi(Api api) {
         this.api = api;
+    }
+    
+    public Security getSecurity() {
+        return security;
+    }
+    
+    public void setSecurity(Security security) {
+        this.security = security;
     }
     
     /**
@@ -174,6 +186,45 @@ public class Config {
             public void setRequestsPerMinute(Integer requestsPerMinute) {
                 this.requestsPerMinute = requestsPerMinute;
             }
+        }
+    }
+    
+    /**
+     * 安全配置
+     */
+    public static class Security {
+        private List<String> permitAllPatterns = Arrays.asList(
+                "/actuator/health",
+                "/actuator/info",
+                "/monitor/**",
+                "/version",
+                "/swagger-ui/**",
+                "/v1/api-docs/**",
+                "/swagger-ui.html",
+                "/suppliers/**"
+        );
+        
+        private List<String> authenticatedPatterns = Arrays.asList(
+                "/static/**",
+                "/pax/**",
+                "/common/**",
+                "/config/**"
+        );
+        
+        public List<String> getPermitAllPatterns() {
+            return permitAllPatterns;
+        }
+        
+        public void setPermitAllPatterns(List<String> permitAllPatterns) {
+            this.permitAllPatterns = permitAllPatterns;
+        }
+        
+        public List<String> getAuthenticatedPatterns() {
+            return authenticatedPatterns;
+        }
+        
+        public void setAuthenticatedPatterns(List<String> authenticatedPatterns) {
+            this.authenticatedPatterns = authenticatedPatterns;
         }
     }
 }

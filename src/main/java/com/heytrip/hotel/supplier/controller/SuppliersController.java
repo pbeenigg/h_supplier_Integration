@@ -3,6 +3,7 @@ package com.heytrip.hotel.supplier.controller;
 import com.heytrip.hotel.supplier.adapter.SupplierAdapterManager;
 import com.heytrip.hotel.supplier.entity.SupplierConfig;
 import com.heytrip.hotel.supplier.repository.SupplierConfigRepository;
+import com.heytrip.hotel.supplier.utils.ReactiveSecurityContextHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,7 +25,6 @@ import java.util.Map;
  */
 @RestController
 @Validated
-@RequestMapping("/")
 public class SuppliersController {
     
     private static final Logger logger = LoggerFactory.getLogger(SuppliersController.class);
@@ -130,7 +130,7 @@ public class SuppliersController {
                     long healthyCount = healthStatuses.stream()
                             .mapToLong(status -> status.isHealthy() ? 1 : 0)
                             .sum();
-                    
+
                     Map<String, Object> response = Map.of(
                             "suppliers", healthStatuses,
                             "totalCount", healthStatuses.size(),

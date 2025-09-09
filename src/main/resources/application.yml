@@ -103,3 +103,18 @@ app:
   api:
     rate-limit:
       requests-per-minute: 1000
+  security:
+    permit-all-patterns:
+      - /actuator/health
+      - /actuator/info
+      - /monitor/**
+      - /version
+      - /swagger-ui/**
+      - /v1/api-docs/**
+      - /swagger-ui.html
+      #- /suppliers/**
+    authenticated-patterns:
+      - /static/**
+      - /pax/**
+      - /common/**
+      - /config/**

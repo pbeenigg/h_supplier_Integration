@@ -1,6 +1,7 @@
 package com.heytrip.hotel.supplier.config;
 
 import com.heytrip.hotel.supplier.authorization.SecurityFilter;
+import jakarta.annotation.Resource;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -20,6 +21,9 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @EnableWebSecurity
 public class SecurityConfig {
     
+    @Resource
+    private Config config;
+    
     @Bean
     public SecurityFilter securityFilter() {
         return new SecurityFilter();
@@ -37,21 +41,18 @@ public class SecurityConfig {
             )
             
             // 配置授权规则
-            .authorizeHttpRequests(authz -> authz
-                // 公开的健康检查和版本信息接口
-                .requestMatchers("/actuator/health", "/actuator/info").permitAll()
-                .requestMatchers("/monitor/**").permitAll()
-                .requestMatchers("/version").permitAll()
+            .authorizeHttpRequests(authz -> {
+                // 动态配置不需要认证的接口
+                String[] permitAllPatterns = config.getSecurity().getPermitAllPatterns().toArray(new String[0]);
+                authz.requestMatchers(permitAllPatterns).permitAll();
                 
-                // Swagger文档接口
-                .requestMatchers("/swagger-ui/**", "/v1/api-docs/**","/swagger-ui.html").permitAll()
-                
-                // 所有API接口需要认证
-                .requestMatchers("/static/**", "/pax/**", "/suppliers/**", "/common/**","/config/**").authenticated()
+                // 动态配置需要认证的接口
+                String[] authenticatedPatterns = config.getSecurity().getAuthenticatedPatterns().toArray(new String[0]);
+                authz.requestMatchers(authenticatedPatterns).authenticated();
                 
                 // 其他请求拒绝访问
-                .anyRequest().denyAll()
-            )
+                authz.anyRequest().denyAll();
+            })
             
             // 添加自定义认证过滤器
             .addFilterBefore(securityFilter(), UsernamePasswordAuthenticationFilter.class)

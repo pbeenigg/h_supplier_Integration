@@ -12,9 +12,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.context.SecurityContextImpl;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import reactor.util.context.Context;
 
 import java.io.IOException;
 import java.security.MessageDigest;
@@ -84,10 +87,19 @@ public class SecurityFilter extends OncePerRequestFilter {
                 return;
             }
 
-            // 设置认证信息
+            // 创建认证信息
             UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(appId, null, new ArrayList<>());
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+            
+            // 创建SecurityContext并设置认证信息
+            SecurityContext securityContext = new SecurityContextImpl();
+            securityContext.setAuthentication(authentication);
+            SecurityContextHolder.setContext(securityContext);
+            
+            // 为响应式编程设置SecurityContext到请求属性中
+            // 这样可以在Controller中通过ReactiveSecurityContextHolder访问
+            request.setAttribute("SECURITY_CONTEXT", securityContext);
+            request.setAttribute("AUTHENTICATED_USER", appId);
 
             logger.debug("认证成功，APP ID: {}", appId);
 
@@ -102,16 +114,25 @@ public class SecurityFilter extends OncePerRequestFilter {
 
     /**
      * 判断是否跳过认证
+     * 使用动态配置来判断是否跳过认证
      */
     private boolean skipAuthentication(String requestUri) {
-        return requestUri.startsWith("/actuator/") ||
-                requestUri.startsWith("/swagger-ui/") ||
-                requestUri.equals("/swagger-ui") ||
-                requestUri.equals("/swagger-ui.html") ||
-                requestUri.equals("/version") ||
-                requestUri.startsWith("/monitor/") ||
-                requestUri.equals("/v1/api-docs") ||
-                requestUri.startsWith("/v1/api-docs/");
+        return CONFIG.getSecurity().getPermitAllPatterns().stream()
+                .anyMatch(pattern -> {
+                    if (pattern.endsWith("/**")) {
+                        // 处理通配符模式，如 /monitor/**
+                        String prefix = pattern.substring(0, pattern.length() - 3);
+                        return requestUri.startsWith(prefix);
+                    } else if (pattern.endsWith("/*")) {
+                        // 处理单级通配符模式，如 /suppliers/*
+                        String prefix = pattern.substring(0, pattern.length() - 2);
+                        return requestUri.startsWith(prefix + "/") && 
+                               requestUri.indexOf('/', prefix.length() + 1) == -1;
+                    } else {
+                        // 精确匹配
+                        return requestUri.equals(pattern);
+                    }
+                });
     }
 
     /**
@@ -162,7 +183,6 @@ public class SecurityFilter extends OncePerRequestFilter {
             return false;
         }
     }
-
 
 
     /**
