@@ -15,7 +15,6 @@ import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
@@ -42,50 +41,92 @@ public class HttpClientService {
      */
     public <T> Mono<T> get(String baseUrl, String endpoint, Class<T> responseType, 
                           Consumer<WebClient.RequestHeadersSpec<?>> headersCustomizer) {
-        return executeRequest(baseUrl, endpoint, HttpMethod.GET, null, responseType, headersCustomizer);
+        return executeRequest(baseUrl, endpoint, HttpMethod.GET, null, responseType, headersCustomizer, null);
     }
     
+    /**
+     * GET请求（带供应商ID）
+     */
+    public <T> Mono<T> get(String baseUrl, String endpoint, Class<T> responseType,
+                          Consumer<WebClient.RequestHeadersSpec<?>> headersCustomizer, Long supplierId) {
+        return executeRequest(baseUrl, endpoint, HttpMethod.GET, null, responseType, headersCustomizer, supplierId);
+    }
+
     /**
      * 执行POST请求
      */
     public <T> Mono<T> post(String baseUrl, String endpoint, Object requestBody, Class<T> responseType,
                            Consumer<WebClient.RequestHeadersSpec<?>> headersCustomizer) {
-        return executeRequest(baseUrl, endpoint, HttpMethod.POST, requestBody, responseType, headersCustomizer);
+        return executeRequest(baseUrl, endpoint, HttpMethod.POST, requestBody, responseType, headersCustomizer, null);
     }
-    
+
+    /**
+     * POST请求（带供应商ID）
+     */
+    public <T> Mono<T> post(String baseUrl, String endpoint, Object requestBody, Class<T> responseType,
+                           Consumer<WebClient.RequestHeadersSpec<?>> headersCustomizer, Long supplierId) {
+        return executeRequest(baseUrl, endpoint, HttpMethod.POST, requestBody, responseType, headersCustomizer, supplierId);
+    }
+
     /**
      * 执行PUT请求
      */
     public <T> Mono<T> put(String baseUrl, String endpoint, Object requestBody, Class<T> responseType,
                           Consumer<WebClient.RequestHeadersSpec<?>> headersCustomizer) {
-        return executeRequest(baseUrl, endpoint, HttpMethod.PUT, requestBody, responseType, headersCustomizer);
+        return executeRequest(baseUrl, endpoint, HttpMethod.PUT, requestBody, responseType, headersCustomizer, null);
     }
-    
+
+    /**
+     * PUT请求（带供应商ID）
+     */
+    public <T> Mono<T> put(String baseUrl, String endpoint, Object requestBody, Class<T> responseType,
+                          Consumer<WebClient.RequestHeadersSpec<?>> headersCustomizer, Long supplierId) {
+        return executeRequest(baseUrl, endpoint, HttpMethod.PUT, requestBody, responseType, headersCustomizer, supplierId);
+    }
+
     /**
      * 执行DELETE请求
      */
     public <T> Mono<T> delete(String baseUrl, String endpoint, Class<T> responseType,
                              Consumer<WebClient.RequestHeadersSpec<?>> headersCustomizer) {
-        return executeRequest(baseUrl, endpoint, HttpMethod.DELETE, null, responseType, headersCustomizer);
+        return executeRequest(baseUrl, endpoint, HttpMethod.DELETE, null, responseType, headersCustomizer, null);
     }
-    
+
+    /**
+     * DELETE请求（带供应商ID）
+     */
+    public <T> Mono<T> delete(String baseUrl, String endpoint, Class<T> responseType,
+                             Consumer<WebClient.RequestHeadersSpec<?>> headersCustomizer, Long supplierId) {
+        return executeRequest(baseUrl, endpoint, HttpMethod.DELETE, null, responseType, headersCustomizer, supplierId);
+    }
+
     /**
      * 执行HTTP请求的通用方法
+     * @param baseUrl 基础URL
+     * @param endpoint 接口路径
+     * @param method HTTP方法
+     * @param requestBody 请求体
+     * @param responseType 响应类型
+     * @param headersCustomizer 自定义头部设置
+     * @param supplierId 供应商ID（用于日志记录）
+     * @return
+     * @param <T>
      */
-    private <T> Mono<T> executeRequest(String baseUrl, String endpoint, HttpMethod method, 
+    private <T> Mono<T> executeRequest(String baseUrl, String endpoint, HttpMethod method,
                                       Object requestBody, Class<T> responseType,
-                                      Consumer<WebClient.RequestHeadersSpec<?>> headersCustomizer) {
-        
+                                      Consumer<WebClient.RequestHeadersSpec<?>> headersCustomizer,
+                                      Long supplierId) {
+
         WebClient webClient = webClientBuilder
                 .baseUrl(baseUrl)
                 .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(16 * 1024 * 1024))
                 .build();
-        
+
         long startTime = System.currentTimeMillis();
         String requestData = requestBody != null ? requestBody.toString() : "";
-        
+
         WebClient.RequestBodySpec requestSpec = webClient.method(method).uri(endpoint);
-        
+
         // 添加请求体（如果有）
         WebClient.RequestHeadersSpec<?> headersSpec;
         if (requestBody != null && (method == HttpMethod.POST || method == HttpMethod.PUT)) {
@@ -93,33 +134,35 @@ public class HttpClientService {
         } else {
             headersSpec = requestSpec;
         }
-        
-        // 应用自定义头部
+
+        // 应用自定义头部设置
         if (headersCustomizer != null) {
             headersCustomizer.accept(headersSpec);
         }
-        
+
         return headersSpec
                 .retrieve()
                 .bodyToMono(responseType)
                 .doOnSuccess(response -> {
                     long responseTime = System.currentTimeMillis() - startTime;
-                    logApiCall(baseUrl, endpoint, method.name(), requestData, 
-                              response != null ? response.toString() : "", 
+                    // 直接使用传入的supplierId记录日志
+                    logApiCall(supplierId, endpoint, method.name(), requestData,
+                              response != null ? response.toString() : "",
                               HttpStatus.OK.value(), responseTime, null);
                 })
                 .doOnError(error -> {
                     long responseTime = System.currentTimeMillis() - startTime;
                     int statusCode = extractStatusCode(error);
                     String errorMessage = error.getMessage();
-                    logApiCall(baseUrl, endpoint, method.name(), requestData, "", 
+                    // 直接使用传入的supplierId记录日志
+                    logApiCall(supplierId, endpoint, method.name(), requestData, "",
                               statusCode, responseTime, errorMessage);
                 })
                 .retryWhen(Retry.backoff(3, Duration.ofSeconds(1))
                         .maxBackoff(Duration.ofSeconds(10))
                         .filter(this::isRetryableError)
-                        .doBeforeRetry(retrySignal -> 
-                                logger.warn("Retrying request to {} {}, attempt: {}", 
+                        .doBeforeRetry(retrySignal ->
+                                logger.warn("Retrying request to {} {}, attempt: {}",
                                         method, endpoint, retrySignal.totalRetries() + 1)))
                 .timeout(Duration.ofSeconds(30))
                 .onErrorResume(error -> {
@@ -127,7 +170,7 @@ public class HttpClientService {
                     return Mono.error(new HttpClientException("Request failed: " + error.getMessage(), error));
                 });
     }
-    
+
     /**
      * 执行带重试配置的请求
      */
@@ -135,49 +178,49 @@ public class HttpClientService {
                                        Object requestBody, Class<T> responseType,
                                        Consumer<WebClient.RequestHeadersSpec<?>> headersCustomizer,
                                        int retryCount, Duration timeout) {
-        
+
         WebClient webClient = webClientBuilder
                 .baseUrl(baseUrl)
                 .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(16 * 1024 * 1024))
                 .build();
-        
+
         long startTime = System.currentTimeMillis();
         String requestData = requestBody != null ? requestBody.toString() : "";
-        
+
         WebClient.RequestBodySpec requestSpec = webClient.method(method).uri(endpoint);
-        
+
         WebClient.RequestHeadersSpec<?> headersSpec;
         if (requestBody != null && (method == HttpMethod.POST || method == HttpMethod.PUT)) {
             headersSpec = requestSpec.bodyValue(requestBody);
         } else {
             headersSpec = requestSpec;
         }
-        
+
+        // 应用自定义头部设置
         if (headersCustomizer != null) {
             headersCustomizer.accept(headersSpec);
         }
-        
+
         return headersSpec
                 .retrieve()
                 .bodyToMono(responseType)
                 .doOnSuccess(response -> {
                     long responseTime = System.currentTimeMillis() - startTime;
-                    logApiCall(baseUrl, endpoint, method.name(), requestData, 
-                              response != null ? response.toString() : "", 
-                              HttpStatus.OK.value(), responseTime, null);
+                    // 注意：executeWithRetry方法没有supplierId参数，所以不记录日志
+                    logger.info("API调用成功: {} {}, 响应时间: {}ms", method, endpoint, responseTime);
                 })
                 .doOnError(error -> {
                     long responseTime = System.currentTimeMillis() - startTime;
                     int statusCode = extractStatusCode(error);
                     String errorMessage = error.getMessage();
-                    logApiCall(baseUrl, endpoint, method.name(), requestData, "", 
-                              statusCode, responseTime, errorMessage);
+                    logger.error("API调用失败: {} {}, 状态码: {}, 响应时间: {}ms, 错误: {}",
+                               method, endpoint, statusCode, responseTime, errorMessage);
                 })
                 .retryWhen(Retry.backoff(retryCount, Duration.ofSeconds(1))
                         .maxBackoff(Duration.ofSeconds(10))
                         .filter(this::isRetryableError)
-                        .doBeforeRetry(retrySignal -> 
-                                logger.warn("Retrying request to {} {}, attempt: {}", 
+                        .doBeforeRetry(retrySignal ->
+                                logger.warn("Retrying request to {} {}, attempt: {}",
                                         method, endpoint, retrySignal.totalRetries() + 1)))
                 .timeout(timeout)
                 .onErrorResume(error -> {
@@ -185,7 +228,7 @@ public class HttpClientService {
                     return Mono.error(new HttpClientException("Request failed: " + error.getMessage(), error));
                 });
     }
-    
+
     /**
      * 批量执行请求
      */
@@ -197,12 +240,12 @@ public class HttpClientService {
                             entry -> {
                                 RequestConfig<T> config = entry.getValue();
                                 return executeRequest(config.baseUrl, config.endpoint, config.method,
-                                                    config.requestBody, config.responseType, config.headersCustomizer);
+                                                    config.requestBody, config.responseType, config.headersCustomizer, null);
                             }
                     ));
-            
+
             return requestMonos;
-        }).flatMap(monos -> 
+        }).flatMap(monos ->
                 Mono.zip(monos.values(), objects -> {
                     Map<String, T> results = new java.util.HashMap<>();
                     int index = 0;
@@ -213,15 +256,20 @@ public class HttpClientService {
                 })
         );
     }
-    
+
     /**
      * 记录API调用日志
      */
-    private void logApiCall(String baseUrl, String endpoint, String method, String requestData,
+    private void logApiCall(Long supplierId, String endpoint, String method, String requestData,
                            String responseData, int statusCode, long responseTime, String errorMessage) {
         try {
+            // 如果没有提供supplierId，跳过日志记录
+            if (supplierId == null) {
+                return;
+            }
+
             ApiCallLog log = new ApiCallLog();
-            log.setSupplierId(extractSupplierIdFromUrl(baseUrl));
+            log.setSupplierId(supplierId);
             log.setApiEndpoint(endpoint);
             log.setHttpMethod(method);
             log.setRequestBody(truncateData(requestData, 4000));
@@ -278,23 +326,6 @@ public class HttpClientService {
         return 0; // 网络错误等非HTTP错误
     }
     
-    /**
-     * 从URL提取供应商ID
-     */
-    private Long extractSupplierIdFromUrl(String baseUrl) {
-        try {
-            // 简单的URL解析，实际项目中可能需要更复杂的逻辑
-            if (baseUrl.contains("asianoverland") || baseUrl.contains("colosseum.otrams.com")) {
-                return 1L; // AsianOverland供应商ID
-            }
-            if (baseUrl.contains("testsupplier")) {
-                return 2L; // TestSupplier供应商ID
-            }
-            return null; // 未知供应商
-        } catch (Exception e) {
-            return null;
-        }
-    }
     
     /**
      * 截断数据以避免日志过大

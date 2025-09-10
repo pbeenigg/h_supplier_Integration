@@ -27,6 +27,7 @@ public class CacheConfig {
     private static final String rooms_cache = "rooms"; // 房型缓存
     private static final String ratePlans_cache = "ratePlans"; // 价格计划缓存
     private static final String supplierConfig_cache = "supplierConfig"; // 供应商配置缓存
+    private static final String supplierAuth_cache = "supplierAuth"; // 供应商认证配置缓存
     private static final String systemConfig_cache = "systemConfig"; // 系统配置缓存
 
 
@@ -54,6 +55,7 @@ public class CacheConfig {
                         rooms_cache,
                         ratePlans_cache,
                         supplierConfig_cache,
+                        supplierAuth_cache,
                         systemConfig_cache
                 )
         );
@@ -125,6 +127,17 @@ public class CacheConfig {
         return Caffeine.newBuilder()
                 .maximumSize(50)
                 .expireAfterWrite(72, TimeUnit.HOURS)
+                .recordStats();
+    }
+    
+    /**
+     * 供应商认证配置专用缓存
+     */
+    @Bean
+    public Caffeine<Object, Object> supplierAuthCacheConfig() {
+        return Caffeine.newBuilder()
+                .maximumSize(50)
+                .expireAfterWrite(7, TimeUnit.DAYS)
                 .recordStats();
     }
     

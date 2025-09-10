@@ -9,12 +9,21 @@ import reactor.core.publisher.Mono;
  * @author  Pax
  */
 public interface SupplierAdapter {
-    
+
+    /**
+     * 获取供应商Id
+     * @return 供应商ID
+     */
+    Long getSupplierId();
+
+
     /**
      * 获取供应商名称
      * @return 供应商名称
      */
     String getSupplierName();
+
+
     
     /**
      * 检查供应商是否支持指定城市
@@ -22,6 +31,14 @@ public interface SupplierAdapter {
      * @return 是否支持
      */
     boolean supportsCity(String city);
+
+
+    /**
+     * 检查供应商是否支持指定国家
+     * @param country 国家名称
+     * @return 是否支持
+     */
+    boolean supportsCountry(String country);
 
     
     /**

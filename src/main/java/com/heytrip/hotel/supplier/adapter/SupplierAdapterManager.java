@@ -1,6 +1,7 @@
 package com.heytrip.hotel.supplier.adapter;
 
 import jakarta.annotation.PostConstruct;
+import lombok.Data;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,7 +10,6 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -38,9 +38,9 @@ public class SupplierAdapterManager {
                 .sorted(Comparator.comparingInt(SupplierAdapter::getPriority))
                 .collect(Collectors.toList());
         
-        logger.info("Initialized {} enabled supplier adapters", enabledAdapters.size());
+        logger.info("已初始化 {} 已启用的供应商适配器", enabledAdapters.size());
         enabledAdapters.forEach(adapter -> 
-                logger.info("Enabled adapter: {} with priority: {}", 
+                logger.info("已启用的适配器: {} 具有优先级: {}",
                         adapter.getSupplierName(), adapter.getPriority()));
     }
     
@@ -103,29 +103,14 @@ public class SupplierAdapterManager {
     /**
      * 供应商健康状态内部类
      */
+    @Data
     public static class SupplierHealthStatus {
         private String supplierName;
         private boolean healthy;
-        
+
         public SupplierHealthStatus(String supplierName, boolean healthy) {
             this.supplierName = supplierName;
             this.healthy = healthy;
-        }
-        
-        public String getSupplierName() {
-            return supplierName;
-        }
-        
-        public boolean isHealthy() {
-            return healthy;
-        }
-        
-        @Override
-        public String toString() {
-            return "SupplierHealthStatus{" +
-                    "supplierName='" + supplierName + '\'' +
-                    ", healthy=" + healthy +
-                    '}';
         }
     }
 }

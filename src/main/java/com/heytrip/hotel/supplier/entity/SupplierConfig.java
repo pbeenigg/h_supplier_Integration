@@ -55,10 +55,10 @@ public class SupplierConfig {
     private String apiBaseUrl;
 
     /**
-     * 认证类型：MD5、SHA256、JWT、OAUTH等
+     * 认证类型：MD5、SHA256、JWT、OAUTH、BasicAuth等
      */
     @Column(name = "auth_type", nullable = false, length = 50)
-    @Comment("认证类型：MD5、SHA256、JWT、OAUTH等")
+    @Comment("认证类型：MD5、SHA256、JWT、OAUTH,BaseAuth等")
     private String authType = "MD5";
 
     /**

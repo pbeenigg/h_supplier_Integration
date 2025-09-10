@@ -1709,7 +1709,7 @@ signature = MD5(appId + timestamp + secretKey + requestBody)
                 "currency": "CNY",
                 "supplierName": "booking.com",
                 "images": [
-                    "https://example.com/hotel1.jpg"
+                    "https://base.com/hotel1.jpg"
                 ],
                 "amenities": ["WiFi", "停车场", "健身房"],
                 "rooms": [
@@ -1769,7 +1769,7 @@ signature = MD5(appId + timestamp + secretKey + requestBody)
     "checkOutDate": "2024-03-17",
     "guestInfo": {
         "name": "张三",
-        "email": "zhangsan@example.com",
+        "email": "zhangsan@base.com",
         "phone": "13800138000"
     },
     "roomCount": 1,
