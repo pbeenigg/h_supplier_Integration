@@ -1,12 +1,11 @@
 package com.heytrip.hotel.supplier.adapter.impl;
 
 import com.heytrip.hotel.supplier.adapter.AbstractSupplierAdapter;
+import com.heytrip.hotel.supplier.utils.SignUtil;
 import jakarta.annotation.PostConstruct;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
-import reactor.core.publisher.Mono;
 
-import java.security.MessageDigest;
 import java.util.Arrays;
 import java.util.List;
 
@@ -45,9 +44,12 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter {
     public int getPriority() {
         return 10; // 高优先级
     }
-    
 
-    
+
+    /**
+     * 构建头部信息，包含MD5签名认证
+     * @param headers
+     */
     @Override
     protected void addAuthHeaders(HttpHeaders headers) {
         if (supplierConfig != null && supplierConfig.getAuthConfig() != null) {
@@ -56,7 +58,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter {
             String secretKey = extractFromAuthConfig("secretKey");
             
             if (appId != null && secretKey != null) {
-                String signature = generateSignature(appId, secretKey, timestamp);
+                String signature = SignUtil.generateSignature(appId, secretKey, timestamp);
                 headers.add("X-App-Id", appId);
                 headers.add("X-Timestamp", timestamp);
                 headers.add("X-Signature", signature);
@@ -64,7 +66,13 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter {
             }
         }
     }
-    
+
+
+    /**
+     * 从供应商配置中提取认证参数
+     * @param key
+     * @return
+     */
     private String extractFromAuthConfig(String key) {
         try {
             String authConfig = supplierConfig.getAuthConfig();
@@ -75,25 +83,12 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter {
                 return authConfig.substring(start + 1, end);
             }
         } catch (Exception e) {
-            logger.error("Failed to extract {} from authorization config", key, e);
+            logger.error("提取失败 {} 从授权配置", key, e);
         }
         return null;
     }
-    
-    private String generateSignature(String appId, String secretKey, String timestamp) {
-        try {
-            String data = appId + timestamp + secretKey;
-            MessageDigest md = MessageDigest.getInstance("MD5");
-            byte[] hashBytes = md.digest(data.getBytes());
-            StringBuilder sb = new StringBuilder();
-            for (byte b : hashBytes) {
-                sb.append(String.format("%02x", b));
-            }
-            return sb.toString();
-        } catch (Exception e) {
-            logger.error("Failed to generate signature", e);
-            return "";
-        }
-    }
+
+
+
 
 }
