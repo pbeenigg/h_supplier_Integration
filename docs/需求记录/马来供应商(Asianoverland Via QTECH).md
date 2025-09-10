@@ -66,12 +66,12 @@
 
 标准流程（建议遵循）：
 1) hotel_search：检索目的地酒店与可订房型（必选）
-2) hotel_detail：拉取指定酒店详细信息（可选）
-3) hotel_cancellation_policy：获取所选房型的取消条款（必选）
+2) hotel_detail：拉取指定酒店详细信息（可选，当搜索酒店列表信息不全用）
+3) hotel_cancellation_policy：获取所选房型的取消条款（强制必选， 请求预定时必须调用一次获取预定价）
 4) hotel_reservation：提交预订（必选）
 5) booking_detail：查询预订详情（可选，用于状态轮询与兜底）
-6) get_cancellation_charges：获取当前时点的取消费用（必选）
-7) cancel_the_booking：执行取消（必选）
+6) get_cancellation_charges：获取当前的取消费用（必选）
+7) cancel_the_booking：取消预定（必选）
 
 注意：
 - hotel_detail 与 hotel_cancellation_policy 的 unique_id/section_unique_id 来自 search/detail 响应。
@@ -125,6 +125,39 @@ GET /ws/index.php?action=hotel_search
         - numberOfAdults：成人数
         - numberOfChild：儿童数（可选）
         - ChildAge：儿童年龄，逗号分隔（可选）
+
+- roomDetails 示例（1 房 2 成人 1 儿童，儿童 5 岁）：
+```json
+[
+  {
+    "numberOfAdults": 2,
+    "numberOfChild": 1,
+    "ChildAge": "5"
+  }
+]
+```
+- roomDetails 示例（1 房 2 成人，无儿童）：
+```json
+[
+  {
+    "numberOfAdults": 2
+  }
+]
+```
+- roomDetails 示例（总共：2 房，1 房 1 成人，1 房 2 成人 1 儿童，儿童 2 岁）：
+```json
+[
+  {
+    "numberOfAdults": 1
+  },
+  {
+    "numberOfAdults": 2,
+    "numberOfChild": 1,
+    "ChildAge": "2"
+  }
+]
+```
+
 
 - 响应示例（精简）：
 ```json
@@ -430,11 +463,89 @@ GET /ws/index.php?action=hotel_reservation
   &expected_price=195.83
 ```
 
-```
+``` 
 - 字段说明：
     - roomClassId：等同 ClassUniqueId（来自搜索/详情的 RoomRates.ClassUniqueId）
     - passangers：包含该房间全部旅客（成人+儿童），儿童需含 age
     - expected_price：需与 TotalBookingAmount 一致（来自取消政策响应）
+    - roomDetails：JSON 数组，长度与预订房间数一致
+        - numberOfAdults：成人数
+        - numberOfChilds：儿童数
+        - roomClassId：具体房类 ID（来自搜索/详情响应）
+        - passangers：乘客列表，长度与成人+儿童数一致
+            - salutation：称谓（Mr/Ms/Mrs/Children）
+            - first_name 名
+            - last_name： 姓
+            - age：年龄（儿童必填）
+
+```
+- 参数示例（roomDetails） （公共：1 房，2 成人 1 儿童，儿童 5 岁）
+```json
+[
+  {
+    "numberOfChilds": "1",
+    "roomClassId": "0_0_73179_9840781",
+    "passangers": [
+      {
+        "salutation": "MR",
+        "first_name": "Himanshu",
+        "last_name": "Test"
+      },
+      {
+        "salutation": "MR",
+        "first_name": "Prachi",
+        "last_name": "shenoy"
+      },
+      {
+        "salutation": "Child",
+        "first_name": "Tanu",
+        "last_name": "Prabhu",
+        "age": "5"
+      }
+    ]
+  }
+]
+```
+
+- roomDetails 示例 （总共：2 房，1 房 1 成人，1 房 2 成人 1 儿童，儿童 2 岁）
+```json
+[
+  {
+    "numberOfChilds": "1",
+    "roomClassId": "0_1_73100_5630075",
+    "passangers": [
+      {
+        "salutation": "MR",
+        "first_name": "sachin",
+        "last_name": "Test"
+      },
+      {
+        "salutation": "MR",
+        "first_name": "virat",
+        "last_name": "Test"
+      },
+      {
+        "salutation": "Child",
+        "first_name": "tanu",
+        "last_name": "prabhu",
+        "age": "2"
+      }
+    ]
+  },
+  {
+    "numberOfChilds": "0",
+    "roomClassId": "0_0_73100_358796",
+    "passangers": [
+      {
+        "salutation": "MR",
+        "first_name": "Himanshu",
+        "last_name": "Test"
+      }
+    ]
+  }
+]
+```
+
 
 - 响应示例（精简）：
 ```json
