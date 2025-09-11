@@ -4,6 +4,7 @@
 本文档用于指导对接 QTECH 技术通道（供应商标识：Asianoverland）的酒店业务流程与接口规范，包含环境信息、调用顺序、接口参数、示例、静态数据、状态说明及对接注意事项。
 
 - 供应商技术通道官网：https://www.qtechsoftware.com/
+- 技术服务后台（Web Service - Support）： https://colosseum.otrams.com/ws/index.php    （Heytrip_Test / Welcome@@123）
 - 联系人：Godrey Pereira
 - 联系邮箱：技术支持 <godrey.pereira@qtechsoftware.com>，客户经理 <halancia.deva@qtechsoftware.com>
 - 联系电话：+91.22.46050602
@@ -78,6 +79,19 @@
 - 预订时 expected_price 必须与搜索结果一致，否则会报错。
 - agent_ref_no 必须对每单唯一，用于后续查询与幂等兜底。
 
+
+- 通用响应定义：
+```json
+{
+    "TotalCount": 0,
+    "WebServiceVersion": "2.0",
+    "Message": "fail",
+    "StartTime": "2025-09-11T09:11:33.005296337Z",
+    "EndTime": "2025-09-11T09:11:33.019113795Z",
+    "SearchUniqueId": "824-010-20250911091133-010-983001-010-1757581893017222215-010-",
+    "MessageInfo": "Nationality is mandatory."
+}
+```
 ---
 
 ## 4. 接口详情
@@ -167,48 +181,63 @@ GET /ws/index.php?action=hotel_search
   "Message": "success",
   "HotelList": [
     {
-      "HotelId": "6b517e6a59eba07e3d1580082ff2bdcd876d899608a695ee0ea45a5448a1b462",
-      "HotelName": "CASSELLS AL BARSHA HOTEL",
-      "LocalHotelId": "OT000228787",
-      "PropertyRating": "4.0",
+      "HotelId": "OT000016097",
+      "HotelName": "LE MÉRIDIEN DUBAI HOTEL & CONFERENCE CENTRE",
+      "LocalHotelId": "OT000016097",
+      "PropertyRating": "5.0",
       "Available": "1",
-      "Latitude": 25.113475,
-      "Longitude": 55.191621,
-      "Address": "Sheikh Zayed Road PO Box 114400",
-      "RateCurrencyCode": "INR",
-      "TotalCharges": "3856.6",
+      "Latitude": "25.249048",
+      "Longitude": "55.34764",
+      "Address": "Airport Road PO BOX 10001",
+      "ThumbNailUrl": "http://colosseum.otrams.com/cpfv3/images/?image=aHR0cHM6Ly9pLnRyYXZlbGFwaS5jb20vaG90ZWxzLzEwMDAwMDAvMTgwMDAwLzE3ODAwMC8xNzc5MzIvMDRhZjUwZmZfYi5qcGc=",
+      "RateCurrencyCode": "USD",
+      "TotalCharges": 115.6,
       "HotelProperty": [
         {
-          "DisplayRoomRate": 3856.6,
+          "DisplayRoomRate": 115.6,
+          "SectionUniqueId": "ZG90dzoxXzMwOTU0X3NpbmdsZV8xXzFfMF9kZWx1eGVyb29tX2JyZWFrZmFzdF90cnVlXzE4RF8xMDAuMDAlQ1A6cXFxOmdv",
           "Type": "Selection",
-          "SectionUniqueId": "25_181195-2_1_93642",
           "RoomRates": [
             {
               "Available": 1,
               "NumberOfRooms": 1,
-              "NumberOfAdults": "1",
+              "NumberOfAdults": 1,
               "NumberOfChild": "0",
-              "RoomRate": 3856.6,
-              "RoomType": "Single-Standard Room Twin Bed",
-              "RoomCategory": "Standard Room Twin Bed",
-              "MealBasis": "Room Only",
-              "ClassUniqueId": "181195_1_89010",
+              "ChildAges": null,
+              "RoomRate": 115.6,
+              "RoomType": "Deluxe Room Breakfast",
+              "RoomCategory": "Deluxe Room",
+              "MealBasis": "Breakfast",
+              "MealCode": "BB",
+              "Note": "",
+              "ClassUniqueId": "MzA5NTRfMF9zaW5nbGVfMV8xXzBfZGVsdXhlIHJvb21fYnJlYWtmYXN0X3RydWU=",
               "RateBreakup": [
                 {
-                  "Date": "22-04-2020",
-                  "Day": "Wednesday",
-                  "DisplayNightlyRate": 3856.6
+                  "Date": "29-09-2025",
+                  "Day": "Monday",
+                  "DisplayNightlyRate": 115.6
                 }
               ]
             }
-          ]
+          ],
+          "RoomDetails": [],
+          "Refundable": true,
+          "Policies": {
+            "CancellationPolicy": [
+              {
+                "Start": "2025-09-28 13:00:00 +0530",
+                "End": "2025-09-29 05:30:00 +0530",
+                "Charges": 115.6
+              }
+            ]
+          }
         }
       ]
     }
   ],
-  "SearchUniqueId": "870420200206023349484798224",
-  "StartTime": "2020-02-04 06:02:33",
-  "EndTime": "2020-02-04 06:02:53"
+  "StartTime": "2025-09-11T08:52:48.58352284Z",
+  "EndTime": "2025-09-11T08:52:56.406280267Z",
+  "SearchUniqueId": "824-010-20250911085248-010-982996-010-1757580768597119691-010-"
 }
 ```
 
@@ -289,42 +318,67 @@ GET /ws/index.php?action=hotel_detail
 ```json
 {
   "Message": "success",
-  "HotelId": "6b517e6a59eba07e3d1580082ff2bdcd876d899608a695ee0ea45a5448a1b462",
-  "HotelName": "CASSELLS AL BARSHA HOTEL",
-  "Description": "....",
+  "HotelId": "OT000016097",
+  "HotelName": "LE MÉRIDIEN DUBAI HOTEL & CONFERENCE CENTRE",
+  "Description": "",
   "Amenities": {
-    "HotelAmenities": [{"AmenityName": "Car Parking"}],
-    "RoomAmenities": [{"RoomAmenityName": "Hair Dryer"}]
+    "HotelAmenities": [
+      {
+        "AmenityName": ""
+      }
+    ],
+    "RoomAmenities": [
+      {
+        "RoomAmenityName": ""
+      }
+    ]
   },
-  "longitude": 55.191621,
-  "latitude": 25.113475,
-  "HotelRating": "4.0",
-  "HotelAddress": "Sheikh Zayed Road PO Box 114400",
+  "email": " ",
+  "website": " ",
+  "Phone": "",
+  "longitude": "55.34764",
+  "latitude": "25.249048",
+  "HotelRating": "5.0",
+  "HotelAddress": "Airport Road PO BOX 10001",
   "HotelImages": [
-    {"ThumbnailUrl": "http://URL/...","BigUrl": "http://URL/..."}
+    {
+      "ThumbnailUrl": "",
+      "BigUrl": ""
+    }
   ],
   "SectionSelection": [
     {
-      "DisplayRoomRate": 3856.6,
+      "DisplayRoomRate": 778.37,
       "Type": "Selection",
-      "SectionUniqueId": "25_181195-2_1_93642",
+      "SectionUniqueId": "ZG90dzoxXzMwOTU0X2RvdWJsZXBsdXNjaGlsZF8xXQOnFxcTpnbw==",
+      "RoomDetails": [
+
+      ],
       "RoomRates": [
         {
           "Available": "1",
           "NumberOfRooms": 1,
-          "NumberOfAdults": "1",
-          "NumberOfChild": "0",
-          "RoomRate": 3856.6,
-          "RoomType": "Single-Standard Room Twin Bed",
-          "RoomCategory": "Standard Room Twin Bed",
-          "MealBasis": "Room Only",
-          "ClassUniqueId": "181195_1_89010"
+          "NumberOfAdults": 2,
+          "NumberOfChild": 1,
+          "RoomRate": 778.37,
+          "RoomType": "Junior Suite, Garden View Full Board  - Dynamic Availability ",
+          "RoomCategory": "JUNIOR SUITE, GARDEN VIEW",
+          "MealBasis": "Full Board",
+          "ClassUniqueId": "MzA5NTRfMF9kb3VibGVwbHVzY2hpbGRfMV8yXzFfNV9qdW5pb3IfdHJ1ZQ==",
+          "RefundPolicyText": "Refundable",
+          "RateBreakup": [
+            {
+              "Date": "30-10-2025",
+              "Day": "Thursday",
+              "DisplayNightlyRate": 778.37
+            }
+          ]
         }
       ]
     }
   ],
-  "StartTime": "2020-02-04 06:03:50",
-  "EndTime": "2020-02-04 06:04:01"
+  "StartTime": "2025-09-11 07:07:37",
+  "EndTime": "2025-09-11 07:07:43"
 }
 ```
 
@@ -395,21 +449,41 @@ GET /ws/index.php?action=hotel_cancellation_policy
 - 响应示例（精简）：
 ```json
 {
-  "Message": "success",
-  "CancellationCurrency": "INR",
-  "TotalBookingAmount": 3856.6,
-  "ContractComment": "Hotel Remark: ... additional fees ...",
-  "CancellationHours": 1917,
-  "AppliedAgentCharges": 3856.6,
-  "BookingAllowedInfo": {
     "Message": "success",
-    "Status": "success",
-    "SoldOut": "No",
-    "MessageInfo": "You are making a booking within cancellation policy.",
-    "BookingAllowed": "yes"
-  },
-  "StartTime": "2020-02-04 06:05:52",
-  "EndTime": "2020-02-04 06:06:07"
+    "CancellationCurrency": "USD",
+    "TotalBookingAmount": 115.59,
+    "ContractComment": " No shows policy will be applicable for 100 % Room ....",
+    "RefundPolicyText": "Refundable",
+    "Policies": {
+        "CancellationPolicy": [
+            {
+                "Start": "2025-09-21 21:00:00 +0530",
+                "End": "2025-09-29 06:59:59 +0530",
+                "Charges": 115.59,
+                "Remark": ""
+            },
+            {
+                "Start": "2025-09-29 07:00:00 +0530",
+                "End": "2025-09-29 05:30:00 +0530",
+                "Charges": 115.59,
+                "Remark": ""
+            }
+        ],
+        "AmmendmentPolicy": "",
+        "NoShowPolicy": ""
+    },
+    "BookingAllowedInfo": {
+        "PriceChange": "no",
+        "PriceDiff": 0,
+        "RateChanges": [],
+        "PayNow": "no",
+        "BookingAllowed": "yes",
+        "MessageInfo": "You can proceed with the booking.",
+        "Message": "success",
+        "SoldOut": "No"
+    },
+    "StartTime": "2025-09-11 03:47:31",
+    "EndTime": "2025-09-11 03:47:41"
 }
 ```
 

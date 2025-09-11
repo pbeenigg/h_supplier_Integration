@@ -1,5 +1,5 @@
 # Hotel Supplier Integration Service Dockerfile
-# Multi-stage build for optimized production image
+# Multi-stage builder for optimized production image
 
 # Build stage
 FROM openjdk:17-jdk-slim as builder
