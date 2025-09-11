@@ -20,7 +20,7 @@
 4. 接口详情
     - 4.1 酒店搜索 hotel_search
     - 4.2 酒店详情 hotel_detail
-    - 4.3 取消政策 hotel_cancellation_policy
+    - 4.3 取消规则 hotel_cancellation_policy
     - 4.4 酒店预订 hotel_reservation
     - 4.5 预订详情 booking_detail
     - 4.6 取消费用 get_cancellation_charges
@@ -214,7 +214,7 @@ GET /ws/index.php?action=hotel_search
 
 - 字段说明要点：
     - SearchUniqueId：本次搜索会话唯一标识，后续 detail/cancellation/reservation 需传
-    - SectionUniqueId：房型组合唯一标识（后续取消政策与预订使用）
+    - SectionUniqueId：房型组合唯一标识（后续取消规则与预订使用）
     - ClassUniqueId：具体房型/房类唯一ID（预订 roomDetails.roomClassId 使用）
     - TotalCharges/DisplayRoomRate：房型总价（注意与 expected_price 校验一致）
     - RateBreakup：逐夜价格明细
@@ -252,7 +252,7 @@ GET /ws/index.php?action=hotel_search
         | --- | --- | --- | --- |
       | DisplayRoomRate | float | 3856.6 | 房型组合总价 |
       | Type | string | "Selection" | 内部使用 |
-      | SectionUniqueId | string | "25_181195-2_1_93642" | 房型组合唯一ID（后续取消政策/预订必传） |
+      | SectionUniqueId | string | "25_181195-2_1_93642" | 房型组合唯一ID（后续取消规则/预订必传） |
 
   - HotelList[n].HotelProperty[m].RoomRates[k]
 
@@ -367,14 +367,14 @@ GET /ws/index.php?action=hotel_detail
       | --- | --- | --- | --- |
     | DisplayRoomRate | float | 3856.6 | 组合总价 |
     | Type | string | "Selection" | 内部使用 |
-    | SectionUniqueId | string | "25_..." | 组合ID（后续取消政策/预订用） |
+    | SectionUniqueId | string | "25_..." | 组合ID（后续取消规则/预订用） |
     | RoomRates[].ClassUniqueId | string | "181195_..." | 房类ID（预订用） |
     | RoomRates[].Available | string/int | "1" | 是否可订 |
     | RoomRates[].RoomType | string | "Single-..." | 房型描述 |
     | RoomRates[].MealBasis | string | "Room Only" | 餐型 |
 ---
 
-### 4.3 取消政策 hotel_cancellation_policy
+### 4.3 取消规则 hotel_cancellation_policy
 - 请求地址：`https://colosseum.otrams.com/ws/index.php`
 - 示例（URL 编码项已省略展示）：
 ```
@@ -447,7 +447,7 @@ GET /ws/index.php?action=hotel_cancellation_policy
     - 所有房间详情和所有客人详情必须在请求中提供。
     - 儿童乘客称谓统一为 “Children”；如含儿童，需在 roomDetails 中提供年龄（age）。
     - agent_ref_no 必须每单唯一。
-    - 使用最近的取消政策且与所订房间一致，否则会报错。
+    - 使用最近的取消规则且与所订房间一致，否则会报错。
     - 预订超时建议 180 秒；若超时未回包，立刻用 booking_detail 携带 agent_ref_no 轮询状态。
 
 - 示例（示意）：
@@ -467,7 +467,7 @@ GET /ws/index.php?action=hotel_reservation
 - 字段说明：
     - roomClassId：等同 ClassUniqueId（来自搜索/详情的 RoomRates.ClassUniqueId）
     - passangers：包含该房间全部旅客（成人+儿童），儿童需含 age
-    - expected_price：需与 TotalBookingAmount 一致（来自取消政策响应）
+    - expected_price：需与 TotalBookingAmount 一致（来自取消规则响应）
     - roomDetails：JSON 数组，长度与预订房间数一致
         - numberOfAdults：成人数
         - numberOfChilds：儿童数
@@ -892,7 +892,7 @@ GET /ws/index.php?action=cancel_the_booking
 - 关键注意事项
     - agent_ref_no 每单唯一；用于查询与幂等兜底
     - 预订 expected_price 必须与搜索返回一致
-    - 取消政策需匹配所订房间的最新版本
+    - 取消规则需匹配所订房间的最新版本
     - 预订超时（180s）后立即用 booking_detail 轮询；如仍无进展，联系 Qtech 客服
     - 充分处理网络错误、超时、第三方错误码，设计可重试与回滚策略
     - 定期同步静态数据并做差异校验（目的地/酒店/国籍等）
