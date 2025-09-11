@@ -31,7 +31,13 @@ public class QTechHotelDetailRequest {
      */
     @JsonProperty("hotel_id")
     private String hotelId;
-    
+
+
+    /**
+     * 酒店搜索唯一 Id
+     */
+    @JsonProperty("unique_id")
+    private String uniqueId;
     /**
      * 响应压缩
      */

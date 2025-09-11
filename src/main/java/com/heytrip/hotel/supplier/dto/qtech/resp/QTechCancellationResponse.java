@@ -11,37 +11,16 @@ import java.math.BigDecimal;
  * @author Pax
  */
 @Data
-public class QTechCancellationResponse {
+public class QTechCancellationResponse  extends QTechBaseResponse{
     
-    /**
-     * 状态
-     */
-    @JsonProperty("Status")
-    private String status;
-    
-    /**
-     * 消息
-     */
-    @JsonProperty("Message")
-    private String message;
+
     
     /**
      * 取消详情
      */
     @JsonProperty("CancellationDetail")
     private CancellationDetail cancellationDetail;
-    
-    /**
-     * 开始时间
-     */
-    @JsonProperty("StartTime")
-    private String startTime;
-    
-    /**
-     * 结束时间
-     */
-    @JsonProperty("EndTime")
-    private String endTime;
+
     
     /**
      * 取消详情

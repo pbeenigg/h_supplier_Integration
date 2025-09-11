@@ -1,6 +1,7 @@
 package com.heytrip.hotel.supplier.client;
 
 import com.heytrip.hotel.supplier.entity.ApiCallLog;
+import com.heytrip.hotel.supplier.exception.HttpClientException;
 import com.heytrip.hotel.supplier.repository.ApiCallLogRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -101,6 +102,8 @@ public class HttpClientService {
         return executeRequest(baseUrl, endpoint, HttpMethod.DELETE, null, responseType, headersCustomizer, supplierId);
     }
 
+
+
     /**
      * 执行HTTP请求的通用方法
      * @param baseUrl 基础URL
@@ -117,6 +120,8 @@ public class HttpClientService {
                                       Object requestBody, Class<T> responseType,
                                       Consumer<WebClient.RequestHeadersSpec<?>> headersCustomizer,
                                       Long supplierId) {
+
+        logger.warn("ExecuteRequest  to {}{}",baseUrl,endpoint);
 
         WebClient webClient = webClientBuilder
                 .baseUrl(baseUrl)
@@ -171,6 +176,7 @@ public class HttpClientService {
                     return Mono.error(new HttpClientException("Request failed: " + error.getMessage(), error));
                 });
     }
+
 
 
     /**
@@ -361,16 +367,6 @@ public class HttpClientService {
         }
     }
     
-    /**
-     * HTTP客户端异常
-     */
-    public static class HttpClientException extends RuntimeException {
-        public HttpClientException(String message) {
-            super(message);
-        }
-        
-        public HttpClientException(String message, Throwable cause) {
-            super(message, cause);
-        }
-    }
+
+
 }

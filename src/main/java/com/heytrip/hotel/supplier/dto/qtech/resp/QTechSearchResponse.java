@@ -12,49 +12,13 @@ import java.util.List;
  * @author Pax
  */
 @Data
-public class QTechSearchResponse {
+public class QTechSearchResponse extends QTechBaseResponse {
     
     /**
-     * 返回酒店数量
-     */
-    @JsonProperty("TotalCount")
-    private Integer totalCount;
-    
-    /**
-     * API版本
-     */
-    @JsonProperty("WebServiceVersion")
-    private String webServiceVersion;
-    
-    /**
-     * 请求结果
-     */
-    @JsonProperty("Message")
-    private String message;
-    
-    /**
-     * 酒店列表
+     * 酒店列表（仅在成功时存在）
      */
     @JsonProperty("HotelList")
     private List<Hotel> hotelList;
-    
-    /**
-     * 本次搜索会话ID
-     */
-    @JsonProperty("SearchUniqueId")
-    private String searchUniqueId;
-    
-    /**
-     * 开始时间
-     */
-    @JsonProperty("StartTime")
-    private String startTime;
-    
-    /**
-     * 结束时间
-     */
-    @JsonProperty("EndTime")
-    private String endTime;
     
     /**
      * 酒店信息
@@ -95,19 +59,25 @@ public class QTechSearchResponse {
          * 纬度
          */
         @JsonProperty("Latitude")
-        private BigDecimal latitude;
+        private String latitude;
         
         /**
          * 经度
          */
         @JsonProperty("Longitude")
-        private BigDecimal longitude;
+        private String longitude;
         
         /**
          * 地址
          */
         @JsonProperty("Address")
         private String address;
+        
+        /**
+         * 酒店缩略图URL
+         */
+        @JsonProperty("ThumbNailUrl")
+        private String thumbNailUrl;
         
         /**
          * 币种
@@ -119,7 +89,7 @@ public class QTechSearchResponse {
          * 最便宜房型总价
          */
         @JsonProperty("TotalCharges")
-        private String totalCharges;
+        private Double totalCharges;
         
         /**
          * 酒店房型列表
@@ -156,6 +126,24 @@ public class QTechSearchResponse {
          */
         @JsonProperty("RoomRates")
         private List<RoomRate> roomRates;
+        
+        /**
+         * 房间详情列表
+         */
+        @JsonProperty("RoomDetails")
+        private List<Object> roomDetails;
+        
+        /**
+         * 是否可退款
+         */
+        @JsonProperty("Refundable")
+        private Boolean refundable;
+        
+        /**
+         * 政策信息
+         */
+        @JsonProperty("Policies")
+        private Policies policies;
     }
     
     /**
@@ -179,13 +167,19 @@ public class QTechSearchResponse {
          * 成人数
          */
         @JsonProperty("NumberOfAdults")
-        private String numberOfAdults;
+        private Integer numberOfAdults;
         
         /**
          * 儿童数
          */
         @JsonProperty("NumberOfChild")
         private String numberOfChild;
+        
+        /**
+         * 儿童年龄列表
+         */
+        @JsonProperty("ChildAges")
+        private String childAges;
         
         /**
          * 房型价格
@@ -210,6 +204,18 @@ public class QTechSearchResponse {
          */
         @JsonProperty("MealBasis")
         private String mealBasis;
+        
+        /**
+         * 餐型代码
+         */
+        @JsonProperty("MealCode")
+        private String mealCode;
+        
+        /**
+         * 备注
+         */
+        @JsonProperty("Note")
+        private String note;
         
         /**
          * 具体房类ID
@@ -246,5 +252,41 @@ public class QTechSearchResponse {
          */
         @JsonProperty("DisplayNightlyRate")
         private BigDecimal displayNightlyRate;
+    }
+    
+    /**
+     * 政策信息
+     */
+    @Data
+    public static class Policies {
+        /**
+         * 取消政策列表
+         */
+        @JsonProperty("CancellationPolicy")
+        private List<CancellationPolicy> cancellationPolicy;
+    }
+    
+    /**
+     * 取消政策
+     */
+    @Data
+    public static class CancellationPolicy {
+        /**
+         * 开始时间
+         */
+        @JsonProperty("Start")
+        private String start;
+        
+        /**
+         * 结束时间
+         */
+        @JsonProperty("End")
+        private String end;
+        
+        /**
+         * 取消费用
+         */
+        @JsonProperty("Charges")
+        private Double charges;
     }
 }

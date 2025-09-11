@@ -1,39 +1,35 @@
 package com.heytrip.hotel.supplier.adapter.impl;
 
 import cn.hutool.core.util.StrUtil;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.heytrip.hotel.supplier.adapter.AbstractSupplierAdapter;
 import com.heytrip.hotel.supplier.client.HttpClientService;
 import com.heytrip.hotel.supplier.dto.base.SupplierAuth;
 import com.heytrip.hotel.supplier.dto.qtech.req.*;
 import com.heytrip.hotel.supplier.dto.qtech.resp.*;
+import com.heytrip.hotel.supplier.adapter.builder.QTechQueryBuilder;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
-import java.lang.reflect.Field;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.function.Consumer;
 
 /**
  * Asianoverland Via QTECH 供应商适配器实现
- * 
+ * <p>
  * 实现QTECH API的酒店搜索、预订、取消等核心功能
  * API文档参考：docs/需求记录/马来供应商(Asianoverland Via QTECH).md
  *
- * @author  Pax
+ * @author Pax
  */
 @Component
 public class AsianOverlandAdapter extends AbstractSupplierAdapter {
 
     @Autowired
     private HttpClientService httpClientService;
+    
 
     // 默认供应商信息（当数据库配置不可用时使用）
     private static final Long DEFAULT_SUPPLIER_ID = 1L;
@@ -41,8 +37,8 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter {
     private static final String DEFAULT_SUPPLIER_CODE = "AO_QTECH";
 
     // QTECH API 地址
-    private static final String SEARCH_BASE_URL = "http://colosseum.otrams.com:8087/ws/index.php";
-    private static final String API_BASE_URL = "https://colosseum.otrams.com/ws/index.php";
+    private static final String SEARCH_BASE_URL = "http://colosseum.otrams.com:8087";
+    private static final String API_BASE_URL = "https://colosseum.otrams.com";
 
 
     // 支持的城市列表（可扩展）
@@ -50,7 +46,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter {
             "Kuala Lumpur", "Penang", "Johor Bahru", "Malacca", "Ipoh", "Kota Kinabalu", "Kuching",
             "Dubai", "Singapore", "Bangkok", "Manila", "Jakarta"
     );
-    
+
     // 日期格式化器
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
@@ -89,7 +85,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter {
     }
 
 
-
     /**
      * 检查是否支持指定城市
      */
@@ -102,7 +97,8 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter {
 
     /**
      * 检查是否支持指定国家
-     */    @Override
+     */
+    @Override
     public boolean supportsCountry(String country) {
         // 目前仅支持马来西亚、新加坡、阿联酋、泰国
         List<String> supportedCountries = Arrays.asList("Malaysia", "Singapore", "UAE", "Thailand");
@@ -121,105 +117,89 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter {
     }
 
 
-
     /**
      * 统一的HTTP GET请求方法，自动应用认证头部
-     * 
-     * @param baseUrl 基础URL
-     * @param endpoint 端点路径
+     *
+     * @param baseUrl      基础URL
+     * @param endpoint     端点路径
      * @param responseType 响应类型
      * @return 响应结果
      */
     protected <T> Mono<T> executeGetRequest(String baseUrl, String endpoint, Class<T> responseType) {
         return httpClientService.get(
-            baseUrl,
-            endpoint,
-            responseType,
-            headers -> {
-                // 应用通用的认证头部
-                headers.header("Content-Type", "application/json");
-                headers.header("User-Agent", "HeyTrip-AsianOverland-Adapter-Pax/1.0");
-                headers.header("X-Supplier", getSafeSupplierName());
-            },
-            getSafeSupplierId()
+                baseUrl,
+                endpoint,
+                responseType,
+                headers -> {
+                    // 应用通用的认证头部
+                    headers.header("Content-Type", "application/json");
+                    headers.header("User-Agent", "HeyTrip-AsianOverland-Adapter-Pax/1.0");
+                    headers.header("X-Supplier", getSafeSupplierName());
+                },
+                getSafeSupplierId()
         );
     }
 
-    /**
-     * 统一的HTTP GET请求方法，支持额外的头部自定义
-     * 
-     * @param baseUrl 基础URL
-     * @param endpoint 端点路径
-     * @param responseType 响应类型
-     * @param additionalHeadersCustomizer 额外的头部自定义器
-     * @return 响应结果
-     */
-    protected <T> Mono<T> executeGetRequest(String baseUrl, String endpoint, Class<T> responseType,
-                                          Consumer<WebClient.RequestHeadersSpec<?>> additionalHeadersCustomizer) {
-        return httpClientService.get(
-            baseUrl,
-            endpoint,
-            responseType,
-            headers -> {
-                // 应用通用的认证头部
-                headers.header("Content-Type", "application/json");
-                headers.header("User-Agent", "HeyTrip-AsianOverland-Adapter-Pax/1.0");
-                headers.header("X-Supplier", getSafeSupplierName());
-                // 应用额外的头部自定义
-                if (additionalHeadersCustomizer != null) {
-                    additionalHeadersCustomizer.accept(headers);
-                }
-            },
-            getSafeSupplierId()
-        );
-    }
+
+
+
+
 
 
     /**
      * 执行QTECH酒店搜索
-     * 
+     *
      * @param request 搜索请求对象
      * @return 搜索结果
      */
     public Mono<QTechSearchResponse> searchHotels(QTechSearchRequest request) {
-        logger.info("开始QTECH酒店搜索，目的地: {}, 入住: {}, 离店: {}", 
+        logger.info("开始QTECH酒店搜索，目的地: {}, 入住: {}, 离店: {}",
                 request.getSelCity(), request.getCheckinDate(), request.getCheckoutDate());
-        
+
         try {
             // 获取动态认证配置并设置到请求DTO中
             SupplierAuth authConfig = extractFromAuthConfig(getSafeSupplierName());
             request.setUsername(authConfig.getUsername());
             request.setPassword(authConfig.getPassword());
-            
-            // 调用QTECH搜索API
-            return executeSearch(request)
-                    .doOnSuccess(result -> logger.info("QTECH搜索完成，返回{}家酒店",
-                            result != null && result.getHotelList() != null ? result.getHotelList().size() : 0))
-                    .doOnError(error -> logger.error("QTECH搜索失败", error));
-                    
+
+            // 校验数据一致性
+            if (!request.isRoomDetailsValid()) {
+                String msg = request.getRoomDetailsValidationError();
+                logger.error("房间校验失败: {}", msg);
+                throw new IllegalArgumentException("数据校验失败: "+msg);
+            }
+
+            logger.debug("调用QTECH搜索API，目的地: {}, 入住: {}, 离店: {}",
+                    request.getSelCity(), request.getCheckinDate(), request.getCheckoutDate());
+
+            String endpoint = QTechQueryBuilder.buildEndpoint(request);
+            logger.debug("构建的搜索端点: {}", endpoint);
+
+            return executeGetRequest(SEARCH_BASE_URL, endpoint, QTechSearchResponse.class);
+
         } catch (Exception e) {
-            logger.error("QTECH搜索请求构建失败", e);
-            return Mono.error(new RuntimeException("搜索请求构建失败: " + e.getMessage()));
+            logger.error("QTECH搜索请求失败", e);
+            return Mono.error(new RuntimeException("搜索请求失败: " + e.getMessage()));
         }
     }
 
     /**
      * 执行QTECH酒店预订
-     * 
+     *
      * @param request 预订请求对象
      * @return 预订结果
      */
     public Mono<QTechReservationResponse> bookHotel(QTechReservationRequest request) {
-        logger.info("开始QTECH酒店预订，酒店ID: {}, 房间ID: {}, 订单号: {}", 
+        logger.info("开始QTECH酒店预订，酒店ID: {}, 房间ID: {}, 订单号: {}",
                 request.getHotelId(), request.getSectionUniqueId(), request.getAgentRefNo());
-        
+
         try {
             // 1. 先获取取消规则（必需步骤）
             QTechCancellationPolicyRequest policyRequest = new QTechCancellationPolicyRequest();
             policyRequest.setHotelId(request.getHotelId());
             policyRequest.setUniqueId(request.getUniqueId());
             policyRequest.setSectionUniqueId(request.getSectionUniqueId());
-            
+
             return getCancellationPolicy(policyRequest)
                     .flatMap(policy -> {
                         if (policy == null || !"success".equals(policy.getMessage())) {
@@ -230,14 +210,18 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter {
                             return Mono.error(new RuntimeException("获取取消规则失败,无法获取预定价格"));
                         }
 
-                        
+                        QTechCancellationPolicyResponse.BookingAllowedInfo allowedInfo = policy.getBookingAllowedInfo();
+                        if (allowedInfo == null || !"yes".equalsIgnoreCase(allowedInfo.getBookingAllowed())) {
+                            return Mono.error(new RuntimeException("当前房型不可预订"));
+                        }
+
                         // 2. 执行预订
                         return executeReservation(request, policy);
                     })
-                    .doOnSuccess(result -> logger.info("QTECH预订完成，状态: {}", 
+                    .doOnSuccess(result -> logger.info("QTECH预订完成，状态: {}",
                             result != null ? result.getStatus() : "未知"))
                     .doOnError(error -> logger.error("QTECH预订失败", error));
-                    
+
         } catch (Exception e) {
             logger.error("QTECH预订请求构建失败", e);
             return Mono.error(new RuntimeException("预订请求构建失败: " + e.getMessage()));
@@ -246,13 +230,13 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter {
 
     /**
      * 获取QTECH酒店详情
-     * 
+     *
      * @param request 酒店详情请求对象
      * @return 酒店详情
      */
     public Mono<QTechHotelDetailResponse> getHotelDetail(QTechHotelDetailRequest request) {
         logger.info("开始获取QTECH酒店详情，酒店ID: {}", request.getHotelId());
-        
+
         try {
             // 获取动态认证配置并设置到请求DTO中
             SupplierAuth authConfig = extractFromAuthConfig(getSafeSupplierName());
@@ -260,14 +244,14 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter {
             request.setPassword(authConfig.getPassword());
 
             logger.debug("调用QTECH酒店详情API，酒店ID: {}", request.getHotelId());
-            
-            String endpoint = buildQTechEndpoint(request);
+
+            String endpoint = QTechQueryBuilder.buildEndpoint(request);
             logger.debug("构建的酒店详情端点: {}", endpoint);
-            
+
             return executeGetRequest(API_BASE_URL, endpoint, QTechHotelDetailResponse.class)
-            .doOnSuccess(result -> logger.info("QTECH酒店详情获取完成，酒店ID: {}", request.getHotelId()))
-            .doOnError(error -> logger.error("QTECH酒店详情获取失败，酒店ID: {}", request.getHotelId(), error));
-            
+                    .doOnSuccess(result -> logger.info("QTECH酒店详情获取完成，酒店ID: {}", request.getHotelId()))
+                    .doOnError(error -> logger.error("QTECH酒店详情获取失败，酒店ID: {}", request.getHotelId(), error));
+
         } catch (Exception e) {
             logger.error("QTECH酒店详情请求构建失败", e);
             return Mono.error(new RuntimeException("酒店详情请求构建失败: " + e.getMessage()));
@@ -276,28 +260,28 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter {
 
     /**
      * 获取QTECH预订详情
-     * 
+     *
      * @param request 预订详情请求对象
      * @return 预订详情
      */
     public Mono<QTechBookingDetailResponse> getBookingDetail(QTechBookingDetailRequest request) {
         logger.info("开始获取QTECH预订详情，预订ID: {}", request.getBookingId());
-        
+
         try {
             // 获取动态认证配置并设置到请求DTO中
             SupplierAuth authConfig = extractFromAuthConfig(getSafeSupplierName());
             request.setUsername(authConfig.getUsername());
             request.setPassword(authConfig.getPassword());
-            
+
             logger.debug("调用QTECH预订详情API，预订ID: {}", request.getBookingId());
-            
-            String endpoint = buildQTechEndpoint(request);
+
+            String endpoint = QTechQueryBuilder.buildEndpoint(request);
             logger.debug("构建的预订详情端点: {}", endpoint);
-            
+
             return executeGetRequest(API_BASE_URL, endpoint, QTechBookingDetailResponse.class)
-            .doOnSuccess(result -> logger.info("QTECH预订详情获取完成，预订ID: {}", request.getBookingId()))
-            .doOnError(error -> logger.error("QTECH预订详情获取失败，预订ID: {}", request.getBookingId(), error));
-            
+                    .doOnSuccess(result -> logger.info("QTECH预订详情获取完成，预订ID: {}", request.getBookingId()))
+                    .doOnError(error -> logger.error("QTECH预订详情获取失败，预订ID: {}", request.getBookingId(), error));
+
         } catch (Exception e) {
             logger.error("QTECH预订详情请求构建失败", e);
             return Mono.error(new RuntimeException("预订详情请求构建失败: " + e.getMessage()));
@@ -306,13 +290,13 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter {
 
     /**
      * 执行QTECH取消预订
-     * 
+     *
      * @param request 取消请求对象
      * @return 取消结果
      */
     public Mono<QTechCancellationResponse> cancelBooking(QTechCancellationBookingRequest request) {
         logger.info("开始QTECH取消预订，预订ID: {}", request.getBookingId());
-        
+
         try {
 
             QTechGetCancellationChargesRequest chargesRequest = new QTechGetCancellationChargesRequest();
@@ -324,90 +308,34 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter {
                         if (chargesResult == null || !"success".equals(chargesResult.getStatus())) {
                             return Mono.error(new RuntimeException("获取取消费用失败"));
                         }
-                        
+
                         // 2. 执行取消
                         return executeCancellation(request);
                     })
-                    .doOnSuccess(result -> logger.info("QTECH取消完成，状态: {}", 
+                    .doOnSuccess(result -> logger.info("QTECH取消完成，状态: {}",
                             result != null ? result.getStatus() : "未知"))
                     .doOnError(error -> logger.error("QTECH取消失败", error));
-                    
+
         } catch (Exception e) {
             logger.error("QTECH取消请求构建失败", e);
             return Mono.error(new RuntimeException("取消请求构建失败: " + e.getMessage()));
         }
     }
 
-    /**
-     * 从DTO对象构建QTECH API查询参数端点
-     * 使用反射获取DTO字段值，支持@JsonProperty注解
-     */
-    private String buildQTechEndpoint(Object dto) {
-        if (dto == null) {
-            return "/ws/index.php";
-        }
 
-        Map<String, String> params = new HashMap<>();
-        Class<?> clazz = dto.getClass();
 
-        try {
-            for (Field field : clazz.getDeclaredFields()) {
-                field.setAccessible(true);
-                Object value = field.get(dto);
 
-                if (value != null) {
-                    String paramName = field.getName();
-
-                    // 检查是否有@JsonProperty注解
-                    JsonProperty jsonProperty = field.getAnnotation(JsonProperty.class);
-                    if (jsonProperty != null && !jsonProperty.value().isEmpty()) {
-                        paramName = jsonProperty.value();
-                    }
-
-                    params.put(paramName, value.toString());
-                }
-            }
-        } catch (IllegalAccessException e) {
-            logger.error("构建QTECH端点失败: {}", dto.getClass().getSimpleName(), e);
-            throw new RuntimeException("构建QTECH端点失败", e);
-        }
-
-        // 构建查询字符串
-        StringBuilder endpoint = new StringBuilder("/ws/index.php?");
-        params.forEach((key, value) -> {
-            endpoint.append(key).append("=").append(value).append("&");
-        });
-
-        // 移除最后的&符号
-        if (endpoint.length() > 0 && endpoint.charAt(endpoint.length() - 1) == '&') {
-            endpoint.setLength(endpoint.length() - 1);
-        }
-
-        return endpoint.toString();
-    }
-
-    /**
-     * 执行搜索请求
-     */
-    private Mono<QTechSearchResponse> executeSearch(QTechSearchRequest request) {
-        logger.debug("调用QTECH搜索API，目的地: {}, 入住: {}, 离店: {}", 
-                    request.getSelCity(), request.getCheckinDate(), request.getCheckoutDate());
-        
-        String endpoint = buildQTechEndpoint(request);
-        logger.debug("构建的搜索端点: {}", endpoint);
-        
-        return executeGetRequest(SEARCH_BASE_URL, endpoint, QTechSearchResponse.class);
-    }
 
     /**
      * 获取取消规则 （获取的精准最新的预定价格）
+     *
      * @param request 取消规则请求DTO
      * @return
      */
     private Mono<QTechCancellationPolicyResponse> getCancellationPolicy(QTechCancellationPolicyRequest request) {
         return executeCancellationPolicy(request);
     }
-    
+
     /**
      * 执行取消规则查询
      */
@@ -416,42 +344,43 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter {
         SupplierAuth authConfig = extractFromAuthConfig(getSafeSupplierName());
         request.setUsername(authConfig.getUsername());
         request.setPassword(authConfig.getPassword());
-        
-        logger.debug("调用QTECH取消规则API，酒店ID: {}, 房型ID: {}", 
-                    request.getHotelId(), request.getSectionUniqueId());
-        
-        String endpoint = buildQTechEndpoint(request);
+
+        logger.debug("调用QTECH取消规则API，酒店ID: {}, 房型ID: {}",
+                request.getHotelId(), request.getSectionUniqueId());
+
+        String endpoint = QTechQueryBuilder.buildEndpoint(request);
         logger.debug("构建的取消规则端点: {}", endpoint);
-        
+
         return executeGetRequest(API_BASE_URL, endpoint, QTechCancellationPolicyResponse.class);
     }
-    
+
     /**
      * 执行预订
      */
-    private Mono<QTechReservationResponse> executeReservation(QTechReservationRequest request, 
-                                                            QTechCancellationPolicyResponse policy) {
+    private Mono<QTechReservationResponse> executeReservation(QTechReservationRequest request,
+                                                              QTechCancellationPolicyResponse policy) {
         // 获取动态认证配置并设置到请求DTO中
         SupplierAuth authConfig = extractFromAuthConfig(getSafeSupplierName());
         request.setUsername(authConfig.getUsername());
         request.setPassword(authConfig.getPassword());
-        
+
         // 设置预期价格（从取消规则响应中获取）
         if (policy != null && policy.getTotalBookingAmount() != null) {
             request.setExpectedPrice(policy.getTotalBookingAmount());
         }
-        
-        logger.debug("调用QTECH预订API，酒店ID: {}, 房型ID: {}, 订单号: {}", 
-                    request.getHotelId(), request.getSectionUniqueId(), request.getAgentRefNo());
-        
-        String endpoint = buildQTechEndpoint(request);
+
+        logger.debug("调用QTECH预订API，酒店ID: {}, 房型ID: {}, 订单号: {}",
+                request.getHotelId(), request.getSectionUniqueId(), request.getAgentRefNo());
+
+        String endpoint = QTechQueryBuilder.buildEndpoint(request);
         logger.debug("构建的预订端点: {}", endpoint);
-        
+
         return executeGetRequest(API_BASE_URL, endpoint, QTechReservationResponse.class);
     }
 
     /**
      * 获取酒店预定取消费用
+     *
      * @param request
      * @return
      */
@@ -460,15 +389,15 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter {
         SupplierAuth authConfig = extractFromAuthConfig(getSafeSupplierName());
         request.setUsername(authConfig.getUsername());
         request.setPassword(authConfig.getPassword());
-        
+
         logger.debug("调用QTECH取消费用API，预订ID: {}", request.getBookingId());
-        
-        String endpoint = buildQTechEndpoint(request);
+
+        String endpoint = QTechQueryBuilder.buildEndpoint(request);
         logger.debug("构建的取消费用端点: {}", endpoint);
-        
+
         return executeGetRequest(API_BASE_URL, endpoint, QTechCancellationChargesResponse.class);
     }
-    
+
     /**
      * 执行取消
      */
@@ -477,15 +406,14 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter {
         SupplierAuth authConfig = extractFromAuthConfig(getSafeSupplierName());
         request.setUsername(authConfig.getUsername());
         request.setPassword(authConfig.getPassword());
-        
+
         logger.debug("调用QTECH取消预订API，预订ID: {}", request.getBookingId());
-        
-        String endpoint = buildQTechEndpoint(request);
+
+        String endpoint = QTechQueryBuilder.buildEndpoint(request);
         logger.debug("构建的取消预订端点: {}", endpoint);
-        
+
         return executeGetRequest(API_BASE_URL, endpoint, QTechCancellationResponse.class);
     }
-    
 
 
 }

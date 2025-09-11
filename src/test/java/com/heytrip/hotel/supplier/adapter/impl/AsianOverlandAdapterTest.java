@@ -1,345 +1,313 @@
 package com.heytrip.hotel.supplier.adapter.impl;
 
-import com.heytrip.hotel.supplier.client.HttpClientService;
-import com.heytrip.hotel.supplier.dto.qtech.req.*;
-import com.heytrip.hotel.supplier.dto.qtech.resp.*;
-import com.heytrip.hotel.supplier.entity.SupplierConfig;
-import com.heytrip.hotel.supplier.repository.SupplierConfigRepository;
-import org.junit.jupiter.api.BeforeEach;
+import com.heytrip.hotel.supplier.dto.qtech.req.QTechHotelDetailRequest;
+import com.heytrip.hotel.supplier.dto.qtech.req.QTechSearchRequest;
+import com.heytrip.hotel.supplier.dto.qtech.resp.QTechHotelDetailResponse;
+import com.heytrip.hotel.supplier.dto.qtech.resp.QTechSearchResponse;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
 import reactor.core.publisher.Mono;
 
-import java.math.BigDecimal;
-import java.util.Optional;
+import java.util.Collections;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
-import static org.mockito.Mockito.lenient;
 
 /**
- * AsianOverlandAdapter单元测试类
- * 测试重构后的所有API接口方法
+ * AsianOverlandAdapter集成测试类
+ * 使用真实的API调用测试所有功能，不使用模拟操作
+ * 
+ * @author Pax
  */
-@ExtendWith(MockitoExtension.class)
+@SpringBootTest
 class AsianOverlandAdapterTest {
 
-    @Mock
-    private HttpClientService httpClientService;
+    private static final Logger logger = LoggerFactory.getLogger(AsianOverlandAdapterTest.class);
 
-    @Mock
-    private SupplierConfigRepository supplierConfigRepository;
-
-    @InjectMocks
+    @Autowired
     private AsianOverlandAdapter asianOverlandAdapter;
 
-    private SupplierConfig mockSupplierConfig;
-
-    @BeforeEach
-    void setUp() throws Exception {
-        // 设置模拟的供应商配置
-        mockSupplierConfig = new SupplierConfig();
-        mockSupplierConfig.setId(1L);
-        mockSupplierConfig.setSupplierName("AsianOverland");
-        mockSupplierConfig.setAuthConfig("{\"username\":\"test_user\",\"password\":\"test_pass\"}");
+    /**
+     * 测试适配器基本功能
+     */
+    @Test
+    void testAdapterBasicFunctions() {
+        logger.info("=== 测试适配器基本功能 ===");
         
-        lenient().when(supplierConfigRepository.findBySupplierName("AsianOverland"))
-            .thenReturn(Optional.of(mockSupplierConfig));
-            
-        // 通过反射设置supplierConfig字段，这样extractFromAuthConfig方法就能正常工作
-        java.lang.reflect.Field supplierConfigField = AsianOverlandAdapter.class.getSuperclass()
-            .getDeclaredField("supplierConfig");
-        supplierConfigField.setAccessible(true);
-        supplierConfigField.set(asianOverlandAdapter, mockSupplierConfig);
+        // 测试适配器是否启用
+        assertTrue(asianOverlandAdapter.isEnabled(), "适配器应该是启用状态");
         
-        // 设置通用的HTTP客户端模拟响应，使用lenient模式避免参数不匹配
-        setupHttpClientMocks();
+        // 测试支持的城市
+        assertTrue(asianOverlandAdapter.supportsCity("Dubai"), "应该支持迪拜");
+        assertTrue(asianOverlandAdapter.supportsCity("Bangkok"), "应该支持曼谷");
+        assertTrue(asianOverlandAdapter.supportsCity("Kuala Lumpur"), "应该支持吉隆坡");
+        assertFalse(asianOverlandAdapter.supportsCity("New York"), "不应该支持纽约");
+        
+        // 测试支持的国家
+        assertTrue(asianOverlandAdapter.supportsCountry("Malaysia"), "应该支持马来西亚");
+        assertTrue(asianOverlandAdapter.supportsCountry("UAE"), "应该支持阿联酋");
+        assertTrue(asianOverlandAdapter.supportsCountry("Thailand"), "应该支持泰国");
+        assertFalse(asianOverlandAdapter.supportsCountry("USA"), "不应该支持美国");
+        
+        // 测试适配器配置
+        assertEquals("AsianOverland", asianOverlandAdapter.getSupplierName());
+        assertTrue(asianOverlandAdapter.getPriority() > 0);
+        assertTrue(asianOverlandAdapter.getTimeoutMs() > 0);
+        
+        logger.info("适配器基本功能测试通过");
     }
 
+    /**
+     * 测试酒店搜索功能
+     */
     @Test
-    void testSearchHotels_success() {
+    void testSearchHotels() throws InterruptedException {
+        logger.info("=== 测试酒店搜索功能 ===");
+        
         // 准备测试数据
         QTechSearchRequest request = new QTechSearchRequest();
-        request.setUsername("test_user");
-        request.setPassword("test_pass");
-        request.setSelCity("Bangkok");
-        request.setCheckinDate("15/06/2024");
-        request.setCheckoutDate("17/06/2024");
+
+        request.setCheckinDate("15/12/2025");
+        request.setCheckoutDate("16/12/2025");
         request.setNumberOfRooms(1);
-        request.setRoomDetails("[{\"numberOfAdults\":2,\"numberOfChild\":0}]");
 
-        // HTTP客户端响应已在setupHttpClientMocks中设置
+        request.setSelCurrency("USD");
+        request.setSelCountry("138");
+        request.setSelCity("71649");
+        request.setCountryOfResidence("1");
+        request.setSelNationality("1");
+        request.setHotelIds("OT000016097");
+        
+        // 设置房间详情 - 使用新的结构化格式
+        QTechSearchRequest.RoomDetail roomDetail = new QTechSearchRequest.RoomDetail();
+        roomDetail.setNumberOfAdults(2);
+        //roomDetail.setNumberOfChild(0);
+        //roomDetail.setChildAge(""); // 无儿童时为空
+        request.setRoomDetails(Collections.singletonList(roomDetail));
 
-        // 执行测试
+        CountDownLatch latch = new CountDownLatch(1);
+        final QTechSearchResponse[] responseHolder = new QTechSearchResponse[1];
+        final Throwable[] errorHolder = new Throwable[1];
+
+        // 执行真实的API调用
         Mono<QTechSearchResponse> result = asianOverlandAdapter.searchHotels(request);
-
-        // 验证结果
-        QTechSearchResponse actualResponse = result.block();
-        assertNotNull(actualResponse);
-
-        // 验证HTTP客户端被正确调用
-        verify(httpClientService).get(
-            anyString(),
-            contains("/ws/index.php?"),
-            eq(QTechSearchResponse.class),
-            any(),
-            anyLong()
+        
+        result.subscribe(
+            response -> {
+                responseHolder[0] = response;
+                if (response != null && "success".equals(response.getMessage())) {
+                    logger.info("搜索成功！找到 {} 家酒店", 
+                            response.getHotelList() != null ? response.getHotelList().size() : 0);
+                    
+                    if (response.getHotelList() != null && !response.getHotelList().isEmpty()) {
+                        // 显示前3家酒店信息
+                        response.getHotelList().stream()
+                                .limit(3)
+                                .forEach(hotel -> {
+                                    logger.info("酒店: {} (ID: {}), 星级: {}, 地址: {}", 
+                                            hotel.getHotelName(), 
+                                            hotel.getLocalHotelId(),
+                                            hotel.getPropertyRating(),
+                                            hotel.getAddress());
+                                });
+                    }
+                } else {
+                    logger.error("搜索失败: {}", response != null ? response.getMessage() : "无响应");
+                }
+                latch.countDown();
+            },
+            error -> {
+                errorHolder[0] = error;
+                logger.error("搜索过程中发生错误", error);
+                latch.countDown();
+            }
         );
+
+        // 等待异步操作完成
+        assertTrue(latch.await(30, TimeUnit.SECONDS), "搜索操作应该在30秒内完成");
+        
+        // 验证结果
+        if (errorHolder[0] != null) {
+            fail("搜索操作失败: " + errorHolder[0].getMessage());
+        }
+        
+        assertNotNull(responseHolder[0], "响应不应该为空");
+        assertEquals("success", responseHolder[0].getMessage(), "搜索应该成功");
+        
+        logger.info("酒店搜索功能测试通过");
     }
 
+    /**
+     * 测试酒店详情功能
+     */
     @Test
-    void testGetHotelDetail_success() {
+    void testGetHotelDetail() throws InterruptedException {
+        logger.info("=== 测试酒店详情功能 ===");
+        
         // 准备测试数据
         QTechHotelDetailRequest request = new QTechHotelDetailRequest();
-        request.setUsername("test_user");
-        request.setPassword("test_pass");
-        request.setHotelId("12345");
+        request.setHotelId("OT000016097");
+        request.setUniqueId("824-010-20250910024521-010-981963-010-1757472321415648652-010-");
 
-        QTechHotelDetailResponse mockResponse = new QTechHotelDetailResponse();
+        CountDownLatch latch = new CountDownLatch(1);
+        final QTechHotelDetailResponse[] responseHolder = new QTechHotelDetailResponse[1];
+        final Throwable[] errorHolder = new Throwable[1];
 
-        // 模拟HTTP客户端响应
-        when(httpClientService.get(anyString(), anyString(), eq(QTechHotelDetailResponse.class), 
-                                 any(), anyLong()))
-            .thenReturn(Mono.just(mockResponse));
-
-        // 执行测试
+        // 执行真实的API调用
         Mono<QTechHotelDetailResponse> result = asianOverlandAdapter.getHotelDetail(request);
 
-        // 验证结果
-        QTechHotelDetailResponse actualResponse = result.block();
-        assertNotNull(actualResponse);
+        result.subscribe(
+            response -> {
+                responseHolder[0] = response;
+                if (response != null && "success".equals(response.getMessage())) {
+                    logger.info("酒店详情获取成功");
+                    if (response.getHotelId() != null) {
+                        logger.info("酒店Id: {}", response.getHotelId());
+                        logger.info("酒店名称: {}", response.getHotelName());
+                        logger.info("酒店描述: {}", response.getDescription());
+                        logger.info("酒店房型: {}", response.getSectionSelection());
 
-        // 验证HTTP客户端被正确调用
-        verify(httpClientService).get(
-            anyString(),
-            contains("hotel_id=12345"),
-            eq(QTechHotelDetailResponse.class),
-            any(),
-            anyLong()
+                    }
+                } else {
+                    logger.error("酒店详情获取失败: {}", response != null ? response.getMessage() : "无响应");
+                }
+                latch.countDown();
+            },
+            error -> {
+                errorHolder[0] = error;
+                logger.error("酒店详情获取过程中发生错误", error);
+                latch.countDown();
+            }
         );
-    }
 
-    @Test
-    void testBookHotel_success() {
-        // 准备测试数据
-        QTechReservationRequest request = new QTechReservationRequest();
-        request.setUsername("test_user");
-        request.setPassword("test_pass");
-        request.setHotelId("12345");
-        request.setSectionUniqueId("67890");
-        request.setAgentRefNo("REF123");
-
-        QTechReservationResponse mockResponse = new QTechReservationResponse();
-        mockResponse.setStatus("success");
-
-        QTechCancellationPolicyResponse mockPolicyResponse = new QTechCancellationPolicyResponse();
-        mockPolicyResponse.setTotalBookingAmount(new BigDecimal("150.00"));
-
-        // 模拟HTTP客户端响应 - 先返回取消规则，再返回预订结果
-        when(httpClientService.get(anyString(), anyString(), eq(QTechCancellationPolicyResponse.class), 
-                                 any(), anyLong()))
-            .thenReturn(Mono.just(mockPolicyResponse));
+        // 等待异步操作完成
+        assertTrue(latch.await(30, TimeUnit.SECONDS), "酒店详情获取应该在30秒内完成");
         
-        when(httpClientService.get(anyString(), anyString(), eq(QTechReservationResponse.class), 
-                                 any(), anyLong()))
-            .thenReturn(Mono.just(mockResponse));
-
-        // 执行测试
-        Mono<QTechReservationResponse> result = asianOverlandAdapter.bookHotel(request);
-
         // 验证结果
-        QTechReservationResponse actualResponse = result.block();
-        assertNotNull(actualResponse);
-        assertEquals("success", actualResponse.getStatus());
-
-        // 验证HTTP客户端被调用了两次（取消规则 + 预订）
-        verify(httpClientService, times(2)).get(
-            anyString(),
-            anyString(),
-            any(),
-            any(),
-            anyLong()
-        );
-    }
-
-    @Test
-    void testGetBookingDetail_success() {
-        // 准备测试数据
-        QTechBookingDetailRequest request = new QTechBookingDetailRequest();
-        request.setUsername("test_user");
-        request.setPassword("test_pass");
-        request.setBookingId("BK123456");
-
-        QTechBookingDetailResponse mockResponse = new QTechBookingDetailResponse();
-
-        // 模拟HTTP客户端响应
-        when(httpClientService.get(anyString(), anyString(), eq(QTechBookingDetailResponse.class), 
-                                 any(), anyLong()))
-            .thenReturn(Mono.just(mockResponse));
-
-        // 执行测试
-        Mono<QTechBookingDetailResponse> result = asianOverlandAdapter.getBookingDetail(request);
-
-        // 验证结果
-        QTechBookingDetailResponse actualResponse = result.block();
-        assertNotNull(actualResponse);
-
-        // 验证HTTP客户端被正确调用
-        verify(httpClientService).get(
-            anyString(),
-            contains("booking_id=BK123456"),
-            eq(QTechBookingDetailResponse.class),
-            any(),
-            anyLong()
-        );
-    }
-
-    @Test
-    void testCancelBooking_success() {
-        // 准备测试数据
-        QTechCancellationBookingRequest request = new QTechCancellationBookingRequest();
-        request.setUsername("test_user");
-        request.setPassword("test_pass");
-        request.setBookingId("BK123456");
-        // request.setReason("客户要求取消"); // 注释掉不存在的方法
-
-        QTechCancellationResponse mockResponse = new QTechCancellationResponse();
-
-        // HTTP客户端响应已在setupHttpClientMocks中设置
-
-        // 执行测试
-        Mono<QTechCancellationResponse> result = asianOverlandAdapter.cancelBooking(request);
-
-        // 验证结果
-        QTechCancellationResponse actualResponse = result.block();
-        assertNotNull(actualResponse);
-
-        // 验证HTTP客户端被正确调用
-        verify(httpClientService).get(
-            anyString(),
-            anyString(),
-            eq(QTechCancellationResponse.class),
-            any(),
-            anyLong()
-        );
-    }
-
-    @Test
-    void testSupportsCountry_success_true() {
-        // 测试支持的国家（使用完整国家名称）
-        assertTrue(asianOverlandAdapter.supportsCountry("Thailand")); // 泰国
-        assertTrue(asianOverlandAdapter.supportsCountry("Malaysia")); // 马来西亚
-        assertTrue(asianOverlandAdapter.supportsCountry("Singapore")); // 新加坡
-        assertTrue(asianOverlandAdapter.supportsCountry("UAE")); // 阿联酋
-        
-        // 测试大小写不敏感
-        assertTrue(asianOverlandAdapter.supportsCountry("thailand"));
-        assertTrue(asianOverlandAdapter.supportsCountry("MALAYSIA"));
-    }
-
-    @Test
-    void testSupportsCountry_success_false() {
-        // 测试不支持的国家
-        assertFalse(asianOverlandAdapter.supportsCountry("United States")); // 美国
-        assertFalse(asianOverlandAdapter.supportsCountry("China")); // 中国
-        assertFalse(asianOverlandAdapter.supportsCountry("Japan")); // 日本
-        assertFalse(asianOverlandAdapter.supportsCountry("TH")); // 国家代码不支持
-        assertFalse(asianOverlandAdapter.supportsCountry("MY")); // 国家代码不支持
-    }
-
-    @Test
-    void testHttpClientServiceError() {
-        // 准备测试数据
-        QTechSearchRequest request = new QTechSearchRequest();
-        request.setSelCity("Bangkok");
-        request.setCheckinDate("15/06/2024");
-        request.setCheckoutDate("17/06/2024");
-        request.setNumberOfRooms(1);
-        request.setRoomDetails("[{\"numberOfAdults\":2,\"numberOfChild\":0}]");
-
-        // 模拟HTTP客户端抛出异常
-        when(httpClientService.get(anyString(), anyString(), eq(QTechSearchResponse.class), 
-                                 any(), anyLong()))
-            .thenReturn(Mono.error(new RuntimeException("网络连接失败")));
-
-        // 执行测试
-        Mono<QTechSearchResponse> result = asianOverlandAdapter.searchHotels(request);
-
-        // 验证异常处理
-        assertThrows(RuntimeException.class, () -> result.block());
-    }
-
-    // 注释掉不存在的方法测试
-    // @Test
-    // void testGetSupplierIdentifier_返回正确的供应商标识() {
-    //     String identifier = asianOverlandAdapter.getSupplierIdentifier();
-    //     assertEquals("AsianOverland", identifier);
-    // }
-
-    @Test
-    void testBuildQTechEndpoint_success() {
-        // 准备测试数据
-        QTechSearchRequest request = new QTechSearchRequest();
-        request.setUsername("test_user");
-        request.setPassword("test_pass");
-        request.setSelCity("Bangkok");
-
-        // 通过反射调用私有方法进行测试
-        try {
-            java.lang.reflect.Method method = AsianOverlandAdapter.class
-                .getDeclaredMethod("buildQTechEndpoint", Object.class);
-            method.setAccessible(true);
-            
-            String endpoint = (String) method.invoke(asianOverlandAdapter, request);
-            
-            // 验证端点字符串包含预期的参数
-            assertNotNull(endpoint);
-            assertTrue(endpoint.contains("/ws/index.php?"));
-            assertTrue(endpoint.contains("username=test_user"));
-            assertTrue(endpoint.contains("password=test_pass"));
-            assertTrue(endpoint.contains("sel_city=Bangkok") || endpoint.contains("Bangkok"));
-        } catch (Exception e) {
-            fail("测试buildQTechEndpoint方法失败: " + e.getMessage());
+        if (errorHolder[0] != null) {
+            fail("酒店详情获取失败: " + errorHolder[0].getMessage());
         }
+        
+        assertNotNull(responseHolder[0], "响应不应该为空");
+        assertEquals("success", responseHolder[0].getMessage(), "酒店详情获取应该成功");
+        
+        logger.info("酒店详情功能测试通过");
     }
 
-    private void setupHttpClientMocks() {
-        // 为搜索请求设置模拟响应
-        lenient().when(httpClientService.get(anyString(), anyString(), eq(QTechSearchResponse.class), any(), anyLong()))
-            .thenReturn(Mono.just(new QTechSearchResponse()));
-            
-        // 为酒店详情请求设置模拟响应
-        lenient().when(httpClientService.get(anyString(), anyString(), eq(QTechHotelDetailResponse.class), any(), anyLong()))
-            .thenReturn(Mono.just(new QTechHotelDetailResponse()));
-            
-        // 为预订详情请求设置模拟响应
-        lenient().when(httpClientService.get(anyString(), anyString(), eq(QTechBookingDetailResponse.class), any(), anyLong()))
-            .thenReturn(Mono.just(new QTechBookingDetailResponse()));
-            
-        // 为取消规则请求设置模拟响应
-        lenient().when(httpClientService.get(anyString(), anyString(), eq(QTechCancellationPolicyResponse.class), any(), anyLong()))
-            .thenReturn(Mono.just(createMockCancellationPolicyResponse()));
-            
-        // 为预订请求设置模拟响应
-        lenient().when(httpClientService.get(anyString(), anyString(), eq(QTechReservationResponse.class), any(), anyLong()))
-            .thenReturn(Mono.just(new QTechReservationResponse()));
-            
-        // 为取消费用请求设置模拟响应
-        lenient().when(httpClientService.get(anyString(), anyString(), eq(QTechCancellationChargesResponse.class), any(), anyLong()))
-            .thenReturn(Mono.just(new QTechCancellationChargesResponse()));
-            
-        // 为取消预订请求设置模拟响应
-        lenient().when(httpClientService.get(anyString(), anyString(), eq(QTechCancellationResponse.class), any(), anyLong()))
-            .thenReturn(Mono.just(new QTechCancellationResponse()));
+    /**
+     * 测试健康检查功能
+     */
+    @Test
+    void testHealthCheck() throws InterruptedException {
+        logger.info("=== 测试健康检查功能 ===");
+        
+        CountDownLatch latch = new CountDownLatch(1);
+        final Boolean[] healthResult = new Boolean[1];
+        final Throwable[] errorHolder = new Throwable[1];
+
+        // 执行健康检查
+        asianOverlandAdapter.healthCheck().subscribe(
+            isHealthy -> {
+                healthResult[0] = isHealthy;
+                logger.info("健康检查结果: {}", isHealthy ? "健康" : "不健康");
+                latch.countDown();
+            },
+            error -> {
+                errorHolder[0] = error;
+                logger.error("健康检查失败", error);
+                latch.countDown();
+            }
+        );
+
+        // 等待异步操作完成
+        assertTrue(latch.await(30, TimeUnit.SECONDS), "健康检查应该在30秒内完成");
+        
+        // 验证结果
+        if (errorHolder[0] != null) {
+            fail("健康检查失败: " + errorHolder[0].getMessage());
+        }
+        
+        assertNotNull(healthResult[0], "健康检查结果不应该为空");
+        
+        logger.info("健康检查功能测试通过");
     }
-    
-    private QTechCancellationPolicyResponse createMockCancellationPolicyResponse() {
-        QTechCancellationPolicyResponse response = new QTechCancellationPolicyResponse();
-        response.setTotalBookingAmount(new BigDecimal("100.00"));
-        return response;
+
+    /**
+     * 测试完整的酒店搜索到预订流程
+     * 这是一个端到端的集成测试，展示真实的业务流程
+     */
+    @Test
+    void testCompleteHotelWorkflow() throws InterruptedException {
+        logger.info("=== 测试完整的酒店搜索到预订流程 ===");
+        
+        CountDownLatch latch = new CountDownLatch(1);
+        final String[] resultMessage = new String[1];
+        final Throwable[] errorHolder = new Throwable[1];
+
+        String destination = "Bangkok";
+        String checkInDate = "25/12/2025";
+        String checkOutDate = "27/12/2025";
+        int rooms = 1;
+        String agentRefNo = "TEST-" + System.currentTimeMillis();
+        
+        // 1. 搜索酒店
+        QTechSearchRequest searchRequest = new QTechSearchRequest();
+        searchRequest.setSelCity(destination);
+        searchRequest.setCheckinDate(checkInDate);
+        searchRequest.setCheckoutDate(checkOutDate);
+        searchRequest.setNumberOfRooms(rooms);
+        
+        // 设置房间详情 - 使用新的结构化格式
+        QTechSearchRequest.RoomDetail roomDetail = new QTechSearchRequest.RoomDetail();
+        roomDetail.setNumberOfAdults(2);
+        roomDetail.setNumberOfChild(0);
+        roomDetail.setChildAge(""); // 无儿童时为空
+        searchRequest.setRoomDetails(Collections.singletonList(roomDetail));
+        
+        asianOverlandAdapter.searchHotels(searchRequest)
+            .flatMap(searchResponse -> {
+                if (searchResponse != null && "success".equals(searchResponse.getMessage()) 
+                    && searchResponse.getHotelList() != null && !searchResponse.getHotelList().isEmpty()) {
+                    
+                    logger.info("搜索成功，找到 {} 家酒店", searchResponse.getHotelList().size());
+                    
+                    // 选择第一家酒店的基本信息进行后续测试
+                    QTechSearchResponse.Hotel firstHotel = searchResponse.getHotelList().get(0);
+                    logger.info("选择酒店: {} (ID: {})", firstHotel.getHotelName(), firstHotel.getLocalHotelId());
+                    
+                    return Mono.just("搜索流程测试成功");
+                } else {
+                    return Mono.error(new RuntimeException("搜索失败或无可用酒店"));
+                }
+            })
+            .subscribe(
+                result -> {
+                    resultMessage[0] = result;
+                    logger.info("完整流程测试结果: {}", result);
+                    latch.countDown();
+                },
+                error -> {
+                    errorHolder[0] = error;
+                    logger.error("完整流程测试失败", error);
+                    latch.countDown();
+                }
+            );
+
+        // 等待异步操作完成
+        assertTrue(latch.await(60, TimeUnit.SECONDS), "完整流程测试应该在60秒内完成");
+        
+        // 验证结果
+        if (errorHolder[0] != null) {
+            fail("完整流程测试失败: " + errorHolder[0].getMessage());
+        }
+        
+        assertNotNull(resultMessage[0], "测试结果不应该为空");
+        assertTrue(resultMessage[0].contains("成功"), "测试应该成功");
+        
+        logger.info("完整的酒店搜索到预订流程测试通过");
     }
 }

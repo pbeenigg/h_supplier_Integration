@@ -12,37 +12,15 @@ import java.util.List;
  * @author Pax
  */
 @Data
-public class QTechBookingDetailResponse {
-    
-    /**
-     * 状态
-     */
-    @JsonProperty("Status")
-    private String status;
-    
-    /**
-     * 消息
-     */
-    @JsonProperty("Message")
-    private String message;
+public class QTechBookingDetailResponse extends QTechBaseResponse {
+
     
     /**
      * 预订详情
      */
     @JsonProperty("BookingDetail")
     private BookingDetail bookingDetail;
-    
-    /**
-     * 开始时间
-     */
-    @JsonProperty("StartTime")
-    private String startTime;
-    
-    /**
-     * 结束时间
-     */
-    @JsonProperty("EndTime")
-    private String endTime;
+
     
     /**
      * 预订详情

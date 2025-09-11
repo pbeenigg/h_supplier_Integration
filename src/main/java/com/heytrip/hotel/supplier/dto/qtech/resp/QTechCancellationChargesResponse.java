@@ -12,19 +12,9 @@ import java.math.BigDecimal;
  * @author Pax
  */
 @Data
-public class QTechCancellationChargesResponse {
+public class QTechCancellationChargesResponse extends QTechBaseResponse {
     
-    /**
-     * 状态
-     */
-    @JsonProperty("Status")
-    private String status;
-    
-    /**
-     * 消息
-     */
-    @JsonProperty("Message")
-    private String message;
+
     
     /**
      * 是否允许取消（yes/no）
@@ -50,15 +40,5 @@ public class QTechCancellationChargesResponse {
     @JsonProperty("DisplayCurrencyCode")
     private String displayCurrencyCode;
     
-    /**
-     * 开始时间
-     */
-    @JsonProperty("StartTime")
-    private String startTime;
-    
-    /**
-     * 结束时间
-     */
-    @JsonProperty("EndTime")
-    private String endTime;
+
 }

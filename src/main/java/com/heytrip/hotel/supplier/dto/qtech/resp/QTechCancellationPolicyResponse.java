@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 /**
  * QTECH取消规则响应DTO
@@ -11,14 +12,9 @@ import java.math.BigDecimal;
  * @author Pax
  */
 @Data
-public class QTechCancellationPolicyResponse {
+public class QTechCancellationPolicyResponse  extends QTechBaseResponse{
     
-    /**
-     * 消息
-     */
-    @JsonProperty("Message")
-    private String message;
-    
+
     /**
      * 取消费用币种
      */
@@ -38,6 +34,18 @@ public class QTechCancellationPolicyResponse {
     private String contractComment;
     
     /**
+     * 退款政策文本
+     */
+    @JsonProperty("RefundPolicyText")
+    private String refundPolicyText;
+    
+    /**
+     * 政策信息
+     */
+    @JsonProperty("Policies")
+    private Policies policies;
+    
+    /**
      * 免费取消时间（小时）
      */
     @JsonProperty("CancellationHours")
@@ -54,18 +62,61 @@ public class QTechCancellationPolicyResponse {
      */
     @JsonProperty("BookingAllowedInfo")
     private BookingAllowedInfo bookingAllowedInfo;
+
     
     /**
-     * 开始时间
+     * 政策信息
      */
-    @JsonProperty("StartTime")
-    private String startTime;
+    @Data
+    public static class Policies {
+        /**
+         * 取消政策列表
+         */
+        @JsonProperty("CancellationPolicy")
+        private List<CancellationPolicy> cancellationPolicy;
+        
+        /**
+         * 修改政策
+         */
+        @JsonProperty("AmmendmentPolicy")
+        private String ammendmentPolicy;
+        
+        /**
+         * 无显示政策
+         */
+        @JsonProperty("NoShowPolicy")
+        private String noShowPolicy;
+    }
     
     /**
-     * 结束时间
+     * 取消政策详情
      */
-    @JsonProperty("EndTime")
-    private String endTime;
+    @Data
+    public static class CancellationPolicy {
+        /**
+         * 开始时间
+         */
+        @JsonProperty("Start")
+        private String start;
+        
+        /**
+         * 结束时间
+         */
+        @JsonProperty("End")
+        private String end;
+        
+        /**
+         * 费用
+         */
+        @JsonProperty("Charges")
+        private BigDecimal charges;
+        
+        /**
+         * 备注
+         */
+        @JsonProperty("Remark")
+        private String remark;
+    }
     
     /**
      * 预订允许信息
@@ -73,22 +124,35 @@ public class QTechCancellationPolicyResponse {
     @Data
     public static class BookingAllowedInfo {
         /**
-         * 消息
+         * 价格是否变化
          */
-        @JsonProperty("Message")
-        private String message;
+        @JsonProperty("PriceChange")
+        private String priceChange;
         
         /**
-         * 状态
+         * 价格差异
          */
-        @JsonProperty("Status")
-        private String status;
+        @JsonProperty("PriceDiff")
+        private BigDecimal priceDiff;
         
         /**
-         * 是否售罄
+         * 价格变化列表
          */
-        @JsonProperty("SoldOut")
-        private String soldOut;
+        @JsonProperty("RateChanges")
+        private List<Object> rateChanges;
+        
+        /**
+         * 是否立即付款
+         */
+        @JsonProperty("PayNow")
+        private String payNow;
+        
+        /**
+         * 是否允许预订
+         * yes/no (如果为no, 则查看MessageInfo和Message字段了解详情)
+         */
+        @JsonProperty("BookingAllowed")
+        private String bookingAllowed;
         
         /**
          * 消息信息
@@ -97,9 +161,15 @@ public class QTechCancellationPolicyResponse {
         private String messageInfo;
         
         /**
-         * 是否允许预订
+         * 消息
          */
-        @JsonProperty("BookingAllowed")
-        private String bookingAllowed;
+        @JsonProperty("Message")
+        private String message;
+        
+        /**
+         * 是否售罄
+         */
+        @JsonProperty("SoldOut")
+        private String soldOut;
     }
 }
