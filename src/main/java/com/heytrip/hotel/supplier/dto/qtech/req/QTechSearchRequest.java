@@ -1,9 +1,7 @@
-package com.heytrip.hotel.supplier.dto.qtech;
+package com.heytrip.hotel.supplier.dto.qtech.req;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
-
-import java.util.List;
 
 /**
  * QTECH酒店搜索请求DTO
@@ -136,11 +134,13 @@ public class QTechSearchRequest {
         /**
          * 成人数
          */
+        @JsonProperty("numberOfAdults")
         private Integer numberOfAdults;
         
         /**
          * 儿童数
          */
+        @JsonProperty("numberOfChild")
         private Integer numberOfChild;
         
         /**

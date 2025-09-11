@@ -1,4 +1,4 @@
-package com.heytrip.hotel.supplier.dto.qtech;
+package com.heytrip.hotel.supplier.dto.qtech.resp;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
@@ -7,6 +7,7 @@ import java.math.BigDecimal;
 
 /**
  * QTECH取消费用响应DTO
+ * 根据API文档 get_cancellation_charges 接口响应格式定义
  * 
  * @author Pax
  */
@@ -26,40 +27,28 @@ public class QTechCancellationChargesResponse {
     private String message;
     
     /**
-     * 取消费用币种
+     * 是否允许取消（yes/no）
      */
-    @JsonProperty("CancellationCurrency")
-    private String cancellationCurrency;
+    @JsonProperty("AllowCancel")
+    private String allowCancel;
     
     /**
-     * 预订总额
+     * 说明信息
      */
-    @JsonProperty("TotalBookingAmount")
-    private BigDecimal totalBookingAmount;
+    @JsonProperty("MessageInfo")
+    private String messageInfo;
     
     /**
      * 取消费用
      */
-    @JsonProperty("CancellationCharges")
-    private BigDecimal cancellationCharges;
+    @JsonProperty("CancellationCharge")
+    private BigDecimal cancellationCharge;
     
     /**
-     * 退款金额
+     * 显示币种代码
      */
-    @JsonProperty("RefundAmount")
-    private BigDecimal refundAmount;
-    
-    /**
-     * 免费取消时间（小时）
-     */
-    @JsonProperty("CancellationHours")
-    private Integer cancellationHours;
-    
-    /**
-     * 合同备注
-     */
-    @JsonProperty("ContractComment")
-    private String contractComment;
+    @JsonProperty("DisplayCurrencyCode")
+    private String displayCurrencyCode;
     
     /**
      * 开始时间

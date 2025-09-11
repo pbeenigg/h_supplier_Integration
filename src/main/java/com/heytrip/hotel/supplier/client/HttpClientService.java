@@ -51,6 +51,7 @@ public class HttpClientService {
                           Consumer<WebClient.RequestHeadersSpec<?>> headersCustomizer, Long supplierId) {
         return executeRequest(baseUrl, endpoint, HttpMethod.GET, null, responseType, headersCustomizer, supplierId);
     }
+    
 
     /**
      * 执行POST请求
@@ -170,6 +171,7 @@ public class HttpClientService {
                     return Mono.error(new HttpClientException("Request failed: " + error.getMessage(), error));
                 });
     }
+
 
     /**
      * 执行带重试配置的请求

@@ -10,7 +10,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.http.HttpHeaders;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
@@ -216,7 +215,7 @@ public abstract class AbstractSupplierAdapter implements SupplierAdapter {
                         logger.warn("QTECH认证配置缺少必要的用户名或密码信息");
                     }
 
-                    logger.debug("认证配置解析成功，已加入Spring Cache");
+                    logger.debug("认证配置解析成功，已加入Cache");
                     return supplierAuth;
                 } else {
                     logger.error("认证配置解析结果为空");
@@ -328,12 +327,6 @@ public abstract class AbstractSupplierAdapter implements SupplierAdapter {
             return healthCheck();
         }
     }
-    
-    /**
-     * 构建认证头信息
-     * 子类可以重写此方法实现特定的认证逻辑
-     */
-    protected abstract void addAuthHeaders(HttpHeaders headers);
-    
+
 
 }

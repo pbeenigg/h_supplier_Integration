@@ -1,4 +1,4 @@
-package com.heytrip.hotel.supplier.dto.qtech;
+package com.heytrip.hotel.supplier.dto.qtech.resp;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
@@ -6,7 +6,7 @@ import lombok.Data;
 import java.math.BigDecimal;
 
 /**
- * QTECH取消政策响应DTO
+ * QTECH取消规则响应DTO
  * 
  * @author Pax
  */

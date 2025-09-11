@@ -1,4 +1,4 @@
-package com.heytrip.hotel.supplier.dto.qtech;
+package com.heytrip.hotel.supplier.dto.qtech.req;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
@@ -60,7 +60,7 @@ public class QTechReservationRequest {
     private String roomDetails;
     
     /**
-     * 预期价格（必须与取消政策返回的价格一致）
+     * 预期价格（必须与取消规则返回的价格一致）
      */
     @JsonProperty("expected_price")
     private BigDecimal expectedPrice;

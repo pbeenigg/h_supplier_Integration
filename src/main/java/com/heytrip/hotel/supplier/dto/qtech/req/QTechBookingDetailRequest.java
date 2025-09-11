@@ -1,20 +1,20 @@
-package com.heytrip.hotel.supplier.dto.qtech;
+package com.heytrip.hotel.supplier.dto.qtech.req;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 /**
- * QTECH酒店详情请求DTO
+ * QTECH预订详情请求DTO
  * 
  * @author Pax
  */
 @Data
-public class QTechHotelDetailRequest {
+public class QTechBookingDetailRequest {
     
     /**
      * 接口名称
      */
-    private String action = "hotel_detail";
+    private String action = "booking_detail";
     
     /**
      * 用户名
@@ -27,10 +27,10 @@ public class QTechHotelDetailRequest {
     private String password;
     
     /**
-     * 酒店ID
+     * 预订ID
      */
-    @JsonProperty("hotel_id")
-    private String hotelId;
+    @JsonProperty("booking_id")
+    private String bookingId;
     
     /**
      * 响应压缩

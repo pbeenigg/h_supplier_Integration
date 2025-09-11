@@ -1,4 +1,4 @@
-package com.heytrip.hotel.supplier.dto.qtech;
+package com.heytrip.hotel.supplier.dto.qtech.resp;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;

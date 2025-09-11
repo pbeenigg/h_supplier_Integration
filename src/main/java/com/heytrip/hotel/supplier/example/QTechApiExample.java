@@ -1,16 +1,17 @@
 package com.heytrip.hotel.supplier.example;
 
 import com.heytrip.hotel.supplier.adapter.impl.AsianOverlandAdapter;
-import com.heytrip.hotel.supplier.dto.qtech.QTechCancellationResponse;
-import com.heytrip.hotel.supplier.dto.qtech.QTechReservationResponse;
-import com.heytrip.hotel.supplier.dto.qtech.QTechSearchResponse;
+import com.heytrip.hotel.supplier.dto.qtech.req.QTechCancellationBookingRequest;
+import com.heytrip.hotel.supplier.dto.qtech.req.QTechReservationRequest;
+import com.heytrip.hotel.supplier.dto.qtech.req.QTechSearchRequest;
+import com.heytrip.hotel.supplier.dto.qtech.resp.QTechCancellationResponse;
+import com.heytrip.hotel.supplier.dto.qtech.resp.QTechReservationResponse;
+import com.heytrip.hotel.supplier.dto.qtech.resp.QTechSearchResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
-
-import java.util.Map;
 
 /**
  * QTECH API使用示例
@@ -41,7 +42,14 @@ public class QTechApiExample {
         logger.info("=== QTECH酒店搜索示例 ===");
         logger.info("目的地: {}, 入住: {}, 离店: {}, 房间数: {}", destination, checkInDate, checkOutDate, rooms);
         
-        Mono<QTechSearchResponse> searchResult = asianOverlandAdapter.searchHotels(destination, checkInDate, checkOutDate, rooms);
+        // 创建搜索请求DTO
+        QTechSearchRequest request = new QTechSearchRequest();
+        request.setSelCity(destination); // 设置目的地城市
+        request.setCheckinDate(checkInDate);
+        request.setCheckoutDate(checkOutDate);
+        request.setNumberOfRooms(rooms);
+        
+        Mono<QTechSearchResponse> searchResult = asianOverlandAdapter.searchHotels(request);
         
         searchResult.subscribe(
             response -> {
@@ -80,7 +88,13 @@ public class QTechApiExample {
         logger.info("=== QTECH酒店预订示例 ===");
         logger.info("酒店ID: {}, 房间ID: {}, 订单号: {}", hotelId, roomId, agentRefNo);
         
-        Mono<QTechReservationResponse> bookingResult = asianOverlandAdapter.bookHotel(hotelId, roomId, agentRefNo);
+        // 创建预订请求DTO
+        QTechReservationRequest request = new QTechReservationRequest();
+        request.setHotelId(hotelId);
+        request.setUniqueId(roomId); // 这里需要根据实际业务逻辑设置
+        request.setAgentRefNo(agentRefNo);
+        
+        Mono<QTechReservationResponse> bookingResult = asianOverlandAdapter.bookHotel(request);
         
         bookingResult.subscribe(
             response -> {
@@ -108,13 +122,18 @@ public class QTechApiExample {
      * 取消预订示例
      * 
      * @param bookingId 预订ID
-     * @param reason 取消原因
+     * @param bookingReference 预订参考号（可选）
      */
-    public void cancelBookingExample(String bookingId, String reason) {
+    public void cancelBookingExample(String bookingId, String bookingReference) {
         logger.info("=== QTECH取消预订示例 ===");
-        logger.info("预订ID: {}, 取消原因: {}", bookingId, reason);
+        logger.info("预订ID: {}, 预订参考号: {}", bookingId, bookingReference);
         
-        Mono<QTechCancellationResponse> cancelResult = asianOverlandAdapter.cancelBooking(bookingId, reason);
+        // 创建取消请求DTO
+        QTechCancellationBookingRequest request = new QTechCancellationBookingRequest();
+        request.setBookingId(bookingId);
+        request.setBookingReference(bookingReference);
+        
+        Mono<QTechCancellationResponse> cancelResult = asianOverlandAdapter.cancelBooking(request);
         
         cancelResult.subscribe(
             response -> {
@@ -142,7 +161,13 @@ public class QTechApiExample {
         String agentRefNo = "TEST-" + System.currentTimeMillis();
         
         // 1. 搜索酒店
-        asianOverlandAdapter.searchHotels(destination, checkInDate, checkOutDate, rooms)
+        QTechSearchRequest searchRequest = new QTechSearchRequest();
+        searchRequest.setSelCity(destination); // 设置目的地城市
+        searchRequest.setCheckinDate(checkInDate);
+        searchRequest.setCheckoutDate(checkOutDate);
+        searchRequest.setNumberOfRooms(rooms);
+        
+        asianOverlandAdapter.searchHotels(searchRequest)
             .flatMap(searchResponse -> {
                 if (searchResponse != null && "success".equals(searchResponse.getMessage()) 
                     && searchResponse.getHotelList() != null && !searchResponse.getHotelList().isEmpty()) {
@@ -164,7 +189,12 @@ public class QTechApiExample {
                         logger.info("选择酒店: {} (ID: {})", firstHotel.getHotelName(), hotelId);
                         
                         // 2. 执行预订
-                        return asianOverlandAdapter.bookHotel(hotelId, roomId, agentRefNo);
+                        QTechReservationRequest bookingRequest = new QTechReservationRequest();
+                        bookingRequest.setHotelId(hotelId);
+                        bookingRequest.setUniqueId(roomId);
+                        bookingRequest.setAgentRefNo(agentRefNo);
+                        
+                        return asianOverlandAdapter.bookHotel(bookingRequest);
                     } else {
                         return Mono.error(new RuntimeException("未找到可用房型"));
                     }
@@ -181,8 +211,11 @@ public class QTechApiExample {
                     
                     // 3. 模拟取消预订（实际使用中谨慎操作）
                     logger.info("等待5秒后执行取消操作...");
+                    QTechCancellationBookingRequest cancelRequest = new QTechCancellationBookingRequest();
+                    cancelRequest.setBookingId(bookingId);
+                    
                     return Mono.delay(java.time.Duration.ofSeconds(5))
-                            .then(asianOverlandAdapter.cancelBooking(bookingId, "测试取消"));
+                            .then(asianOverlandAdapter.cancelBooking(cancelRequest));
                 } else {
                     return Mono.error(new RuntimeException("预订失败"));
                 }

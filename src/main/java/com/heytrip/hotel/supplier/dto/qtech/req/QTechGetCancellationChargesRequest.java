@@ -1,20 +1,20 @@
-package com.heytrip.hotel.supplier.dto.qtech;
+package com.heytrip.hotel.supplier.dto.qtech.req;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 /**
- * QTECH取消预订请求DTO
+ * QTECH获得取消费用请求DTO
  * 
  * @author Pax
  */
 @Data
-public class QTechCancellationRequest {
+public class QTechGetCancellationChargesRequest {
     
     /**
      * 接口名称
      */
-    private String action = "cancel_the_booking";
+    private String action = "get_cancellation_charges";
     
     /**
      * 用户名
@@ -33,11 +33,12 @@ public class QTechCancellationRequest {
     private String bookingId;
     
     /**
-     * 取消原因
+     * 预定号
      */
-    @JsonProperty("cancel_reason")
-    private String cancelReason;
-    
+    @JsonProperty("booking_reference")
+    private String  bookingReference;
+
+
     /**
      * 响应压缩
      */

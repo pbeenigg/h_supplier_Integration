@@ -1,4 +1,4 @@
-package com.heytrip.hotel.supplier.dto.qtech;
+package com.heytrip.hotel.supplier.dto.qtech.resp;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
@@ -194,7 +194,7 @@ public class QTechBookingDetailResponse {
         private String commentContract;
         
         /**
-         * 取消政策
+         * 取消规则
          */
         @JsonProperty("CancellationPolicy")
         private String cancellationPolicy;
