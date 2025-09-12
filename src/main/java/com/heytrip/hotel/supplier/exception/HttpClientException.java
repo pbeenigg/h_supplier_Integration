@@ -13,4 +13,10 @@ public class HttpClientException extends RuntimeException  {
     public HttpClientException(String message, Throwable cause) {
         super(message, cause);
     }
+    public HttpClientException(Throwable cause) {
+        super(cause);
+    }
+    public HttpClientException(String code, String message, Throwable cause) {
+        super(message, cause);
+    }
 }

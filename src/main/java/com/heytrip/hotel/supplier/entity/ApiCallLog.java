@@ -137,7 +137,7 @@ public class ApiCallLog {
      */
     @Column(name = "retry_count")
     @Comment("重试次数")
-    private Integer retryCount = 0;
+    private Long retryCount = 0L;
     
     /**
      * 是否成功：1-成功，0-失败

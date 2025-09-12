@@ -116,7 +116,9 @@ class AsianOverlandAdapterTest {
                                 });
                     }
                 } else {
-                    logger.error("搜索失败: {}", response != null ? response.getMessage() : "无响应");
+                    logger.error("搜索失败: Message:{}", response != null ? response.getMessage() : "无响应");
+                    logger.error("搜索失败: MessageInfo:{}", response != null ? response.getMessageInfo() : "无响应");
+
                 }
                 latch.countDown();
             },
@@ -173,7 +175,8 @@ class AsianOverlandAdapterTest {
 
                     }
                 } else {
-                    logger.error("酒店详情获取失败: {}", response != null ? response.getMessage() : "无响应");
+                    logger.error("酒店详情获取失败: Message:{}", response != null ? response.getMessage() : "无响应");
+                    logger.error("酒店详情获取失败: MessageInfo:{}", response != null ? response.getMessageInfo() : "无响应");
                 }
                 latch.countDown();
             },
