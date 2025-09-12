@@ -7,6 +7,7 @@ import com.heytrip.hotel.supplier.dto.base.SupplierAuth;
 import com.heytrip.hotel.supplier.dto.qtech.req.*;
 import com.heytrip.hotel.supplier.dto.qtech.resp.*;
 import com.heytrip.hotel.supplier.adapter.builder.QTechQueryBuilder;
+import com.heytrip.hotel.supplier.entity.SupplierConfig;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -66,6 +67,14 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter {
     @Override
     public String getSupplierCode() {
         return DEFAULT_SUPPLIER_CODE; // 供应商代码，用于数据库查询
+    }
+
+
+    /**
+     * 获取当前供应商配置
+     */
+    public SupplierConfig getSupplierConfig(){
+        return  supplierConfig;
     }
 
     /**

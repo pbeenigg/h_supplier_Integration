@@ -1,5 +1,6 @@
 package com.heytrip.hotel.supplier.adapter.impl;
 
+import cn.hutool.core.util.StrUtil;
 import com.heytrip.hotel.supplier.dto.qtech.req.QTechHotelDetailRequest;
 import com.heytrip.hotel.supplier.dto.qtech.req.QTechSearchRequest;
 import com.heytrip.hotel.supplier.dto.qtech.resp.QTechHotelDetailResponse;
@@ -54,10 +55,23 @@ class AsianOverlandAdapterTest {
         assertFalse(asianOverlandAdapter.supportsCountry("USA"), "不应该支持美国");
         
         // 测试适配器配置
-        assertEquals("AsianOverland", asianOverlandAdapter.getSupplierName());
-        assertTrue(asianOverlandAdapter.getPriority() > 0);
-        assertTrue(asianOverlandAdapter.getTimeoutMs() > 0);
-        
+        assertEquals("AsianOverland", asianOverlandAdapter.getSupplierName(), "供应商名称应该是AsianOverland");
+        assertTrue(asianOverlandAdapter.getPriority() > 0, "优先级应该是正整数");
+        assertTrue(asianOverlandAdapter.getSupplierId() != null && asianOverlandAdapter.getSupplierId() > 0, "供应商ID应该是正整数");
+        assertTrue(asianOverlandAdapter.getSupplierConfig() != null,"供应商配置不应该为null");
+        assertTrue(StrUtil.isNotBlank(asianOverlandAdapter.getSupplierConfig().getAuthConfig()), "认证配置不应该为空");
+        assertTrue(asianOverlandAdapter.getTimeoutMs() > 0, "超时时间应该是正整数");
+
+        logger.info("适配器配置: {}", asianOverlandAdapter.getSupplierConfig());
+        logger.info("适配器是否启用: {}", asianOverlandAdapter.isEnabled());
+        logger.info("适配器供应商ID: {}", asianOverlandAdapter.getSupplierId());
+        logger.info("适配器供应商名称: {}", asianOverlandAdapter.getSupplierName());
+        logger.info("适配器认证配置: {}", asianOverlandAdapter.getSupplierConfig().getAuthConfig());
+        logger.info("适配器超时时间: {} ms", asianOverlandAdapter.getTimeoutMs());
+        logger.info("适配器支持的城市: {}", asianOverlandAdapter.getSupportedCities());
+        logger.info("适配器支持的国家: {}", asianOverlandAdapter.getSupportedCountries());
+        logger.info("适配器优先级: {}", asianOverlandAdapter.getPriority());
+
         logger.info("适配器基本功能测试通过");
     }
 
