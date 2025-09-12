@@ -133,7 +133,7 @@ GET /ws/index.php?action=hotel_search
     - limit_hotel_room_type：每酒店房型上限（例：5）
     - timeout：超时秒（例：30）
     - sel_hotel：酒店名称（可选）
-    - hotel_ids：酒店 ID 列表，逗号分隔（可选）
+    - hotel_ids：酒店 ID 列表，逗号分隔（可选） 最多支持 100个酒店 ID 查询
     - number_of_rooms：房间数（例：1）
     - roomDetails：JSON 数组，长度与房间数一致
         - numberOfAdults：成人数
@@ -931,11 +931,61 @@ GET /ws/index.php?action=cancel_the_booking
     - 用户名：colosseum_live_static_data
     - 密码：v7QAMfegDWcDBbqx
 
-- 可下载文件：
+- 通过FTP可下载文件：
     - static_data_cities.csv（城市）
     - static_data_countries.csv（国家）
     - static_data_hotels.csv（酒店）
     - static_data_nationality.csv（国籍）
+  
+- 通过文件导入方式   
+- static_data_hotels_giata.csv（GIATA 酒店映射关系）
+
+
+供应商提供的静态数据文件均为 CSV 格式，UTF-8 编码
+- 国籍字段说明： code,nationality,iso_code
+- 城市字段说明： name,city_code,country_code,country_name
+- 国家字段说明： country_code、country_name
+- 酒店字段说明： id,name,city_code,city_name,country_code,main_image,short_desc,latitude,longitude,rating,address,phone,website,long_desc
+- GIATA酒店映射：Id,giata_id,name,city_code,city_name,country_code,long_desc,latitude,longitude,rating,address,main_image
+
+
+- 流程设计： 
+  - 每个供应商适配器都需要实现一种通过 FTP的方式同步静态数据到数据库对应的表。
+  - 服务启动时，根据不同供应商适配器读取不同供应商配置表信息(ftpConfig字段)，获取FTP服务器连接方式，下载最新的静态数据文件并解析入库。
+  - 解析时，若遇到重复的主键（如酒店ID），则覆盖更新，否则插入新数据。
+  - 若FTP连接失败或文件下载失败，则记录错误日志并告警，保持上次成功的数据。
+  - 解析完成后，记录同步时间和数据量，便于后续监控和排查。
+  - 建议静态数据同步定时任务，还需每15天执行一次，保持数据新鲜度。
+  - 实现完成同步数据逻辑后，还需在对应的供应商适配器中实现静态数据查询接口，供上层服务调用（目前只需要实现 AsianOverlandAdapter 适配器 ）。
+  - 静态数据查询接口包括：根据酒店ID查询酒店信息、根据城市代码查询城市信息、根据国家代码查询国家信息、根据国籍代码查询国籍信息等。（ PS:都需要支持分页查询和条件查询）
+  - 静态数据查询接口还需要增加Caffeine本地缓存策略，避免频繁查询数据库，服务启动需要预热缓存，定时任务同步数据后也需要更新缓存。
+
+- 思考讨论：
+   - 再项目中不同供应商适配器的静态数据文件格式可能不同，而且不同适配器获取的数据都要严格区分开，避免数据混淆。
+   - 是否需设计统一的解析接口和适配器模式，便于后续扩展和维护。支持不同供应商的静态数据文件格式。
+   - 是否考虑根据不同供应商的静态数据文件格式，设计不同的解析策略和实现类。
+   - 是否要考虑根据不同供应商的数据，分表存储，避免数据量过大影响查询性能。
+   - 静态数据文件的下载和解析过程可能耗时较长，需考虑异步处理和超时重试机制。
+   - 静态数据文件的下载和解析过程可能失败，需考虑错误处理和日志记录，便于排查问题。
+   - 静态数据文件可能较大，需考虑内存溢出和性能问题。
+
+
+
+
+供应商对接标准实体定义： supplier-data-standard-1.2.2-RELEASES:com.heytrip.common
+- XCityResponse  城市
+- XCountryResponse  国家
+- XHotel   酒店
+- XRoom 房型
+- XRatePlan  价格计划
+- XRatePlanDaily 价格计划日历
+
+
+
+
+
+
+
 
 - 规则与说明：
     - API 白名单 IP 无限制；FTP 白名单仅限 2 个 IP。
