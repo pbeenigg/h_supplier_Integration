@@ -2,11 +2,11 @@ package com.heytrip.hotel.supplier.adapter.impl;
 
 import cn.hutool.core.util.StrUtil;
 import com.heytrip.hotel.supplier.adapter.AbstractSupplierAdapter;
+import com.heytrip.hotel.supplier.adapter.builder.QTechQueryBuilder;
 import com.heytrip.hotel.supplier.client.HttpClientService;
 import com.heytrip.hotel.supplier.dto.base.SupplierAuth;
 import com.heytrip.hotel.supplier.dto.qtech.req.*;
 import com.heytrip.hotel.supplier.dto.qtech.resp.*;
-import com.heytrip.hotel.supplier.adapter.builder.QTechQueryBuilder;
 import com.heytrip.hotel.supplier.entity.SupplierConfig;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,24 +18,21 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Asianoverland Via QTECH 供应商适配器实现
- * <p>
- * 实现QTECH API的酒店搜索、预订、取消等核心功能
- * API文档参考：docs/需求记录/马来供应商(Asianoverland Via QTECH).md
+ * 测试 供应商适配器实现
  *
  * @author Pax
  */
 @Component
-public class AsianOverlandAdapter extends AbstractSupplierAdapter {
+public class TestAdapter extends AbstractSupplierAdapter {
 
     @Autowired
     private HttpClientService httpClientService;
     
 
     // 默认供应商信息（当数据库配置不可用时使用）
-    private static final Long DEFAULT_SUPPLIER_ID = 1L;
-    private static final String DEFAULT_SUPPLIER_NAME = "AsianOverland";
-    private static final String DEFAULT_SUPPLIER_CODE = "AO_QTECH";
+    private static final Long DEFAULT_SUPPLIER_ID = 2L;
+    private static final String DEFAULT_SUPPLIER_NAME = "TestSupplier";
+    private static final String DEFAULT_SUPPLIER_CODE = "TEST_DEMO";
 
     // QTECH API 地址
     private static final String SEARCH_BASE_URL = "http://colosseum.otrams.com:8087";
@@ -76,37 +73,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter {
     public SupplierConfig getSupplierConfig(){
         return  supplierConfig;
     }
-
-
-    /**
-     * 获取支持的酒店列表(静态数据)
-     */
-    public String getStaticHotel() {
-        return null;
-    }
-
-    /**
-     * 获取支持的国籍列表(静态数据)
-     */
-    public String getStaticNationality() {
-        return null;
-    }
-
-
-    /**
-     * 获取支持的国家列表(静态数据)
-     */
-    public String getStaticCountries() {
-        return null;
-    }
-
-    /**
-     * 获取支持的城市列表(静态数据)
-     */
-    public String getStaticCities() {
-        return null;
-    }
-
 
     /**
      * 安全获取供应商ID（优先使用数据库配置，否则使用默认值）
@@ -408,13 +374,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter {
         if (policy != null && policy.getTotalBookingAmount() != null) {
             request.setExpectedPrice(policy.getTotalBookingAmount());
         }
-
-        /**
-         * TODO
-         *  1、为预订步骤保持180秒的超时时间。
-         *  2、如果在180秒内没有收到响应，请立即使用booking_detail API（在预订详情API请求中传递agent_ref_no）检查此预订的状态，
-         *  3、然而如果您仍然无法收到响应或跟踪预订状态，立即检查此预订。
-         */
 
         logger.debug("调用QTECH预订API，酒店ID: {}, 房型ID: {}, 订单号: {}",
                 request.getHotelId(), request.getSectionUniqueId(), request.getAgentRefNo());

@@ -68,6 +68,15 @@ public class SupplierConfig {
     @Comment("认证配置信息，JSON格式存储appId、secretKey等")
     private String authConfig;
 
+
+    /**
+     * FTP/SFTP配置信息，JSON格式存储host、port、username、password等
+     */
+    @Column(name = "ftp_config", columnDefinition = "JSON")
+    @Comment("FTP/SFTP配置信息，JSON格式存储host、port、username、password等")
+    private String  ftpConfig;
+
+
     /**
      * API调用超时时间，单位毫秒
      */

@@ -103,7 +103,7 @@ public class QTechSearchRequest {
     private String selHotel = "";
 
     /**
-     * 酒店ID列表，多个用逗号分隔（可选）
+     * 酒店ID列表，多个用逗号分隔（可选）（最多传递 100个）
      */
     @JsonProperty("hotel_ids")
     private String hotelIds = "";

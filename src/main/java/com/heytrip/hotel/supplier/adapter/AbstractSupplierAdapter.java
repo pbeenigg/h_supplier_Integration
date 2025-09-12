@@ -175,19 +175,6 @@ public abstract class AbstractSupplierAdapter implements SupplierAdapter {
         return supplierConfig != null ? supplierConfig.getContactInfo() : null;
     }
     
-    /**
-     * 获取支持的国家列表
-     */
-    public String getSupportedCountries() {
-        return supplierConfig != null ? supplierConfig.getSupportedCountries() : null;
-    }
-    
-    /**
-     * 获取支持的城市列表
-     */
-    public String getSupportedCities() {
-        return supplierConfig != null ? supplierConfig.getSupportedCities() : null;
-    }
 
 
     /**
