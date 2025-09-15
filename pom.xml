@@ -25,6 +25,7 @@
         <springdoc.version>2.2.0</springdoc.version>
         <therapi.version>0.15.0</therapi.version>
         <lombok.version>1.18.30</lombok.version>
+        <commons-net.version>3.9.0</commons-net.version>
         <supplier-data-standard-version>1.2.2-RELEASES</supplier-data-standard-version>
     </properties>
 
@@ -97,11 +98,23 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- 缓存实现 -->
+        <!-- 缓存支持：Spring Cache + Caffeine -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-cache</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>com.github.ben-manes.caffeine</groupId>
             <artifactId>caffeine</artifactId>
             <version>${caffeine.version}</version>
+        </dependency>
+
+        <!-- FTP 客户端，仅需要 FTP 协议支持 -->
+        <dependency>
+            <groupId>commons-net</groupId>
+            <artifactId>commons-net</artifactId>
+            <version>${commons-net.version}</version>
         </dependency>
 
         <!-- JSON处理 -->
