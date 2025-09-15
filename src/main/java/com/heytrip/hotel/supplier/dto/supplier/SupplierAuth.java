@@ -1,4 +1,4 @@
-package com.heytrip.hotel.supplier.dto.base;
+package com.heytrip.hotel.supplier.dto.supplier;
 
 
 import lombok.Data;

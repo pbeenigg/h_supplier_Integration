@@ -1,4 +1,4 @@
-package com.heytrip.hotel.supplier.util;
+package com.heytrip.hotel.supplier.utils;
 
 import com.heytrip.hotel.supplier.exception.HttpClientException;
 
@@ -15,9 +15,9 @@ import java.util.Set;
  *
  * 所有注释均为中文，便于团队理解与维护。
  */
-public final class UrlUtils {
+public final class UrlUtil {
 
-    private UrlUtils() {}
+    private UrlUtil() {}
 
     /**
      * 构建最终请求 URL：

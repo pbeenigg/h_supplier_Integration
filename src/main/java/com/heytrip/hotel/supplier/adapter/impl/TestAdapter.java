@@ -4,7 +4,7 @@ import cn.hutool.core.util.StrUtil;
 import com.heytrip.hotel.supplier.adapter.AbstractSupplierAdapter;
 import com.heytrip.hotel.supplier.adapter.builder.QTechQueryBuilder;
 import com.heytrip.hotel.supplier.client.HttpClientService;
-import com.heytrip.hotel.supplier.dto.base.SupplierAuth;
+import com.heytrip.hotel.supplier.dto.supplier.SupplierAuth;
 import com.heytrip.hotel.supplier.dto.qtech.req.*;
 import com.heytrip.hotel.supplier.dto.qtech.resp.*;
 import com.heytrip.hotel.supplier.entity.SupplierConfig;

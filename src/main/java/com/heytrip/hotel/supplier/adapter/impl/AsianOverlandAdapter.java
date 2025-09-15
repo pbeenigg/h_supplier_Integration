@@ -3,12 +3,20 @@ package com.heytrip.hotel.supplier.adapter.impl;
 import cn.hutool.core.util.StrUtil;
 import com.heytrip.hotel.supplier.adapter.AbstractSupplierAdapter;
 import com.heytrip.hotel.supplier.client.HttpClientService;
-import com.heytrip.hotel.supplier.dto.base.SupplierAuth;
+import com.heytrip.hotel.supplier.dto.supplier.SupplierAuth;
 import com.heytrip.hotel.supplier.dto.qtech.req.*;
 import com.heytrip.hotel.supplier.dto.qtech.resp.*;
 import com.heytrip.hotel.supplier.adapter.builder.QTechQueryBuilder;
 import com.heytrip.hotel.supplier.entity.SupplierConfig;
 import jakarta.annotation.PostConstruct;
+import jakarta.annotation.Resource;
+import com.heytrip.hotel.supplier.adapter.service.StaticDataQueryService;
+import com.heytrip.common.response.other.XCountryResponse;
+import com.heytrip.common.response.other.XCityResponse;
+import com.heytrip.hotel.supplier.dto.basic.XNationality;
+import com.heytrip.hotel.supplier.dto.basic.XHotelGiata;
+import com.heytrip.common.response.base.XHotel;
+import org.springframework.data.domain.Page;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
@@ -60,6 +68,45 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter {
         initialize();
     }
 
+    // ================= 静态数据查询入口 =================
+    @Resource
+    private StaticDataQueryService staticDataQueryService;
+
+    /**
+     * 分页查询国家静态数据
+     */
+    public Page<XCountryResponse> pageCountries(String countryCode, String countryName, int page, int size) {
+        return staticDataQueryService.pageCountries(getSafeSupplierId(), getSupplierCode(), countryCode, countryName, page, size);
+    }
+
+    /**
+     * 分页查询城市静态数据
+     */
+    public Page<XCityResponse> pageCities(String cityCode, String countryCode, String name, int page, int size) {
+        return staticDataQueryService.pageCities(getSafeSupplierId(), getSupplierCode(), cityCode, countryCode, name, page, size);
+    }
+
+    /**
+     * 分页查询酒店静态数据
+     */
+    public Page<XHotel> pageHotels(String hotelCode, String cityCode, String countryCode, String name, int page, int size) {
+        return staticDataQueryService.pageHotels(getSafeSupplierId(), getSupplierCode(), hotelCode, cityCode, countryCode, name, page, size);
+    }
+
+    /**
+     * 分页查询国籍静态数据
+     */
+    public Page<XNationality> pageNationalities(String nationalityCode, String nationality, String isoCode, int page, int size) {
+        return staticDataQueryService.pageNationalities(getSafeSupplierId(), getSupplierCode(), nationalityCode, nationality, isoCode, page, size);
+    }
+
+    /**
+     * 分页查询GIATA酒店映射
+     */
+    public Page<XHotelGiata> pageGiataMappings(String hotelCode, String giataId, int page, int size) {
+        return staticDataQueryService.pageGiataMappings(getSafeSupplierId(), getSupplierCode(), hotelCode, giataId, page, size);
+    }
+
     /**
      * 获取供应商标识符
      * 用于从数据库加载供应商配置，避免循环依赖
@@ -105,6 +152,20 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter {
      */
     public String getStaticCities() {
         return null;
+    }
+
+    /**
+     * 兼容测试：获取支持的城市列表（来自供应商配置）
+     */
+    public String getSupportedCities() {
+        return supplierConfig != null ? supplierConfig.getSupportedCities() : null;
+    }
+
+    /**
+     * 兼容测试：获取支持的国家列表（来自供应商配置）
+     */
+    public String getSupportedCountries() {
+        return supplierConfig != null ? supplierConfig.getSupportedCountries() : null;
     }
 
 

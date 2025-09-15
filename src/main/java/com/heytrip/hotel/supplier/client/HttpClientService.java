@@ -3,10 +3,9 @@ package com.heytrip.hotel.supplier.client;
 import com.heytrip.hotel.supplier.entity.ApiCallLog;
 import com.heytrip.hotel.supplier.exception.HttpClientException;
 import com.heytrip.hotel.supplier.repository.ApiCallLogRepository;
-import com.heytrip.hotel.supplier.util.UrlUtils;
+import com.heytrip.hotel.supplier.utils.UrlUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -16,7 +15,6 @@ import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
  
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.http.HttpHeaders;
 import org.springframework.web.reactive.function.client.ExchangeFilterFunction;
 import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
@@ -30,7 +28,6 @@ import java.util.LinkedHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -155,7 +152,7 @@ public class HttpClientService {
         long startTime = System.currentTimeMillis();
         String requestData = requestBody != null ? requestBody.toString() : "";
 
-        String finalUrl = UrlUtils.buildFinalUrl(baseUrl, endpoint);
+        String finalUrl = UrlUtil.buildFinalUrl(baseUrl, endpoint);
         logResolvedUri("Final Request URI", finalUrl);
         WebClient.RequestBodySpec requestSpec = webClient.method(method).uri(URI.create(finalUrl));
 
@@ -232,7 +229,7 @@ public class HttpClientService {
 
         long startTime = System.currentTimeMillis();
 
-        String finalUrl = UrlUtils.buildFinalUrl(baseUrl, endpoint);
+        String finalUrl = UrlUtil.buildFinalUrl(baseUrl, endpoint);
         logResolvedUri("Final Request URI (retry)", finalUrl);
         WebClient.RequestBodySpec requestSpec = webClient.method(method).uri(URI.create(finalUrl));
 

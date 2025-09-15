@@ -1,7 +1,7 @@
 package com.heytrip.hotel.supplier.adapter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.heytrip.hotel.supplier.dto.base.SupplierAuth;
+import com.heytrip.hotel.supplier.dto.supplier.SupplierAuth;
 import com.heytrip.hotel.supplier.entity.SupplierConfig;
 import com.heytrip.hotel.supplier.repository.SupplierConfigRepository;
 import com.heytrip.hotel.supplier.service.SupplierHealthCheckService;
