@@ -5,8 +5,8 @@ import com.heytrip.common.response.base.XRatePlan;
 import com.heytrip.common.response.base.XRoom;
 import com.heytrip.common.response.other.XCityResponse;
 import com.heytrip.common.response.other.XCountryResponse;
-import com.heytrip.hotel.supplier.dto.basic.XNationality;
 import com.heytrip.hotel.supplier.dto.basic.XHotelGiata;
+import com.heytrip.hotel.supplier.dto.basic.XNationality;
 import com.heytrip.hotel.supplier.entity.SyncLog;
 import org.springframework.data.domain.Page;
 

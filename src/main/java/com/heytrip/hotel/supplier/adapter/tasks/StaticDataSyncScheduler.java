@@ -5,10 +5,10 @@ import com.heytrip.hotel.supplier.entity.SupplierConfig;
 import com.heytrip.hotel.supplier.repository.SupplierConfigRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
 
 import java.util.Optional;
 import java.util.concurrent.Executors;

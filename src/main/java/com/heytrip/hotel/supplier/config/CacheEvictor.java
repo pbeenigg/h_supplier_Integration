@@ -1,13 +1,13 @@
 package com.heytrip.hotel.supplier.config;
 
 import com.heytrip.hotel.supplier.constant.StaticCacheNames;
+import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Component;
 
-import jakarta.annotation.Resource;
 import java.util.Arrays;
 import java.util.List;
 

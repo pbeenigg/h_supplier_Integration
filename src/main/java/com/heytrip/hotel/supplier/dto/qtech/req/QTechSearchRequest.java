@@ -1,8 +1,8 @@
 package com.heytrip.hotel.supplier.dto.qtech.req;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.Data;
 import com.heytrip.hotel.supplier.adapter.builder.JsonParam;
+import lombok.Data;
 
 import java.util.List;
 

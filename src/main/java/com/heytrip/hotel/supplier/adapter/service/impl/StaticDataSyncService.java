@@ -1,27 +1,31 @@
 package com.heytrip.hotel.supplier.adapter.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.heytrip.hotel.supplier.dto.supplier.SupplierFtp;
 import com.heytrip.hotel.supplier.adapter.service.StaticDataParser;
-import com.heytrip.hotel.supplier.utils.CsvStreamReaderUtil;
 import com.heytrip.hotel.supplier.client.FtpClientService;
-import com.heytrip.hotel.supplier.entity.*;
-import com.heytrip.hotel.supplier.repository.*;
 import com.heytrip.hotel.supplier.config.CacheEvictor;
 import com.heytrip.hotel.supplier.config.FtpClientConfig;
+import com.heytrip.hotel.supplier.dto.supplier.SupplierFtp;
+import com.heytrip.hotel.supplier.entity.*;
+import com.heytrip.hotel.supplier.repository.*;
+import com.heytrip.hotel.supplier.utils.CsvStreamReaderUtil;
 import jakarta.annotation.Resource;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
 
 import java.io.InputStream;
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+import java.util.function.Supplier;
 
 /**
  * 静态数据同步服务
@@ -65,9 +69,9 @@ public class StaticDataSyncService {
         SupplierFtp ftp = parseFtpConfig(sc.getFtpConfig());
         logger.info("开始静态数据同步，supplierId={}, supplierCode={}", supplierId, supplierCode);
         syncOne(() -> syncCountries(ftp, supplierId, supplierCode), supplierId, supplierCode, "countries", ftp.getCountriesPath());
-        //syncOne(() -> syncCities(ftp, supplierId, supplierCode), supplierId, supplierCode, "cities", ftp.getCitiesPath());
+        syncOne(() -> syncCities(ftp, supplierId, supplierCode), supplierId, supplierCode, "cities", ftp.getCitiesPath());
         //syncOne(() -> syncHotels(ftp, supplierId, supplierCode), supplierId, supplierCode, "hotels", ftp.getHotelsPath());
-        //syncOne(() -> syncNationalities(ftp, supplierId, supplierCode), supplierId, supplierCode, "nationality", ftp.getNationalityPath());
+        syncOne(() -> syncNationalities(ftp, supplierId, supplierCode), supplierId, supplierCode, "nationality", ftp.getNationalityPath());
         //syncOne(() -> syncGiata(ftp, supplierId, supplierCode), supplierId, supplierCode, "giata", ftp.getGiataLocalPath());
         logger.info("静态数据同步完成，supplierId={}, supplierCode={}", supplierId, supplierCode);
         // 同步完成后，清理静态数据相关缓存，避免读取到陈旧数据
@@ -84,7 +88,16 @@ public class StaticDataSyncService {
         }
     }
 
-    private void syncOne(Runnable task, Long supplierId, String supplierCode, String biz, String fileName) {
+
+    /**
+     * 同步单个业务数据，并记录日志
+     * @param task
+     * @param supplierId
+     * @param supplierCode
+     * @param biz
+     * @param fileName
+     */
+    private void syncOne(Supplier<SyncStats> task, Long supplierId, String supplierCode, String biz, String fileName) {
         SyncLog log = new SyncLog();
         log.setSupplierId(supplierId);
         log.setSupplierCode(supplierCode);
@@ -97,7 +110,22 @@ public class StaticDataSyncService {
         log.setSkipCount(0L);
         log.setErrorCount(0L);
         try {
-            task.run();
+            SyncStats stats = task.get();
+            if (stats != null) {
+                log.setTotalCount(stats.total);
+                log.setSuccessCount(stats.success);
+                log.setSkipCount(stats.skip);
+                log.setErrorCount(stats.error);
+                if (stats.errorMessage != null && !stats.errorMessage.isBlank()) {
+                    // 将批量写入阶段的错误信息附加到日志
+                    String existed = log.getErrorMessage();
+                    if (existed == null || existed.isBlank()) {
+                        log.setErrorMessage(stats.errorMessage);
+                    } else {
+                        log.setErrorMessage(existed + " | " + stats.errorMessage);
+                    }
+                }
+            }
             log.setIsSuccess(true);
         } catch (Exception e) {
             log.setErrorMessage(e.getMessage());
@@ -108,37 +136,65 @@ public class StaticDataSyncService {
         }
     }
 
-    private void syncCountries(SupplierFtp ftp, Long supplierId, String supplierCode) {
+
+    /**
+     * 同步国家数据
+     * @param ftp
+     * @param supplierId
+     * @param supplierCode
+     */
+    private SyncStats syncCountries(SupplierFtp ftp, Long supplierId, String supplierCode) {
         try (InputStream is = openByConfig(ftp, ftp.getCountriesPath(), true);
              CsvStreamReaderUtil reader = new CsvStreamReaderUtil(is)) {
-            batchUpsertCountries(readAll(reader), supplierId, supplierCode);
+            return batchUpsertCountries(readAll(reader), supplierId, supplierCode);
         } catch (Exception e) {
             throw new RuntimeException("同步国家失败", e);
         }
     }
 
-    private void syncCities(SupplierFtp ftp, Long supplierId, String supplierCode) {
+    /**
+     * 同步城市数据
+     * @param ftp
+     * @param supplierId
+     * @param supplierCode
+     */
+    private SyncStats syncCities(SupplierFtp ftp, Long supplierId, String supplierCode) {
         try (InputStream is = openByConfig(ftp, ftp.getCitiesPath(), true);
              CsvStreamReaderUtil reader = new CsvStreamReaderUtil(is)) {
-            batchUpsertCities(readAll(reader), supplierId, supplierCode);
+            return batchUpsertCities(readAll(reader), supplierId, supplierCode);
         } catch (Exception e) {
             throw new RuntimeException("同步城市失败", e);
         }
     }
 
-    private void syncHotels(SupplierFtp ftp, Long supplierId, String supplierCode) {
+    /**
+     * 同步酒店数据
+     * @param ftp
+     * @param supplierId
+     * @param supplierCode
+     * @return
+     */
+    private SyncStats syncHotels(SupplierFtp ftp, Long supplierId, String supplierCode) {
         try (InputStream is = openByConfig(ftp, ftp.getHotelsPath(), true);
              CsvStreamReaderUtil reader = new CsvStreamReaderUtil(is)) {
-            batchUpsertHotels(readAll(reader), supplierId, supplierCode);
+            return batchUpsertHotels(readAll(reader), supplierId, supplierCode);
         } catch (Exception e) {
             throw new RuntimeException("同步酒店失败", e);
         }
     }
 
-    private void syncNationalities(SupplierFtp ftp, Long supplierId, String supplierCode) {
+
+    /**
+     * 同步国籍数据
+     * @param ftp
+     * @param supplierId
+     * @param supplierCode
+     * @return
+     */
+    private SyncStats syncNationalities(SupplierFtp ftp, Long supplierId, String supplierCode) {
         try (InputStream is = openByConfig(ftp, ftp.getNationalityPath(), true);
              CsvStreamReaderUtil reader = new CsvStreamReaderUtil(is)) {
-            batchUpsertNationalities(readAll(reader), supplierId, supplierCode);
+            return batchUpsertNationalities(readAll(reader), supplierId, supplierCode);
         } catch (Exception e) {
             throw new RuntimeException("同步国籍失败", e);
         }
@@ -150,12 +206,12 @@ public class StaticDataSyncService {
      * @param supplierId
      * @param supplierCode
      */
-    private void syncGiata(SupplierFtp ftp, Long supplierId, String supplierCode) {
+    private SyncStats syncGiata(SupplierFtp ftp, Long supplierId, String supplierCode) {
         String path = ftp.getGiataLocalPath();
-        if (path == null) return;
+        if (path == null) return null;
         try (InputStream is = openByConfig(ftp, path, false);
              CsvStreamReaderUtil reader = new CsvStreamReaderUtil(is)) {
-            batchUpsertGiata(readAll(reader), supplierId, supplierCode);
+            return batchUpsertGiata(readAll(reader), supplierId, supplierCode);
         } catch (Exception e) {
             throw new RuntimeException("同步GIATA失败", e);
         }
@@ -254,39 +310,44 @@ public class StaticDataSyncService {
 
     // =========== 批量Upsert（JPA saveAll，主键缺失跳过） ==========
 
-    private void batchUpsertCountries(List<Map<String, String>> rows, Long supplierId, String supplierCode) {
+    private SyncStats batchUpsertCountries(List<Map<String, String>> rows, Long supplierId, String supplierCode) {
         int deleted = deleteBySupplier(Country.class, supplierId, supplierCode);
         logger.info("已清理旧国家数据，supplierId={}, supplierCode={}, 删除行数={}", supplierId, supplierCode, deleted);
         List<Country> list = aoStaticDataParser.parseCountries(rows, supplierId, supplierCode);
-        saveInBatches(list, countryRepo);
+        SaveResult sr = saveInBatchesReturnCount(list, countryRepo);
+        return new SyncStats(rows.size(), sr.saved, rows.size() - list.size(), sr.errors, sr.errorMsg);
     }
 
-    private void batchUpsertCities(List<Map<String, String>> rows, Long supplierId, String supplierCode) {
+    private SyncStats batchUpsertCities(List<Map<String, String>> rows, Long supplierId, String supplierCode) {
         int deleted = deleteBySupplier(City.class, supplierId, supplierCode);
         logger.info("已清理旧城市数据，supplierId={}, supplierCode={}, 删除行数={}", supplierId, supplierCode, deleted);
         List<City> list = aoStaticDataParser.parseCities(rows, supplierId, supplierCode);
-        saveInBatches(list, cityRepo);
+        SaveResult sr = saveInBatchesReturnCount(list, cityRepo);
+        return new SyncStats(rows.size(), sr.saved, rows.size() - list.size(), sr.errors, sr.errorMsg);
     }
 
-    private void batchUpsertHotels(List<Map<String, String>> rows, Long supplierId, String supplierCode) {
+    private SyncStats batchUpsertHotels(List<Map<String, String>> rows, Long supplierId, String supplierCode) {
         int deleted = deleteBySupplier(Hotel.class, supplierId, supplierCode);
         logger.info("已清理旧酒店数据，supplierId={}, supplierCode={}, 删除行数={}", supplierId, supplierCode, deleted);
         List<Hotel> list = aoStaticDataParser.parseHotels(rows, supplierId, supplierCode);
-        saveInBatches(list, hotelRepo);
+        SaveResult sr = saveInBatchesReturnCount(list, hotelRepo);
+        return new SyncStats(rows.size(), sr.saved, rows.size() - list.size(), sr.errors, sr.errorMsg);
     }
 
-    private void batchUpsertNationalities(List<Map<String, String>> rows, Long supplierId, String supplierCode) {
+    private SyncStats batchUpsertNationalities(List<Map<String, String>> rows, Long supplierId, String supplierCode) {
         int deleted = deleteBySupplier(Nationality.class, supplierId, supplierCode);
         logger.info("已清理旧国籍数据，supplierId={}, supplierCode={}, 删除行数={}", supplierId, supplierCode, deleted);
         List<Nationality> list = aoStaticDataParser.parseNationalities(rows, supplierId, supplierCode);
-        saveInBatches(list, nationalityRepo);
+        SaveResult sr = saveInBatchesReturnCount(list, nationalityRepo);
+        return new SyncStats(rows.size(), sr.saved, rows.size() - list.size(), sr.errors, sr.errorMsg);
     }
 
-    private void batchUpsertGiata(List<Map<String, String>> rows, Long supplierId, String supplierCode) {
+    private SyncStats batchUpsertGiata(List<Map<String, String>> rows, Long supplierId, String supplierCode) {
         int deleted = deleteBySupplier(HotelGiata.class, supplierId, supplierCode);
         logger.info("已清理旧GIATA数据，supplierId={}, supplierCode={}, 删除行数={}", supplierId, supplierCode, deleted);
         List<HotelGiata> list = aoStaticDataParser.parseGiataMappings(rows, supplierId, supplierCode);
-        saveInBatches(list, giataRepo);
+        SaveResult sr = saveInBatchesReturnCount(list, giataRepo);
+        return new SyncStats(rows.size(), sr.saved, rows.size() - list.size(), sr.errors, sr.errorMsg);
     }
 
 
@@ -296,14 +357,61 @@ public class StaticDataSyncService {
      * @param repo
      * @param <T>
      */
-    private <T> void saveInBatches(List<T> list, JpaRepository<T, Long> repo) {
+    private <T> SaveResult saveInBatchesReturnCount(List<T> list, JpaRepository<T, Long> repo) {
         int batchSize = 1000;
+        long saved = 0;
+        long errors = 0;
+        StringBuilder err = new StringBuilder();
         for (int i = 0; i < list.size(); i += batchSize) {
             int end = Math.min(i + batchSize, list.size());
             List<T> sub = list.subList(i, end);
-            repo.saveAll(sub); // JPA upsert（基于唯一约束场景，若需要严格ON DUPLICATE可改为原生SQL）
+            try {
+                List<T> ret = repo.saveAll(sub);
+                saved += (ret != null ? ret.size() : sub.size());
+            } catch (Exception ex) {
+                errors += sub.size();
+                String msg = ex.getClass().getSimpleName() + ": " + (ex.getMessage() == null ? "" : ex.getMessage());
+                if (err.length() > 0) err.append("; ");
+                err.append(msg);
+                logger.warn("批量入库异常，已计为错误条数：{}，原因：{}", sub.size(), ex.getMessage());
+            }
         }
-        logger.info("批量入库完成，数量：{}", list.size());
+        logger.info("批量入库完成，总数={}，成功={}，错误={}", list.size(), saved, errors);
+        return new SaveResult(saved, errors, err.toString());
+    }
+
+    /** 日志统计结构 */
+    private static class SyncStats {
+        long total; // 总行数
+        long success; // 成功入库数
+        long skip; // 跳过数（如主键缺失等）
+        long error; // 错误数
+        String errorMessage; // 错误汇总
+
+        SyncStats(long total, long success, long skip, long error) {
+            this.total = total;
+            this.success = success;
+            this.skip = Math.max(0, skip);
+            this.error = Math.max(0, error);
+        }
+
+        SyncStats(long total, long success, long skip, long error, String errorMessage) {
+            this(total, success, skip, error);
+            this.errorMessage = errorMessage;
+        }
+    }
+
+    /** 批量保存结果 */
+    private static class SaveResult {
+        long saved;
+        long errors;
+        String errorMsg;
+
+        SaveResult(long saved, long errors, String errorMsg) {
+            this.saved = saved;
+            this.errors = errors;
+            this.errorMsg = errorMsg;
+        }
     }
 
     /**

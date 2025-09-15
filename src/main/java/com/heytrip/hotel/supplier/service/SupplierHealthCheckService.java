@@ -1,10 +1,10 @@
 package com.heytrip.hotel.supplier.service;
 
+import com.heytrip.hotel.supplier.client.HttpClientService;
 import com.heytrip.hotel.supplier.entity.SupplierConfig;
 import com.heytrip.hotel.supplier.entity.SupplierHealthLog;
 import com.heytrip.hotel.supplier.repository.SupplierConfigRepository;
 import com.heytrip.hotel.supplier.repository.SupplierHealthLogRepository;
-import com.heytrip.hotel.supplier.client.HttpClientService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;

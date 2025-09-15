@@ -2,9 +2,9 @@ package com.heytrip.hotel.supplier.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import org.hibernate.annotations.Comment;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
-import org.hibernate.annotations.Comment;
 
 import java.time.LocalDateTime;
 

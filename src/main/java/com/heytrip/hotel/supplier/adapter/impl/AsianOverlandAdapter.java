@@ -1,23 +1,23 @@
 package com.heytrip.hotel.supplier.adapter.impl;
 
 import cn.hutool.core.util.StrUtil;
+import com.heytrip.common.response.base.XHotel;
+import com.heytrip.common.response.other.XCityResponse;
+import com.heytrip.common.response.other.XCountryResponse;
 import com.heytrip.hotel.supplier.adapter.AbstractSupplierAdapter;
+import com.heytrip.hotel.supplier.adapter.builder.QTechQueryBuilder;
+import com.heytrip.hotel.supplier.adapter.service.StaticDataQueryService;
 import com.heytrip.hotel.supplier.client.HttpClientService;
-import com.heytrip.hotel.supplier.dto.supplier.SupplierAuth;
+import com.heytrip.hotel.supplier.dto.basic.XHotelGiata;
+import com.heytrip.hotel.supplier.dto.basic.XNationality;
 import com.heytrip.hotel.supplier.dto.qtech.req.*;
 import com.heytrip.hotel.supplier.dto.qtech.resp.*;
-import com.heytrip.hotel.supplier.adapter.builder.QTechQueryBuilder;
+import com.heytrip.hotel.supplier.dto.supplier.SupplierAuth;
 import com.heytrip.hotel.supplier.entity.SupplierConfig;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
-import com.heytrip.hotel.supplier.adapter.service.StaticDataQueryService;
-import com.heytrip.common.response.other.XCountryResponse;
-import com.heytrip.common.response.other.XCityResponse;
-import com.heytrip.hotel.supplier.dto.basic.XNationality;
-import com.heytrip.hotel.supplier.dto.basic.XHotelGiata;
-import com.heytrip.common.response.base.XHotel;
-import org.springframework.data.domain.Page;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 

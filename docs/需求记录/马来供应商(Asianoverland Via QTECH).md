@@ -970,7 +970,66 @@ GET /ws/index.php?action=cancel_the_booking
    - 静态数据文件可能较大，需考虑内存溢出和性能问题。
 
 
+- 确认清单&偏好：
+  - 仅先为AsianOverlandAdapter 实现静态数据同步与查询
+  - 可以进入额外的组件，目前只需要 支持 FTP
+  - 只采用 Spring @Scheduled 定时任务 ，实现包路径： com.heytrip.hotel.supplier.adapter.tasks
+  - 表设计与隔离策略 采用方案 A
+    - 城市表：(supplier_id,supplier_code, city_code) 唯一 ,城市表设计参照 com.heytrip.common.response.other.XCityResponse
+    - 国家表：(supplier_id,supplier_code, country_code) 唯一 ,国家表设计参照 com.heytrip.common.response.other.XCountryResponse
+    - 酒店表：(supplier_id,supplier_code, hotel_code) 唯一 ,酒店表设计参照 com.heytrip.common.response.base.XHotel
+    - 房型表：(supplier_id,supplier_code, room_code) 唯一 ,房型表设计参照 com.heytrip.common.response.base.XRoom
+    - 房价表：(supplier_id,supplier_code, rate_plan_code) 唯一 ,房价表设计参照 ccom.heytrip.common.response.base.XRatePlan
+    - 国籍表：(supplier_id,supplier_code,nationality_code) 唯一 ， 按照：id, nationality_code, nationality, iso_code
+    - GIATA酒店映射表：(supplier_id,supplier_code, hotel_code,giata_id) 唯一 ,按照：id,hotel_code,giata_id,name,city_code,city_name,country_code,long_desc,latitude,longitude,rating,address,main_image
+  - 空值/异常值处理: 记录告警并跳过“主键缺失”的行，非关键字段置空
+  - 每个表都需要包含以下公共字段：
+    - id: 主键，自增
+      - supplier_id: 供应商ID，标识数据来源
+      - supplier_code: 供应商代码，标识数据来源
+      - 业务唯一标识字段：如 city_code, country_code, hotel_code, room_code,giata_code,nationality_code 等，具体根据表而定
+      - created_at: 创建时间，记录数据创建时间
+      - updated_at: 更新时间，记录数据最后更新时间
+      - is_deleted: 逻辑删除标志，0表示未删除，1表示已删除
+  - 数据规模与性能: 按中等规模设计（流式解析、批量 upsert）
+  - static_data_hotels_giata.csv 是手动导入的，存储在 src/main/resources/giata/aosc_giata_id.csv，每一个供应商指定路径同步
+  - 静态文件都有header，按列名映射
+  - 入库策略：Upsert，，每1000条提交一次
+  - 同意新建 static_sync_log 表，记录每次同步的，业务点，时间、数据量、状态、错误信息，耗时，所属供应商等
+  - 需要下载与解析层面的重试，间隔10秒, 3次指数退避
+  - 启动同步：应用启动后10分钟内执行一次同步，避免影响启动性能，如若FTP不可用，则跳过不影响服务启动
+  - 定时同步: 每天15天凌晨2点执行一次，cron：0 0 2 */15 * ?
+  - supplier-data-standard-1.2.2-RELEASES 依赖包已经引入
+  - 查询接口与缓存
+    - 国家：转换为：XCountryResponse
+    - 城市：转换为：XCityResponse
+    - 酒店：转换为：XHotel
+    - 房型：转换为：XRoom
+    - 价格计划：转换为：XRatePlan
+    - 国籍：转换为：XNationalityResponse
+    - GIATA酒店映射：转换为：XHotelGiataMappingResponse
+    - 查询接口均需支持分页查询和条件查询
+    - 查询接口均需增加Caffeine本地缓存策略，避免频繁查询数据库
+    - 服务启动需要预热缓存，定时任务同步数据后也需要更新缓存
+    - 查询接口实现包路径： com.heytrip.hotel.supplier.adapter.service.impl
+    - 缓存配置实现包路径： com.heytrip.hotel.supplier.adapter.config
+  - 缓存预热： 推荐启动后异步预热，避免阻塞启动
+  - 默认分页大小20，最大 100
+  - 所有记录均存 supplier_id，supplier_code 字段，标识数据来源
+  - 凭证管理:ftp 目前不启用加密
+  - 静态查询接口为内部服务使用, 目前沿用 MD5签名： com.heytrip.hotel.supplier.authorization.SecurityFilter
+  - 数据库 upsert 使用：JPA ，统一风格
+  - 超时与重试：静态文件单行解析失败，记录错误计数并跳过，不中断，只统计告警
+  - 单元测试暂时不需要考虑，但需设计良好接口，便于后续扩展
+  - 设计文档的增补也暂时不要考虑，但需在代码注释中说明设计思路
 
+
+
+
+
+
+- 【酒店】->【物理房型】->【价格计划】->【每日房态房价】，4层，粒度从大到小 
+XHotel】->【XRoom】->【XRatePlan】->【XRatePlanDaily】
 
 供应商对接标准实体定义： supplier-data-standard-1.2.2-RELEASES:com.heytrip.common
 - XCityResponse  城市
