@@ -18,11 +18,10 @@ public interface SupplierAdapter {
 
 
     /**
-     * 获取供应商名称
+     * 获取供应商名称（唯一标识，用于路由）
      * @return 供应商名称
      */
     String getSupplierName();
-
 
     
     /**

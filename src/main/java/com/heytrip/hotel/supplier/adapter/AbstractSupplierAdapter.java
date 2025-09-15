@@ -84,7 +84,7 @@ public abstract class AbstractSupplierAdapter implements SupplierAdapter {
      * 获取供应商标识符（供应商代码或名称）
      * 子类必须重写此方法提供唯一的供应商标识
      */
-    protected  abstract String getSupplierCode();
+    public abstract String getSupplierCode();
     
     /**
      * 初始化WebClient

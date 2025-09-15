@@ -28,9 +28,9 @@ import java.util.Map;
 @RestController
 @Validated
 @RequestMapping("/pax/api/xiwanSupplier/supp")
-public class HotelQuotationController {
+public class PricingController {
 
-    private static final Logger logger = LoggerFactory.getLogger(HotelQuotationController.class);
+    private static final Logger logger = LoggerFactory.getLogger(PricingController.class);
 
     @Resource
     private ISupplierApiService supplierApiService;

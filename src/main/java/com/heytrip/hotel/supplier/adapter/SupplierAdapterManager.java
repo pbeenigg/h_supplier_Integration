@@ -10,9 +10,23 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.Collections;
+
+import com.heytrip.common.request.XSupplierPriceRequest;
+import com.heytrip.common.request.XCreateOrderRequest;
+import com.heytrip.common.request.XCancelOrderRequest;
+import com.heytrip.common.response.base.XRoom;
+import com.heytrip.common.response.other.XCreateOrderResponse;
+import com.heytrip.common.response.other.XCancelOrderResponse;
+import com.heytrip.common.response.other.XQueryOrderResponse;
+import com.heytrip.common.result.Result;
+import com.heytrip.hotel.supplier.adapter.capability.PricingBridge;
+import com.heytrip.hotel.supplier.adapter.capability.OrderBridge;
 
 /**
  * 供应商适配器管理器
@@ -29,6 +43,11 @@ public class SupplierAdapterManager {
     private List<SupplierAdapter> supplierAdapters;
     
     private List<SupplierAdapter> enabledAdapters;
+
+    /**
+     * 通过 supplierName 路由的适配器映射
+     */
+    private final Map<String, SupplierAdapter> adapterByName = new HashMap<>();
     
     @PostConstruct
     public void initialize() {
@@ -42,6 +61,22 @@ public class SupplierAdapterManager {
         enabledAdapters.forEach(adapter -> 
                 logger.info("已启用的适配器: {} 具有优先级: {}",
                         adapter.getSupplierName(), adapter.getPriority()));
+
+        // 构建 supplierCode -> adapter 的映射（统一转大写存储，路由时忽略大小写）
+        adapterByName.clear();
+        enabledAdapters.forEach(adapter -> {
+            try {
+                String supplierName = adapter.getSupplierName();
+                if (supplierName != null && !supplierName.isEmpty()) {
+                    adapterByName.put(supplierName.toUpperCase(), adapter);
+                } else {
+                    logger.warn("适配器未提供有效的supplierCode, supplierName={}", adapter.getSupplierName());
+                }
+            } catch (Exception ex) {
+                logger.error("构建适配器路由映射失败: {}", adapter.getSupplierName(), ex);
+            }
+        });
+        logger.info("已建立按supplierCode路由的映射表，数量: {}", adapterByName.size());
     }
     
 
@@ -55,6 +90,103 @@ public class SupplierAdapterManager {
                 .collect(Collectors.toList());
     }
     
+    /**
+     * 按 supplierCode 获取适配器
+     * @param supplierName 供应商名称（不区分大小写）
+     * @return 匹配到的适配器，若不存在返回 null
+     */
+    public SupplierAdapter getAdapterByName(String supplierName) {
+        if (supplierName == null) return null;
+        SupplierAdapter adapter = adapterByName.get(supplierName.toUpperCase());
+        if (adapter == null) {
+            logger.warn("未找到匹配的供应商适配器，supplierCode={}", supplierName);
+        }
+        return adapter;
+    }
+
+    // ======================= 报价与订单委派（第2阶段骨架） =======================
+
+    /**
+     * 单酒店报价
+     */
+    public Result<List<XRoom>> getPrice(String supplierName, XSupplierPriceRequest input) {
+        SupplierAdapter adapter = getAdapterByName(supplierName);
+        if (adapter == null) {
+            return Result.ok(Collections.emptyList());
+        }
+
+        try {
+            if (adapter instanceof PricingBridge bridge) {
+                List<XRoom> rooms = bridge.getPrice(input);
+                return Result.ok(rooms != null ? rooms : Collections.emptyList());
+            }
+            return Result.ok(Collections.emptyList());
+        } catch (Exception ex) {
+            logger.error("[getPrice] 委派执行失败, supplierName={}", supplierName, ex);
+            return Result.ok(Collections.emptyList());
+        }
+    }
+
+    /**
+     * 创建订单
+     */
+    public Result<XCreateOrderResponse> createOrder(String supplierName, XCreateOrderRequest input) {
+        SupplierAdapter adapter = getAdapterByName(supplierName);
+        if (adapter == null) {
+            return Result.ok(null);
+        }
+        try {
+            if (adapter instanceof OrderBridge bridge) {
+                XCreateOrderResponse resp = bridge.createOrder(input);
+                return Result.ok(resp);
+            }
+            return Result.ok(null);
+        } catch (Exception ex) {
+            logger.error("[createOrder] 委派执行失败, supplierName={}", supplierName, ex);
+            return Result.ok(null);
+        }
+    }
+
+    /**
+     * 取消订单
+     */
+    public Result<XCancelOrderResponse> cancelOrder(String supplierName, XCancelOrderRequest input) {
+        SupplierAdapter adapter = getAdapterByName(supplierName);
+        if (adapter == null) {
+            return Result.ok(null);
+        }
+        try {
+            if (adapter instanceof OrderBridge bridge) {
+                XCancelOrderResponse resp = bridge.cancelOrder(input);
+                return Result.ok(resp);
+            }
+            return Result.ok(null);
+        } catch (Exception ex) {
+            logger.error("[cancelOrder] 委派执行失败, supplierName={}", supplierName, ex);
+            return Result.ok(null);
+        }
+    }
+
+    /**
+     * 查询订单
+     */
+    public Result<XQueryOrderResponse> queryOrder(String supplierName, String distributorOrderId, String supplierOrderId, String ext) {
+        SupplierAdapter adapter = getAdapterByName(supplierName);
+        if (adapter == null) {
+            return Result.ok(null);
+        }
+        try {
+            if (adapter instanceof OrderBridge bridge) {
+                XQueryOrderResponse resp = bridge.queryOrder(distributorOrderId, supplierOrderId, ext);
+                return Result.ok(resp);
+            }
+            return Result.ok(null);
+        } catch (Exception ex) {
+            logger.error("[queryOrder] 委派执行失败, supplierName={}", supplierName, ex);
+            return Result.ok(null);
+        }
+    }
+
     /**
      * 检查供应商健康状态
      * @param supplierName 供应商名称

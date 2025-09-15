@@ -14,16 +14,28 @@ import com.heytrip.hotel.supplier.dto.qtech.req.*;
 import com.heytrip.hotel.supplier.dto.qtech.resp.*;
 import com.heytrip.hotel.supplier.dto.supplier.SupplierAuth;
 import com.heytrip.hotel.supplier.entity.SupplierConfig;
+import com.heytrip.common.request.XSupplierPriceRequest;
+import com.heytrip.common.request.XCreateOrderRequest;
+import com.heytrip.common.request.XCancelOrderRequest;
+import com.heytrip.common.response.base.XRoom;
+import com.heytrip.common.response.other.XCreateOrderResponse;
+import com.heytrip.common.response.other.XCancelOrderResponse;
+import com.heytrip.common.response.other.XQueryOrderResponse;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
 import org.springframework.beans.factory.annotation.Autowired;
+import com.heytrip.hotel.supplier.adapter.capability.PricingBridge;
+import com.heytrip.hotel.supplier.adapter.capability.OrderBridge;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 
+import java.lang.reflect.Method;
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.Arrays;
-import java.util.List;
+import java.time.format.DateTimeParseException;
+import java.util.*;
+
 
 /**
  * Asianoverland Via QTECH 供应商适配器实现
@@ -34,12 +46,14 @@ import java.util.List;
  * @author Pax
  */
 @Component
-public class AsianOverlandAdapter extends AbstractSupplierAdapter {
+public class AsianOverlandAdapter extends AbstractSupplierAdapter implements PricingBridge, OrderBridge {
 
 
-    @Resource private HttpClientService httpClientService;
+    @Resource
+    private HttpClientService httpClientService;
 
-    @Resource private StaticDataQueryService staticDataQueryService;
+    @Resource
+    private StaticDataQueryService staticDataQueryService;
 
     // 默认供应商信息（当数据库配置不可用时使用）
     private static final Long DEFAULT_SUPPLIER_ID = 1L;
@@ -69,42 +83,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter {
         initialize();
     }
 
-    // ================================== 静态数据查询入口 ==================================
-    /**
-     * 分页查询国家静态数据
-     */
-    public Page<XCountryResponse> pageCountries(String countryCode, String countryName, int page, int size) {
-        return staticDataQueryService.pageCountries(getSafeSupplierId(), getSupplierCode(), countryCode, countryName, page, size);
-    }
-
-    /**
-     * 分页查询城市静态数据
-     */
-    public Page<XCityResponse> pageCities(String cityCode, String countryCode, String name, int page, int size) {
-        return staticDataQueryService.pageCities(getSafeSupplierId(), getSupplierCode(), cityCode, countryCode, name, page, size);
-    }
-
-    /**
-     * 分页查询酒店静态数据
-     */
-    public Page<XHotel> pageHotels(String hotelCode, String cityCode, String countryCode, String name, int page, int size) {
-        return staticDataQueryService.pageHotels(getSafeSupplierId(), getSupplierCode(), hotelCode, cityCode, countryCode, name, page, size);
-    }
-
-    /**
-     * 分页查询国籍静态数据
-     */
-    public Page<XNationality> pageNationalities(String nationalityCode, String nationality, String isoCode, int page, int size) {
-        return staticDataQueryService.pageNationalities(getSafeSupplierId(), getSupplierCode(), nationalityCode, nationality, isoCode, page, size);
-    }
-
-    /**
-     * 分页查询GIATA酒店映射
-     */
-    public Page<XHotelGiata> pageGiataMappings(String hotelCode, String giataId, int page, int size) {
-        return staticDataQueryService.pageGiataMappings(getSafeSupplierId(), getSupplierCode(), hotelCode, giataId, page, size);
-    }
-    // ================================== 静态数据查询 ==================================
 
     /**
      * 获取供应商标识符
@@ -119,8 +97,8 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter {
     /**
      * 获取当前供应商配置
      */
-    public SupplierConfig getSupplierConfig(){
-        return  supplierConfig;
+    public SupplierConfig getSupplierConfig() {
+        return supplierConfig;
     }
 
 
@@ -212,11 +190,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter {
     }
 
 
-
-
-
-
-
     /**
      * 执行QTECH酒店搜索
      *
@@ -237,7 +210,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter {
             if (!request.isRoomDetailsValid()) {
                 String msg = request.getRoomDetailsValidationError();
                 logger.error("房间校验失败: {}", msg);
-                throw new IllegalArgumentException("数据校验失败: "+msg);
+                throw new IllegalArgumentException("数据校验失败: " + msg);
             }
 
             logger.debug("调用QTECH搜索API，目的地: {}, 入住: {}, 离店: {}",
@@ -394,9 +367,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter {
     }
 
 
-
-
-
     /**
      * 获取取消规则 （获取的精准最新的预定价格）
      *
@@ -491,6 +461,214 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter {
         logger.debug("构建的取消预订端点: {}", endpoint);
 
         return executeGetRequest(API_BASE_URL, endpoint, QTechCancellationResponse.class);
+    }
+
+
+    // ============================================ 报价与订单 ============================================
+
+    /**
+     * 单酒店报价桥接（占位实现）
+     */
+    public List<XRoom> getPrice(XSupplierPriceRequest input) {
+        logger.info("[AOAdapter.getPrice] 开始桥接, input={}", input);
+
+        // 1. 组装 QTechSearchRequest
+        QTechSearchRequest req = new QTechSearchRequest();
+        try {
+            // 基础认证在 searchHotels 内部通过 extractFromAuthConfig 注入
+
+            // 日期格式转换 yyyy-MM-dd -> dd/MM/yyyy
+            // 优先使用反射读取字符串日期（兼容不同DTO实现）；若失败可考虑本地日期格式
+            req.setCheckinDate(input.getCheckInDate().format(DATE_FORMATTER));
+            req.setCheckoutDate(input.getCheckOutDate().format(DATE_FORMATTER));
+
+            // 酒店ID（必需）
+            req.setHotelIds(input.getHotelId());
+            if (isBlank(req.getHotelIds())) {
+                logger.warn("[AsianOverlandAdapter.getPrice] 输入缺少酒店ID，无法报价");
+                return Collections.emptyList();
+            }
+            // 币种，默认 USD
+            req.setSelCurrency(isBlank(input.getCurrency()) ? "USD" : input.getCurrency());
+
+            //从当前酒店详细里获取 : 目的地国家/目的地城市/国籍/居住国
+            staticDataQueryService.getHotelByHotelCode(getSafeSupplierId(),getSafeSupplierName(),input.getHotelId())
+                    .ifPresent(hotel -> {
+
+                        if (StrUtil.isNotBlank(hotel.getCountry())) {
+                            req.setSelCountry(hotel.getCountry());
+                            req.setSelNationality(hotel.getCountry());
+                            req.setCountryOfResidence(hotel.getCountry());
+                        }
+                        if (StrUtil.isNotBlank(hotel.getCity())) {
+                            req.setSelCity(hotel.getCity());
+                        }
+                    });
+
+            // 房间明细与房间数
+            List<QTechSearchRequest.RoomDetail> details = buildRoomDetails(input);
+            req.setRoomDetails(details);
+            req.setNumberOfRooms(details != null ? details.size() : 0);
+
+            // 可根据需要设置静态信息、limit、availableonly 等
+            req.setAvailableonly(1);
+            req.setStaticData(1);
+
+            // 2. 调用 QTECH 搜索
+            QTechSearchResponse resp = this.searchHotels(req)
+                    .doOnError(e -> logger.error("[AOAdapter.getPrice] QTECH搜索失败", e))
+                    .block();
+
+            if (resp == null) {
+                logger.warn("[AsianOverlandAdapter.getPrice] QTECH无响应，返回空结果");
+                return Collections.emptyList();
+            }
+            if (!"success".equalsIgnoreCase(resp.getMessage())) {
+                logger.warn("[AsianOverlandAdapter.getPrice] QTECH返回非成功: message={}, info={}", resp.getMessage(), resp.getMessageInfo());
+                return Collections.emptyList();
+            }
+
+            // 3. TODO: 将 QTechSearchResponse 转换为 List<XRoom>
+            // 由于 XRoom 的字段定义在 common 包中，这里先返回空列表，下一步我将基于你的 DTO 字段进行完整映射
+            return Collections.emptyList();
+
+        } catch (Exception ex) {
+            logger.error("[AsianOverlandAdapter.getPrice] 获取报价失败", ex);
+            return Collections.emptyList();
+        }
+    }
+
+
+    /**
+     * 创建订单桥接（占位实现）
+     */
+    public XCreateOrderResponse createOrder(XCreateOrderRequest input) {
+        logger.info("[AOAdapter.createOrder] 占位实现, input={}", input);
+        return null;
+    }
+
+    /**
+     * 取消订单桥接（占位实现）
+     */
+    public XCancelOrderResponse cancelOrder(XCancelOrderRequest input) {
+        logger.info("[AOAdapter.cancelOrder] 占位实现, input={}", input);
+        return null;
+    }
+
+    /**
+     * 查询订单桥接（占位实现）
+     */
+    public XQueryOrderResponse queryOrder(String distributorOrderId, String supplierOrderId, String ext) {
+        logger.info("[AOAdapter.queryOrder] 占位实现, distributorOrderId={}, supplierOrderId={}, ext={}", distributorOrderId, supplierOrderId, ext);
+        return null;
+    }
+
+    // ============================================ 报价与订单 ============================================
+
+
+    // ============================================ 工具方法 ==============================================
+
+    /**
+     * 将 yyyy-MM-dd 转换为 dd/MM/yyyy；若解析失败，原样返回
+     */
+    private String formatToQtechDate(String yyyyMMdd) {
+        if (yyyyMMdd == null || yyyyMMdd.isEmpty()) return yyyyMMdd;
+        try {
+            LocalDate d = LocalDate.parse(yyyyMMdd);
+            return d.format(DATE_FORMATTER);
+        } catch (DateTimeParseException e) {
+            logger.warn("日期格式解析失败(期望yyyy-MM-dd): {}", yyyyMMdd);
+            return yyyyMMdd;
+        }
+    }
+
+    /**
+     * 字符串非空检查
+     *
+     * @param s
+     * @return
+     */
+    private boolean notBlank(String s) {
+        return s != null && !s.trim().isEmpty();
+    }
+
+    /**
+     * 字符串空检查
+     *
+     * @param s
+     * @return
+     */
+    private boolean isBlank(String s) {
+        return s == null || s.trim().isEmpty();
+    }
+
+    /**
+     * 字符串安全处理，null转为空字符串
+     *
+     * @param s
+     * @return
+     */
+    private String safe(String s) {
+        return s == null ? "" : s;
+    }
+
+    /**
+     * 构造房间明细列表
+     */
+    private List<QTechSearchRequest.RoomDetail> buildRoomDetails(XSupplierPriceRequest input) {
+        try {
+            // 兼容两种结构：rooms 列表或整体成人/儿童
+            List<QTechSearchRequest.RoomDetail> result = new ArrayList<>();
+
+
+            // 入住人信息 2-5-3代表2成人2个儿童（1个5岁，1个3岁） 多间房下滑线_分割
+            // 例：2-5_1-3_2-4-6 代表三间房，第一间 2成人1儿童5岁， 第二间 1成人1儿童3岁， 第三间 2成人2儿童4岁和6岁
+            String occupancy = input.getOccupancy();
+            if (notBlank(occupancy)) {
+                String[] roomStrs = occupancy.split("_");
+                for (String r : roomStrs) {
+                    if (r == null || r.isEmpty()) continue;
+                    String[] parts = r.split("-");
+                    if (parts.length >= 1) {
+                        QTechSearchRequest.RoomDetail d = new QTechSearchRequest.RoomDetail();
+                        // 成人数
+                        int adults = 0;
+                        try {
+                            adults = Integer.parseInt(parts[0]);
+                        } catch (NumberFormatException ignore) {
+                        }
+                        d.setNumberOfAdults(adults > 0 ? adults : 2);
+
+                        // 儿童数与年龄
+                        if (parts.length > 1) {
+                            int children = parts.length - 1;
+                            d.setNumberOfChild(children);
+                            StringBuilder ages = new StringBuilder();
+                            for (int i = 1; i < parts.length; i++) {
+                                if (ages.length() > 0) ages.append(',');
+                                ages.append(parts[i]);
+                            }
+                            d.setChildAge(ages.toString());
+                        }
+
+                        result.add(d);
+                    }
+                }
+            }
+
+            // 为空默认1 成人
+            if (isBlank(occupancy)) {
+                QTechSearchRequest.RoomDetail d = new QTechSearchRequest.RoomDetail();
+                d.setNumberOfAdults(2);
+                result.add(d);
+            }
+            return result;
+        } catch (Exception e) {
+            logger.error("构造房间明细失败，使用默认2成人", e);
+            QTechSearchRequest.RoomDetail d = new QTechSearchRequest.RoomDetail();
+            d.setNumberOfAdults(2);
+            return Collections.singletonList(d);
+        }
     }
 
 

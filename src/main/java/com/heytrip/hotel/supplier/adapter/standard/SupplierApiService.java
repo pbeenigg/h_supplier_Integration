@@ -7,7 +7,7 @@ import com.heytrip.common.response.base.XRoom;
 import com.heytrip.common.response.other.*;
 import com.heytrip.common.result.Result;
 import com.heytrip.hotel.supplier.adapter.SupplierAdapterManager;
-import com.heytrip.hotel.supplier.adapter.service.impl.StaticDataQueryServiceImpl;
+import com.heytrip.hotel.supplier.adapter.service.StaticDataQueryService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Collections;
 
 /**
  * HeyTrip 内部供应商对接标准接口实现
@@ -51,6 +52,12 @@ public class SupplierApiService implements ISupplierApiService {
 
     private static final Logger logger = LoggerFactory.getLogger(SupplierApiService.class);
 
+    @Autowired
+    private SupplierAdapterManager adapterManager;
+
+    @Autowired
+    private StaticDataQueryService staticDataQueryService;
+
     // ================================== 静态数据类查询接口入口 ==================================
     /**
      * 获取城市信息 (国际供应商要实现)
@@ -62,7 +69,23 @@ public class SupplierApiService implements ISupplierApiService {
      */
     @Override
     public Result<List<XCityResponse>> getCities(String supplierType, String countryId, String language) {
-        return null;
+        try {
+            logger.info("[getCities] supplierType={}, countryId={}, language={}", supplierType, countryId, language);
+            var adapter = adapterManager.getAdapterByName(supplierType);
+            if (adapter == null) {
+                logger.warn("[getCities] 未找到供应商适配器, supplierType={}", supplierType);
+                return Result.ok(Collections.emptyList());
+            }
+
+            Long supplierId = adapter.getSupplierId();
+            String supplierName = adapter.getSupplierName(); // 按约定：supplierName 等于 supplierType
+
+            var page = staticDataQueryService.pageCities(supplierId, supplierName, null, countryId, null, 0, 1000);
+            return Result.ok(page.getContent());
+        } catch (Exception ex) {
+            logger.error("[getCities] 查询失败", ex);
+            return Result.ok(Collections.emptyList());
+        }
     }
 
     /**
@@ -74,7 +97,23 @@ public class SupplierApiService implements ISupplierApiService {
      */
     @Override
     public Result<List<XCountryResponse>> getCountries(String supplierType, String language) {
-        return null;
+        try {
+            logger.info("[getCountries] supplierType={}, language={}", supplierType, language);
+            var adapter = adapterManager.getAdapterByName(supplierType);
+            if (adapter == null) {
+                logger.warn("[getCountries] 未找到供应商适配器, supplierType={}", supplierType);
+                return Result.ok(Collections.emptyList());
+            }
+
+            Long supplierId = adapter.getSupplierId();
+            String supplierName = adapter.getSupplierName();
+
+            var page = staticDataQueryService.pageCountries(supplierId, supplierName, null, null, 0, 1000);
+            return Result.ok(page.getContent());
+        } catch (Exception ex) {
+            logger.error("[getCountries] 查询失败", ex);
+            return Result.ok(Collections.emptyList());
+        }
     }
 
 
@@ -89,7 +128,24 @@ public class SupplierApiService implements ISupplierApiService {
      */
     @Override
     public Result<XHotel> getHotel(String supplierType, String hotelId, String language, String ext) {
-        return null;
+        try {
+            logger.info("[getHotel] supplierType={}, hotelId={}, language={}, ext={}", supplierType, hotelId, language, ext);
+            var adapter = adapterManager.getAdapterByName(supplierType);
+            if (adapter == null) {
+                logger.warn("[getHotel] 未找到供应商适配器, supplierType={}", supplierType);
+                return Result.ok(null);
+            }
+
+            Long supplierId = adapter.getSupplierId();
+            String supplierName = adapter.getSupplierName();
+
+            var page = staticDataQueryService.pageHotels(supplierId, supplierName, hotelId, null, null, null, 0, 1);
+            XHotel hotel = page.getContent().isEmpty() ? null : page.getContent().get(0);
+            return Result.ok(hotel);
+        } catch (Exception ex) {
+            logger.error("[getHotel] 查询失败", ex);
+            return Result.ok(null);
+        }
     }
 
 
@@ -104,7 +160,23 @@ public class SupplierApiService implements ISupplierApiService {
      */
     @Override
     public Result<List<XRoom>> getRooms(String supplierType, String hotelId, String language, String ext) {
-        return null;
+        try {
+            logger.info("[getRooms] supplierType={}, hotelId={}, language={}, ext={}", supplierType, hotelId, language, ext);
+            var adapter = adapterManager.getAdapterByName(supplierType);
+            if (adapter == null) {
+                logger.warn("[getRooms] 未找到供应商适配器, supplierType={}", supplierType);
+                return Result.ok(Collections.emptyList());
+            }
+
+            Long supplierId = adapter.getSupplierId();
+            String supplierName = adapter.getSupplierName();
+
+            var page = staticDataQueryService.pageRooms(supplierId, supplierName, hotelId, null, null, 0, 1000);
+            return Result.ok(page.getContent());
+        } catch (Exception ex) {
+            logger.error("[getRooms] 查询失败", ex);
+            return Result.ok(Collections.emptyList());
+        }
     }
 
     /**
@@ -118,7 +190,9 @@ public class SupplierApiService implements ISupplierApiService {
      */
     @Override
     public Result<List<String>> getBookableHotelIds(String supplierType, int pageIndex, int pageSize, String ext) {
-        return null;
+        // 第1阶段占位返回，后续与可售标识同步流程打通
+        logger.info("[getBookableHotelIds] supplierType={}, pageIndex={}, pageSize={}, ext={}", supplierType, pageIndex, pageSize, ext);
+        return Result.ok(Collections.emptyList());
     }
 
 
@@ -132,7 +206,9 @@ public class SupplierApiService implements ISupplierApiService {
      */
     @Override
     public Result<XHotelIncrement> getHotelIncrement(String supplierType, long maxId, String query) {
-        return null;
+        // 第1阶段占位返回，后续结合同步日志/增量表完善
+        logger.info("[getHotelIncrement] supplierType={}, maxId={}, query={}", supplierType, maxId, query);
+        return Result.ok(null);
     }
 
 
@@ -146,7 +222,9 @@ public class SupplierApiService implements ISupplierApiService {
      */
     @Override
     public Result<XRoomIncrement> getRoomIncrement(String supplierType, long maxId, String query) {
-        return null;
+        // 第1阶段占位返回，后续结合同步日志/增量表完善
+        logger.info("[getRoomIncrement] supplierType={}, maxId={}, query={}", supplierType, maxId, query);
+        return Result.ok(null);
     }
 
 
@@ -161,7 +239,9 @@ public class SupplierApiService implements ISupplierApiService {
      */
     @Override
     public Object getHotelRoomOrigContent(String supplierType, String hotelId, String language, String ext) {
-        return null;
+        // 第1阶段占位返回，后续在静态数据同步中维护原文快照字段
+        logger.info("[getHotelRoomOrigContent] supplierType={}, hotelId={}, language={}, ext={}", supplierType, hotelId, language, ext);
+        return Collections.emptyMap();
     }
     // ================================== 静态数据查询接口 ==================================
 
@@ -179,7 +259,9 @@ public class SupplierApiService implements ISupplierApiService {
      */
     @Override
     public Result<List<XRoom>> getPrice(XSupplierPriceRequest input) {
-        return null;
+        logger.info("[getPrice] input={}", input);
+        String supplierType = input.getSupplierType();
+        return adapterManager.getPrice(supplierType, input);
     }
 
 
@@ -191,7 +273,14 @@ public class SupplierApiService implements ISupplierApiService {
      */
     @Override
     public Result<Map<String, List<XRoom>>> getPrices(XSupplierPriceRequest input) {
-        return null;
+        logger.info("[getPrices] input={}", input);
+        // 多酒店报价委派（后续在适配器补齐具体实现）；暂返回单酒店结构的兼容实现
+        Result<List<XRoom>> single = getPrice(input);
+        Map<String, List<XRoom>> map = new java.util.HashMap<>();
+        if (single != null && single.getData() != null) {
+            map.put(input.getHotelIds(), single.getData());
+        }
+        return Result.ok(map);
     }
 
 
@@ -207,7 +296,9 @@ public class SupplierApiService implements ISupplierApiService {
      */
     @Override
     public Result<XPriceCacheIncrementResponse> GetPriceCacheIncrement(String supplierType, long maxId, Long minTime, Boolean includeChangeDate, String query) {
-        return null;
+        logger.info("[GetPriceCacheIncrement] supplierType={}, maxId={}, minTime={}, includeChangeDate={}, query={}", supplierType, maxId, minTime, includeChangeDate, query);
+        // 占位实现
+        return Result.ok(null);
     }
 
 
@@ -219,7 +310,9 @@ public class SupplierApiService implements ISupplierApiService {
      */
     @Override
     public Result<XOrderCheckResponse> orderCheck(XSupplierCheckRequest input) {
-        return null;
+        logger.info("[orderCheck] input={}", input);
+        // 占位：可在适配器内结合取消政策或库存校验实现，当前返回空
+        return Result.ok(null);
     }
 
 
@@ -233,7 +326,9 @@ public class SupplierApiService implements ISupplierApiService {
      */
     @Override
     public Object getPriceOrig(XSupplierPriceRequest input) {
-        return null;
+        logger.info("[getPriceOrig] input={}", input);
+        // 第2阶段-子阶段1：优先打通原文接口，后续桥接到适配器 searchHotels 原文
+        return Collections.emptyMap();
     }
 
 
@@ -245,7 +340,9 @@ public class SupplierApiService implements ISupplierApiService {
      */
     @Override
     public Object getPricesOrg(XSupplierPriceRequest input) {
-        return null;
+        logger.info("[getPricesOrg] input={}", input);
+        // 占位实现
+        return Collections.emptyMap();
     }
 
 
@@ -257,7 +354,9 @@ public class SupplierApiService implements ISupplierApiService {
      */
     @Override
     public Object orderCheckOrg(XSupplierCheckRequest input) {
-        return null;
+        logger.info("[orderCheckOrg] input={}", input);
+        // 占位实现
+        return Collections.emptyMap();
     }
 
     // ================================== 报价类接口 ==================================
@@ -274,7 +373,9 @@ public class SupplierApiService implements ISupplierApiService {
      */
     @Override
     public Result<XCreateOrderResponse> createOrder(XCreateOrderRequest input) {
-        return null;
+        logger.info("[createOrder] input={}", input);
+        String supplierType = input.getSupplierType();
+        return adapterManager.createOrder(supplierType, input);
     }
 
 
@@ -286,7 +387,9 @@ public class SupplierApiService implements ISupplierApiService {
      */
     @Override
     public Result<XCancelOrderResponse> cancelOrder(XCancelOrderRequest input) {
-        return null;
+        logger.info("[cancelOrder] input={}", input);
+        String supplierType = input.getSupplierType();
+        return adapterManager.cancelOrder(supplierType, input);
     }
 
 
@@ -301,7 +404,8 @@ public class SupplierApiService implements ISupplierApiService {
      */
     @Override
     public Result<XQueryOrderResponse> queryOrder(String supplierType, String distributorOrderId, String supplierOrderId, String ext) {
-        return null;
+        logger.info("[queryOrder] supplierType={}, distributorOrderId={}, supplierOrderId={}, ext={}", supplierType, distributorOrderId, supplierOrderId, ext);
+        return adapterManager.queryOrder(supplierType, distributorOrderId, supplierOrderId, ext);
     }
 
 
@@ -313,7 +417,9 @@ public class SupplierApiService implements ISupplierApiService {
      */
     @Override
     public Result<XModifyOrderResponse> modifyOrder(XModifyOrderRequest request) {
-        return null;
+        logger.info("[modifyOrder] request={}", request);
+        // 占位实现
+        return Result.ok(null);
     }
     // ================================== 订单类接口入口 ==================================
 

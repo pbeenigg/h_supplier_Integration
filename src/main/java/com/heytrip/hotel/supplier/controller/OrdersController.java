@@ -24,9 +24,9 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @Validated
 @RequestMapping("/pax/api/xiwanSupplier/supp")
-public class HotelOrdersController {
+public class OrdersController {
     
-    private static final Logger logger = LoggerFactory.getLogger(HotelOrdersController.class);
+    private static final Logger logger = LoggerFactory.getLogger(OrdersController.class);
 
     @Resource
     private ISupplierApiService supplierApiService;
