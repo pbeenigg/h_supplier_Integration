@@ -29,7 +29,7 @@ public class StaticDataSyncScheduler {
     private final SupplierConfigRepository supplierConfigRepository;
 
     // AsianOverland 供应商代码
-    private static final String AO_SUPPLIER_CODE = "AO_QTECH";
+    private static final String AO_SUPPLIER_CODE = "AsianOverland";
 
     public StaticDataSyncScheduler(StaticDataSyncService syncService,
                                    SupplierConfigRepository supplierConfigRepository) {

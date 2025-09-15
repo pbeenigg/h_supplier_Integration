@@ -58,7 +58,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
     // 默认供应商信息（当数据库配置不可用时使用）
     private static final Long DEFAULT_SUPPLIER_ID = 1L;
     private static final String DEFAULT_SUPPLIER_NAME = "AsianOverland";
-    private static final String DEFAULT_SUPPLIER_CODE = "AO_QTECH";
+    private static final String DEFAULT_SUPPLIER_CODE = "AsianOverland";
 
     // QTECH API 地址
     private static final String SEARCH_BASE_URL = "http://colosseum.otrams.com:8087";

@@ -32,7 +32,7 @@ public class TestAdapter extends AbstractSupplierAdapter {
     // 默认供应商信息（当数据库配置不可用时使用）
     private static final Long DEFAULT_SUPPLIER_ID = 2L;
     private static final String DEFAULT_SUPPLIER_NAME = "TestSupplier";
-    private static final String DEFAULT_SUPPLIER_CODE = "TEST_DEMO";
+    private static final String DEFAULT_SUPPLIER_CODE = "TestSupplier";
 
     // QTECH API 地址
     private static final String SEARCH_BASE_URL = "http://colosseum.otrams.com:8087";

@@ -79,7 +79,7 @@ public abstract class AbstractSupplierAdapter implements SupplierAdapter {
             throw new RuntimeException("供应商配置未找到: " + supplierCode);
         }
     }
-    
+
     /**
      * 获取供应商标识符（供应商代码或名称）
      * 子类必须重写此方法提供唯一的供应商标识
@@ -125,6 +125,7 @@ public abstract class AbstractSupplierAdapter implements SupplierAdapter {
     public String getSupplierName() {
         return supplierConfig != null ? supplierConfig.getSupplierName() : null;
     }
+
 
     @Override
     public Long getSupplierId() {

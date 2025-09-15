@@ -33,7 +33,7 @@ import java.util.stream.Collectors;
 /**
  * 静态数据查询服务实现
  * 说明：
- * - 按 supplierId/supplierName 做强隔离
+ * - 按 supplierId/supplierCode 做强隔离
  * - 返回 Heytrip 标准实体
  * - 启用分页，默认 page>=0, size 在 Controller 层做上限 100
  */
@@ -55,7 +55,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
     /**
      * 国家分页查询
      * @param supplierId
-     * @param supplierName
+     * @param supplierCode
      * @param countryCode
      * @param countryName
      * @param page
@@ -63,13 +63,13 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
      * @return
      */
     @Override
-    @Cacheable(cacheNames = StaticCacheNames.COUNTRY, key = "#supplierId + ':' + #supplierName + ':' + #countryCode + ':' + #countryName + ':' + #page + ':' + #size")
-    public Page<XCountryResponse> pageCountries(Long supplierId, String supplierName, String countryCode, String countryName, int page, int size) {
+    @Cacheable(cacheNames = StaticCacheNames.COUNTRY, key = "#supplierId + ':' + #supplierCode + ':' + #countryCode + ':' + #countryName + ':' + #page + ':' + #size")
+    public Page<XCountryResponse> pageCountries(Long supplierId, String supplierCode, String countryCode, String countryName, int page, int size) {
         Pageable pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100));
         Specification<Country> spec = (root, q, cb) -> {
             List<Predicate> ps = new ArrayList<>();
             ps.add(cb.equal(root.get("supplierId"), supplierId));
-            ps.add(cb.equal(root.get("supplierName"), supplierName));
+            ps.add(cb.equal(root.get("supplierCode"), supplierCode));
             if (countryCode != null && !countryCode.isEmpty()) {
                 ps.add(cb.like(root.get("countryCode"), "%" + countryCode + "%"));
             }
@@ -87,7 +87,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
     /**
      * 静态数据同步日志分页查询
      * @param supplierId 供应商ID
-     * @param supplierName 供应商代码
+     * @param supplierCode 供应商代码
      * @param businessType 业务类型（countries/cities/hotels/nationality/giata/all）可选
      * @param success 是否成功 可选
      * @param page
@@ -95,12 +95,12 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
      * @return
      */
     @Override
-    public Page<SyncLog> pageSyncLogs(Long supplierId, String supplierName, String businessType, Boolean success, int page, int size) {
+    public Page<SyncLog> pageSyncLogs(Long supplierId, String supplierCode, String businessType, Boolean success, int page, int size) {
         Pageable pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100));
         Specification<SyncLog> spec = (root, q, cb) -> {
             List<Predicate> ps = new ArrayList<>();
             ps.add(cb.equal(root.get("supplierId"), supplierId));
-            ps.add(cb.equal(root.get("supplierName"), supplierName));
+            ps.add(cb.equal(root.get("supplierCode"), supplierCode));
             if (businessType != null && !businessType.isEmpty()) {
                 ps.add(cb.equal(root.get("businessType"), businessType));
             }
@@ -116,7 +116,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
     /**
      * 城市分页查询
      * @param supplierId
-     * @param supplierName
+     * @param supplierCode
      * @param cityCode
      * @param countryCode
      * @param name
@@ -125,13 +125,13 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
      * @return
      */
     @Override
-    @Cacheable(cacheNames = StaticCacheNames.CITY, key = "#supplierId + ':' + #supplierName + ':' + #cityCode + ':' + #countryCode + ':' + #name + ':' + #page + ':' + #size")
-    public Page<XCityResponse> pageCities(Long supplierId, String supplierName, String cityCode, String countryCode, String name, int page, int size) {
+    @Cacheable(cacheNames = StaticCacheNames.CITY, key = "#supplierId + ':' + #supplierCode + ':' + #cityCode + ':' + #countryCode + ':' + #name + ':' + #page + ':' + #size")
+    public Page<XCityResponse> pageCities(Long supplierId, String supplierCode, String cityCode, String countryCode, String name, int page, int size) {
         Pageable pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100));
         Specification<City> spec = (root, q, cb) -> {
             List<Predicate> ps = new ArrayList<>();
             ps.add(cb.equal(root.get("supplierId"), supplierId));
-            ps.add(cb.equal(root.get("supplierName"), supplierName));
+            ps.add(cb.equal(root.get("supplierCode"), supplierCode));
             if (cityCode != null && !cityCode.isEmpty()) {
                 ps.add(cb.like(root.get("cityCode"), "%" + cityCode + "%"));
             }
@@ -151,7 +151,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
     /**
      * 国籍分页查询
      * @param supplierId
-     * @param supplierName
+     * @param supplierCode
      * @param nationalityCode
      * @param nationality
      * @param isoCode
@@ -160,13 +160,13 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
      * @return
      */
     @Override
-    @Cacheable(cacheNames = StaticCacheNames.NATIONALITY, key = "#supplierId + ':' + #supplierName + ':' + #nationalityCode + ':' + #nationality + ':' + #isoCode + ':' + #page + ':' + #size")
-    public Page<XNationality> pageNationalities(Long supplierId, String supplierName, String nationalityCode, String nationality, String isoCode, int page, int size) {
+    @Cacheable(cacheNames = StaticCacheNames.NATIONALITY, key = "#supplierId + ':' + #supplierCode + ':' + #nationalityCode + ':' + #nationality + ':' + #isoCode + ':' + #page + ':' + #size")
+    public Page<XNationality> pageNationalities(Long supplierId, String supplierCode, String nationalityCode, String nationality, String isoCode, int page, int size) {
         Pageable pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100));
         Specification<Nationality> spec = (root, q, cb) -> {
             List<Predicate> ps = new ArrayList<>();
             ps.add(cb.equal(root.get("supplierId"), supplierId));
-            ps.add(cb.equal(root.get("supplierName"), supplierName));
+            ps.add(cb.equal(root.get("supplierCode"), supplierCode));
             if (nationalityCode != null && !nationalityCode.isEmpty()) {
                 ps.add(cb.like(root.get("nationalityCode"), "%" + nationalityCode + "%"));
             }
@@ -187,7 +187,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
     /**
      * 酒店分页查询
      * @param supplierId
-     * @param supplierName
+     * @param supplierCode
      * @param hotelCode
      * @param cityCode
      * @param countryCode
@@ -197,13 +197,13 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
      * @return
      */
     @Override
-    @Cacheable(cacheNames = StaticCacheNames.HOTEL, key = "#supplierId + ':' + #supplierName + ':' + #hotelCode + ':' + #cityCode + ':' + #countryCode + ':' + #name + ':' + #page + ':' + #size")
-    public Page<XHotel> pageHotels(Long supplierId, String supplierName, String hotelCode, String cityCode, String countryCode, String name, int page, int size) {
+    @Cacheable(cacheNames = StaticCacheNames.HOTEL, key = "#supplierId + ':' + #supplierCode + ':' + #hotelCode + ':' + #cityCode + ':' + #countryCode + ':' + #name + ':' + #page + ':' + #size")
+    public Page<XHotel> pageHotels(Long supplierId, String supplierCode, String hotelCode, String cityCode, String countryCode, String name, int page, int size) {
         Pageable pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100));
         Specification<Hotel> spec = (root, q, cb) -> {
             List<Predicate> ps = new ArrayList<>();
             ps.add(cb.equal(root.get("supplierId"), supplierId));
-            ps.add(cb.equal(root.get("supplierName"), supplierName));
+            ps.add(cb.equal(root.get("supplierCode"), supplierCode));
             if (hotelCode != null && !hotelCode.isEmpty()) {
                 ps.add(cb.like(root.get("hotelCode"), "%" + hotelCode + "%"));
             }
@@ -226,7 +226,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
     /**
      * 房型分页查询
      * @param supplierId
-     * @param supplierName
+     * @param supplierCode
      * @param hotelCode
      * @param roomCode
      * @param name
@@ -235,12 +235,12 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
      * @return
      */
     @Override
-    public Page<XRoom> pageRooms(Long supplierId, String supplierName, String hotelCode, String roomCode, String name, int page, int size) {
+    public Page<XRoom> pageRooms(Long supplierId, String supplierCode, String hotelCode, String roomCode, String name, int page, int size) {
         Pageable pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100));
         Specification<Room> spec = (root, q, cb) -> {
             List<Predicate> ps = new ArrayList<>();
             ps.add(cb.equal(root.get("supplierId"), supplierId));
-            ps.add(cb.equal(root.get("supplierName"), supplierName));
+            ps.add(cb.equal(root.get("supplierCode"), supplierCode));
             if (hotelCode != null && !hotelCode.isEmpty()) {
                 ps.add(cb.equal(root.get("hotelCode"), hotelCode));
             }
@@ -261,7 +261,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
     /**
      * 价计划分页查询
      * @param supplierId
-     * @param supplierName
+     * @param supplierCode
      * @param hotelCode
      * @param roomCode
      * @param ratePlanCode
@@ -271,12 +271,12 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
      * @return
      */
     @Override
-    public Page<XRatePlan> pageRatePlans(Long supplierId, String supplierName, String hotelCode, String roomCode, String ratePlanCode, String name, int page, int size) {
+    public Page<XRatePlan> pageRatePlans(Long supplierId, String supplierCode, String hotelCode, String roomCode, String ratePlanCode, String name, int page, int size) {
         Pageable pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100));
         Specification<RatePlan> spec = (root, q, cb) -> {
             List<Predicate> ps = new ArrayList<>();
             ps.add(cb.equal(root.get("supplierId"), supplierId));
-            ps.add(cb.equal(root.get("supplierName"), supplierName));
+            ps.add(cb.equal(root.get("supplierCode"), supplierCode));
             if (hotelCode != null && !hotelCode.isEmpty()) {
                 ps.add(cb.equal(root.get("hotelCode"), hotelCode));
             }
@@ -302,7 +302,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
     /**
      * Giata 映射分页查询
      * @param supplierId
-     * @param supplierName
+     * @param supplierCode
      * @param hotelCode
      * @param giataId
      * @param page
@@ -310,13 +310,13 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
      * @return
      */
     @Override
-    @Cacheable(cacheNames = StaticCacheNames.GIATA, key = "#supplierId + ':' + #supplierName + ':' + #hotelCode + ':' + #giataId + ':' + #page + ':' + #size")
-    public Page<XHotelGiata> pageGiataMappings(Long supplierId, String supplierName, String hotelCode, String giataId, int page, int size) {
+    @Cacheable(cacheNames = StaticCacheNames.GIATA, key = "#supplierId + ':' + #supplierCode + ':' + #hotelCode + ':' + #giataId + ':' + #page + ':' + #size")
+    public Page<XHotelGiata> pageGiataMappings(Long supplierId, String supplierCode, String hotelCode, String giataId, int page, int size) {
         Pageable pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100));
         Specification<HotelGiata> spec = (root, q, cb) -> {
             List<Predicate> ps = new ArrayList<>();
             ps.add(cb.equal(root.get("supplierId"), supplierId));
-            ps.add(cb.equal(root.get("supplierName"), supplierName));
+            ps.add(cb.equal(root.get("supplierCode"), supplierCode));
             if (hotelCode != null && !hotelCode.isEmpty()) {
                 ps.add(cb.like(root.get("hotelCode"), "%" + hotelCode + "%"));
             }
@@ -336,12 +336,12 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
 
     // ================= 不分页查询（list*） =================
     @Override
-    @Cacheable(cacheNames = StaticCacheNames.COUNTRY, key = "#supplierId + ':' + #supplierName + ':' + #countryCode + ':' + #countryName")
-    public List<XCountryResponse> listCountries(Long supplierId, String supplierName, String countryCode, String countryName) {
+    @Cacheable(cacheNames = StaticCacheNames.COUNTRY, key = "#supplierId + ':' + #supplierCode + ':' + #countryCode + ':' + #countryName")
+    public List<XCountryResponse> listCountries(Long supplierId, String supplierCode, String countryCode, String countryName) {
         Specification<Country> spec = (root, q, cb) -> {
             List<Predicate> ps = new ArrayList<>();
             ps.add(cb.equal(root.get("supplierId"), supplierId));
-            ps.add(cb.equal(root.get("supplierName"), supplierName));
+            ps.add(cb.equal(root.get("supplierCode"), supplierCode));
             if (countryCode != null && !countryCode.isEmpty()) {
                 ps.add(cb.like(root.get("countryCode"), "%" + countryCode + "%"));
             }
@@ -354,12 +354,12 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
     }
 
     @Override
-    @Cacheable(cacheNames = StaticCacheNames.CITY, key = "#supplierId + ':' + #supplierName + ':' + #cityCode + ':' + #countryCode + ':' + #name")
-    public List<XCityResponse> listCities(Long supplierId, String supplierName, String cityCode, String countryCode, String name) {
+    @Cacheable(cacheNames = StaticCacheNames.CITY, key = "#supplierId + ':' + #supplierCode + ':' + #cityCode + ':' + #countryCode + ':' + #name")
+    public List<XCityResponse> listCities(Long supplierId, String supplierCode, String cityCode, String countryCode, String name) {
         Specification<City> spec = (root, q, cb) -> {
             List<Predicate> ps = new ArrayList<>();
             ps.add(cb.equal(root.get("supplierId"), supplierId));
-            ps.add(cb.equal(root.get("supplierName"), supplierName));
+            ps.add(cb.equal(root.get("supplierCode"), supplierCode));
             if (cityCode != null && !cityCode.isEmpty()) {
                 ps.add(cb.like(root.get("cityCode"), "%" + cityCode + "%"));
             }
@@ -375,12 +375,12 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
     }
 
     @Override
-    @Cacheable(cacheNames = StaticCacheNames.HOTEL, key = "#supplierId + ':' + #supplierName + ':' + #hotelCode + ':' + #cityCode + ':' + #countryCode + ':' + #name")
-    public List<XHotel> listHotels(Long supplierId, String supplierName, String hotelCode, String cityCode, String countryCode, String name) {
+    @Cacheable(cacheNames = StaticCacheNames.HOTEL, key = "#supplierId + ':' + #supplierCode + ':' + #hotelCode + ':' + #cityCode + ':' + #countryCode + ':' + #name")
+    public List<XHotel> listHotels(Long supplierId, String supplierCode, String hotelCode, String cityCode, String countryCode, String name) {
         Specification<Hotel> spec = (root, q, cb) -> {
             List<Predicate> ps = new ArrayList<>();
             ps.add(cb.equal(root.get("supplierId"), supplierId));
-            ps.add(cb.equal(root.get("supplierName"), supplierName));
+            ps.add(cb.equal(root.get("supplierCode"), supplierCode));
             if (hotelCode != null && !hotelCode.isEmpty()) {
                 ps.add(cb.like(root.get("hotelCode"), "%" + hotelCode + "%"));
             }
@@ -399,12 +399,12 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
     }
 
     @Override
-    @Cacheable(cacheNames =StaticCacheNames.ROOM, key = "#supplierId + ':' + #supplierName + ':' + #hotelCode + ':' + #roomCode + ':' + #name")
-    public List<XRoom> listRooms(Long supplierId, String supplierName, String hotelCode, String roomCode, String name) {
+    @Cacheable(cacheNames =StaticCacheNames.ROOM, key = "#supplierId + ':' + #supplierCode + ':' + #hotelCode + ':' + #roomCode + ':' + #name")
+    public List<XRoom> listRooms(Long supplierId, String supplierCode, String hotelCode, String roomCode, String name) {
         Specification<Room> spec = (root, q, cb) -> {
             List<Predicate> ps = new ArrayList<>();
             ps.add(cb.equal(root.get("supplierId"), supplierId));
-            ps.add(cb.equal(root.get("supplierName"), supplierName));
+            ps.add(cb.equal(root.get("supplierCode"), supplierCode));
             if (hotelCode != null && !hotelCode.isEmpty()) {
                 ps.add(cb.equal(root.get("hotelCode"), hotelCode));
             }
@@ -421,12 +421,12 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
     }
 
     @Override
-    @Cacheable(cacheNames = StaticCacheNames.RATE_PLAN, key = "#supplierId + ':' + #supplierName + ':' + #hotelCode + ':' + #roomCode + ':' + #ratePlanCode + ':' + #name")
-    public List<XRatePlan> listRatePlans(Long supplierId, String supplierName, String hotelCode, String roomCode, String ratePlanCode, String name) {
+    @Cacheable(cacheNames = StaticCacheNames.RATE_PLAN, key = "#supplierId + ':' + #supplierCode + ':' + #hotelCode + ':' + #roomCode + ':' + #ratePlanCode + ':' + #name")
+    public List<XRatePlan> listRatePlans(Long supplierId, String supplierCode, String hotelCode, String roomCode, String ratePlanCode, String name) {
         Specification<RatePlan> spec = (root, q, cb) -> {
             List<Predicate> ps = new ArrayList<>();
             ps.add(cb.equal(root.get("supplierId"), supplierId));
-            ps.add(cb.equal(root.get("supplierName"), supplierName));
+            ps.add(cb.equal(root.get("supplierCode"), supplierCode));
             if (hotelCode != null && !hotelCode.isEmpty()) {
                 ps.add(cb.equal(root.get("hotelCode"), hotelCode));
             }
@@ -446,12 +446,12 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
     }
 
     @Override
-    @Cacheable(cacheNames = StaticCacheNames.NATIONALITY, key = "#supplierId + ':' + #supplierName + ':' + #nationalityCode + ':' + #nationality + ':' + #isoCode")
-    public List<XNationality> listNationalities(Long supplierId, String supplierName, String nationalityCode, String nationality, String isoCode) {
+    @Cacheable(cacheNames = StaticCacheNames.NATIONALITY, key = "#supplierId + ':' + #supplierCode + ':' + #nationalityCode + ':' + #nationality + ':' + #isoCode")
+    public List<XNationality> listNationalities(Long supplierId, String supplierCode, String nationalityCode, String nationality, String isoCode) {
         Specification<Nationality> spec = (root, q, cb) -> {
             List<Predicate> ps = new ArrayList<>();
             ps.add(cb.equal(root.get("supplierId"), supplierId));
-            ps.add(cb.equal(root.get("supplierName"), supplierName));
+            ps.add(cb.equal(root.get("supplierCode"), supplierCode));
             if (nationalityCode != null && !nationalityCode.isEmpty()) {
                 ps.add(cb.like(root.get("nationalityCode"), "%" + nationalityCode + "%"));
             }
@@ -471,12 +471,12 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
     }
 
     @Override
-    @Cacheable(cacheNames = StaticCacheNames.GIATA, key = "#supplierId + ':' + #supplierName + ':' + #hotelCode + ':' + #giataId")
-    public List<XHotelGiata> listGiataMappings(Long supplierId, String supplierName, String hotelCode, String giataId) {
+    @Cacheable(cacheNames = StaticCacheNames.GIATA, key = "#supplierId + ':' + #supplierCode + ':' + #hotelCode + ':' + #giataId")
+    public List<XHotelGiata> listGiataMappings(Long supplierId, String supplierCode, String hotelCode, String giataId) {
         Specification<HotelGiata> spec = (root, q, cb) -> {
             List<Predicate> ps = new ArrayList<>();
             ps.add(cb.equal(root.get("supplierId"), supplierId));
-            ps.add(cb.equal(root.get("supplierName"), supplierName));
+            ps.add(cb.equal(root.get("supplierCode"), supplierCode));
             if (hotelCode != null && !hotelCode.isEmpty()) {
                 ps.add(cb.like(root.get("hotelCode"), "%" + hotelCode + "%"));
             }
@@ -497,58 +497,58 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
     // ================= 单条查询（ByCode） =================
 
     @Override
-    @Cacheable(cacheNames = StaticCacheNames.HOTEL, key = "'ONE:'+ #supplierId + ':' + #supplierName + ':' + #hotelCode")
-    public java.util.Optional<XHotel> getHotelByHotelCode(Long supplierId, String supplierName, String hotelCode) {
+    @Cacheable(cacheNames = StaticCacheNames.HOTEL, key = "'ONE:'+ #supplierId + ':' + #supplierCode + ':' + #hotelCode")
+    public java.util.Optional<XHotel> getHotelByHotelCode(Long supplierId, String supplierCode, String hotelCode) {
         Specification<Hotel> spec = (root, q, cb) -> cb.and(
                 cb.equal(root.get("supplierId"), supplierId),
-                cb.equal(root.get("supplierName"), supplierName),
+                cb.equal(root.get("supplierCode"), supplierCode),
                 cb.equal(root.get("hotelCode"), hotelCode)
         );
         return hotelRepo.findAll(spec, PageRequest.of(0,1)).get().findFirst().map(this::toXHotel);
     }
 
     @Override
-    @Cacheable(cacheNames = StaticCacheNames.ROOM, key = "'ONE:'+ #supplierId + ':' + #supplierName + ':' + #hotelCode + ':' + #roomCode")
-    public java.util.Optional<XRoom> getRoomByRoomCode(Long supplierId, String supplierName, String hotelCode, String roomCode) {
+    @Cacheable(cacheNames = StaticCacheNames.ROOM, key = "'ONE:'+ #supplierId + ':' + #supplierCode + ':' + #hotelCode + ':' + #roomCode")
+    public java.util.Optional<XRoom> getRoomByRoomCode(Long supplierId, String supplierCode, String hotelCode, String roomCode) {
         // DTO 映射未完成，先返回空
         return java.util.Optional.empty();
     }
 
     @Override
-    @Cacheable(cacheNames = StaticCacheNames.RATE_PLAN, key = "'ONE:'+ #supplierId + ':' + #supplierName + ':' + #hotelCode + ':' + #roomCode + ':' + #ratePlanCode")
-    public java.util.Optional<XRatePlan> getRatePlanByRatePlanCode(Long supplierId, String supplierName, String hotelCode, String roomCode, String ratePlanCode) {
+    @Cacheable(cacheNames = StaticCacheNames.RATE_PLAN, key = "'ONE:'+ #supplierId + ':' + #supplierCode + ':' + #hotelCode + ':' + #roomCode + ':' + #ratePlanCode")
+    public java.util.Optional<XRatePlan> getRatePlanByRatePlanCode(Long supplierId, String supplierCode, String hotelCode, String roomCode, String ratePlanCode) {
         // DTO 映射未完成，先返回空
         return java.util.Optional.empty();
     }
 
     @Override
-    @Cacheable(cacheNames = StaticCacheNames.NATIONALITY, key = "'ONE:'+ #supplierId + ':' + #supplierName + ':' + #nationalityCode")
-    public java.util.Optional<XNationality> getNationalityByNationalityCode(Long supplierId, String supplierName, String nationalityCode) {
+    @Cacheable(cacheNames = StaticCacheNames.NATIONALITY, key = "'ONE:'+ #supplierId + ':' + #supplierCode + ':' + #nationalityCode")
+    public java.util.Optional<XNationality> getNationalityByNationalityCode(Long supplierId, String supplierCode, String nationalityCode) {
         Specification<Nationality> spec = (root, q, cb) -> cb.and(
                 cb.equal(root.get("supplierId"), supplierId),
-                cb.equal(root.get("supplierName"), supplierName),
+                cb.equal(root.get("supplierCode"), supplierCode),
                 cb.equal(root.get("nationalityCode"), nationalityCode)
         );
         return nationalityRepo.findAll(spec, PageRequest.of(0,1)).get().findFirst().map(this::toXNationality);
     }
 
     @Override
-    @Cacheable(cacheNames = StaticCacheNames.COUNTRY, key = "'ONE:'+ #supplierId + ':' + #supplierName + ':' + #countryCode")
-    public java.util.Optional<XCountryResponse> getCountryByCountryCode(Long supplierId, String supplierName, String countryCode) {
+    @Cacheable(cacheNames = StaticCacheNames.COUNTRY, key = "'ONE:'+ #supplierId + ':' + #supplierCode + ':' + #countryCode")
+    public java.util.Optional<XCountryResponse> getCountryByCountryCode(Long supplierId, String supplierCode, String countryCode) {
         Specification<Country> spec = (root, q, cb) -> cb.and(
                 cb.equal(root.get("supplierId"), supplierId),
-                cb.equal(root.get("supplierName"), supplierName),
+                cb.equal(root.get("supplierCode"), supplierCode),
                 cb.equal(root.get("countryCode"), countryCode)
         );
         return countryRepo.findAll(spec, PageRequest.of(0,1)).get().findFirst().map(this::toXCountry);
     }
 
     @Override
-    @Cacheable(cacheNames = StaticCacheNames.CITY, key = "'ONE:'+ #supplierId + ':' + #supplierName + ':' + #cityCode")
-    public java.util.Optional<XCityResponse> getCityByCityCode(Long supplierId, String supplierName, String cityCode) {
+    @Cacheable(cacheNames = StaticCacheNames.CITY, key = "'ONE:'+ #supplierId + ':' + #supplierCode + ':' + #cityCode")
+    public java.util.Optional<XCityResponse> getCityByCityCode(Long supplierId, String supplierCode, String cityCode) {
         Specification<City> spec = (root, q, cb) -> cb.and(
                 cb.equal(root.get("supplierId"), supplierId),
-                cb.equal(root.get("supplierName"), supplierName),
+                cb.equal(root.get("supplierCode"), supplierCode),
                 cb.equal(root.get("cityCode"), cityCode)
         );
         return cityRepo.findAll(spec, PageRequest.of(0,1)).get().findFirst().map(this::toXCity);
