@@ -2,10 +2,13 @@ package com.heytrip.hotel.supplier.adapter.service.impl;
 
 import com.heytrip.hotel.supplier.adapter.service.StaticDataParser;
 import com.heytrip.hotel.supplier.entity.*;
+import com.heytrip.hotel.supplier.utils.IdUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -71,6 +74,9 @@ public class AOStaticDataParser implements StaticDataParser {
             e.setSupplierId(supplierId);
             e.setSupplierCode(supplierCode);
             e.setHotelCode(hotelCode);
+            // 当供应商酒店ID超过64字符，使用原始ID的SHA-256（64位十六进制）作为 hotelCodeMd5；否则直接使用原始ID
+            String hotelCodeMd5 = hotelCode.length() > 64 ? IdUtil.sha256Hex(hotelCode) : hotelCode;
+            e.setHotelCodeMd5(hotelCodeMd5);
             e.setName(val(row, "NAME"));
             e.setCityCode(val(row, "city_code"));
             e.setCityName(val(row, "city_name"));
@@ -165,4 +171,6 @@ public class AOStaticDataParser implements StaticDataParser {
             return null;
         }
     }
+
+
 }

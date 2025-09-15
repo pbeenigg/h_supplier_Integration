@@ -36,9 +36,10 @@ import java.util.List;
 @Component
 public class AsianOverlandAdapter extends AbstractSupplierAdapter {
 
-    @Autowired
-    private HttpClientService httpClientService;
-    
+
+    @Resource private HttpClientService httpClientService;
+
+    @Resource private StaticDataQueryService staticDataQueryService;
 
     // 默认供应商信息（当数据库配置不可用时使用）
     private static final Long DEFAULT_SUPPLIER_ID = 1L;
@@ -68,10 +69,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter {
         initialize();
     }
 
-    // ================= 静态数据查询入口 =================
-    @Resource
-    private StaticDataQueryService staticDataQueryService;
-
+    // ================================== 静态数据查询入口 ==================================
     /**
      * 分页查询国家静态数据
      */
@@ -106,6 +104,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter {
     public Page<XHotelGiata> pageGiataMappings(String hotelCode, String giataId, int page, int size) {
         return staticDataQueryService.pageGiataMappings(getSafeSupplierId(), getSupplierCode(), hotelCode, giataId, page, size);
     }
+    // ================================== 静态数据查询 ==================================
 
     /**
      * 获取供应商标识符
@@ -124,35 +123,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter {
         return  supplierConfig;
     }
 
-
-    /**
-     * 获取支持的酒店列表(静态数据)
-     */
-    public String getStaticHotel() {
-        return null;
-    }
-
-    /**
-     * 获取支持的国籍列表(静态数据)
-     */
-    public String getStaticNationality() {
-        return null;
-    }
-
-
-    /**
-     * 获取支持的国家列表(静态数据)
-     */
-    public String getStaticCountries() {
-        return null;
-    }
-
-    /**
-     * 获取支持的城市列表(静态数据)
-     */
-    public String getStaticCities() {
-        return null;
-    }
 
     /**
      * 兼容测试：获取支持的城市列表（来自供应商配置）

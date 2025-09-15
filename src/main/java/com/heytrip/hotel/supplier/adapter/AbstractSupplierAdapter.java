@@ -27,6 +27,7 @@ import java.util.concurrent.Semaphore;
 public abstract class AbstractSupplierAdapter implements SupplierAdapter {
     
     protected final Logger logger = LoggerFactory.getLogger(getClass());
+
     
     @Autowired
     protected SupplierConfigRepository supplierConfigRepository;

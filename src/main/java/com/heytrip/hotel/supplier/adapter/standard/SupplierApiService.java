@@ -7,26 +7,51 @@ import com.heytrip.common.response.base.XRoom;
 import com.heytrip.common.response.other.*;
 import com.heytrip.common.result.Result;
 import com.heytrip.hotel.supplier.adapter.SupplierAdapterManager;
+import com.heytrip.hotel.supplier.adapter.service.impl.StaticDataQueryServiceImpl;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Map;
 
-
 /**
  * HeyTrip 内部供应商对接标准接口实现
  *
+ * ### 静态数据类接口
+ * - getCities
+ * - getCountries
+ * - getHotel
+ * - getRooms
+ * - getBookableHotelIds
+ * - getHotelIncrement
+ * - getRoomIncrement
+ * - getHotelRoomOrigContent
+ *
+ * ### 报价类接口
+ * - getPrice
+ * - getPrices
+ * - GetPriceCacheIncrement
+ * - orderCheck
+ * - getPriceOrig
+ * - getPricesOrg
+ * - orderCheckOrg
+ *
+ * ### 订单类接口
+ * - createOrder
+ * - cancelOrder
+ * - queryOrder
+ * - modifyOrder
+ *
  * @author Pax
  */
-
 @Service
 public class SupplierApiService implements ISupplierApiService {
 
+    private static final Logger logger = LoggerFactory.getLogger(SupplierApiService.class);
 
-    @Autowired
-    private SupplierAdapterManager supplierAdapterManager;
-
+    // ================================== 静态数据类查询接口入口 ==================================
     /**
      * 获取城市信息 (国际供应商要实现)
      *
@@ -54,21 +79,6 @@ public class SupplierApiService implements ISupplierApiService {
 
 
     /**
-     * 获取酒店可售列表
-     *
-     * @param supplierType 供应商类型
-     * @param pageIndex    页码
-     * @param pageSize     每页大小
-     * @param ext          扩展参数
-     * @return 酒店ID列表
-     */
-    @Override
-    public Result<List<String>> getBookableHotelIds(String supplierType, int pageIndex, int pageSize, String ext) {
-        return null;
-    }
-
-
-    /**
      * 获取酒店信息
      *
      * @param supplierType 供应商类型
@@ -81,6 +91,7 @@ public class SupplierApiService implements ISupplierApiService {
     public Result<XHotel> getHotel(String supplierType, String hotelId, String language, String ext) {
         return null;
     }
+
 
     /**
      * 获取酒店房型信息
@@ -95,6 +106,21 @@ public class SupplierApiService implements ISupplierApiService {
     public Result<List<XRoom>> getRooms(String supplierType, String hotelId, String language, String ext) {
         return null;
     }
+
+    /**
+     * 获取酒店可售列表
+     *
+     * @param supplierType 供应商类型
+     * @param pageIndex    页码
+     * @param pageSize     每页大小
+     * @param ext          扩展参数
+     * @return 酒店ID列表
+     */
+    @Override
+    public Result<List<String>> getBookableHotelIds(String supplierType, int pageIndex, int pageSize, String ext) {
+        return null;
+    }
+
 
     /**
      * 获取酒店增量信息
@@ -137,9 +163,14 @@ public class SupplierApiService implements ISupplierApiService {
     public Object getHotelRoomOrigContent(String supplierType, String hotelId, String language, String ext) {
         return null;
     }
+    // ================================== 静态数据查询接口 ==================================
 
 
 
+
+
+
+    // ================================== 报价类接口入口 ==================================
     /**
      * 获取报价(单酒店)
      *
@@ -192,6 +223,49 @@ public class SupplierApiService implements ISupplierApiService {
     }
 
 
+
+
+    /**
+     * 获取报价(单酒店)原文
+     *
+     * @param input 报价请求
+     * @return 原文响应
+     */
+    @Override
+    public Object getPriceOrig(XSupplierPriceRequest input) {
+        return null;
+    }
+
+
+    /**
+     * 获取报价(多酒店)原文
+     *
+     * @param input 报价请求
+     * @return 原文响应
+     */
+    @Override
+    public Object getPricesOrg(XSupplierPriceRequest input) {
+        return null;
+    }
+
+
+    /**
+     * 验单原文
+     *
+     * @param input 验单请求
+     * @return 原文响应
+     */
+    @Override
+    public Object orderCheckOrg(XSupplierCheckRequest input) {
+        return null;
+    }
+
+    // ================================== 报价类接口 ==================================
+
+
+
+
+    // ================================== 订单类接口入口 ==================================
     /**
      * 创建订单
      *
@@ -241,42 +315,7 @@ public class SupplierApiService implements ISupplierApiService {
     public Result<XModifyOrderResponse> modifyOrder(XModifyOrderRequest request) {
         return null;
     }
-
-
-    /**
-     * 获取报价(单酒店)原文
-     *
-     * @param input 报价请求
-     * @return 原文响应
-     */
-    @Override
-    public Object getPriceOrig(XSupplierPriceRequest input) {
-        return null;
-    }
-
-
-    /**
-     * 获取报价(多酒店)原文
-     *
-     * @param input 报价请求
-     * @return 原文响应
-     */
-    @Override
-    public Object getPricesOrg(XSupplierPriceRequest input) {
-        return null;
-    }
-
-
-    /**
-     * 验单原文
-     *
-     * @param input 验单请求
-     * @return 原文响应
-     */
-    @Override
-    public Object orderCheckOrg(XSupplierCheckRequest input) {
-        return null;
-    }
+    // ================================== 订单类接口入口 ==================================
 
 
 }

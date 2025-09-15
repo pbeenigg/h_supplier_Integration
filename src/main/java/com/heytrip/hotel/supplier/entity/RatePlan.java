@@ -22,7 +22,8 @@ import java.time.LocalDateTime;
         indexes = {
                 @Index(name = "idx_rateplan_supplier", columnList = "supplier_id,supplier_code"),
                 @Index(name = "idx_rateplan_code", columnList = "rate_plan_code"),
-                @Index(name = "idx_rateplan_hotel", columnList = "hotel_code")
+                @Index(name = "idx_rateplan_hotel", columnList = "hotel_code"),
+                @Index(name = "idx_rate_plan_code_md5", columnList = "rate_plan_code_md5")
         }
 )
 public class RatePlan {
@@ -40,9 +41,13 @@ public class RatePlan {
     @Comment("供应商代码")
     private String supplierCode;
 
-    @Column(name = "rate_plan_code", length = 64, nullable = false)
+    @Column(name = "rate_plan_code", length = 200, nullable = false)
     @Comment("价格计划编码")
     private String ratePlanCode;
+
+    @Column(name = "rate_plan_code_md5", length = 64, nullable = false)
+    @Comment("价格计划编码MD5")
+    private String ratePlanCodeMd5;
 
     @Column(name = "hotel_code", length = 64)
     @Comment("所属酒店编码")

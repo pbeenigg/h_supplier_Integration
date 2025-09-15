@@ -22,7 +22,8 @@ import java.time.LocalDateTime;
         indexes = {
                 @Index(name = "idx_room_supplier", columnList = "supplier_id,supplier_code"),
                 @Index(name = "idx_room_code", columnList = "room_code"),
-                @Index(name = "idx_room_hotel", columnList = "hotel_code")
+                @Index(name = "idx_room_hotel", columnList = "hotel_code"),
+                @Index(name = "idx_room_code_md5", columnList = "room_code_md5"),
         }
 )
 public class Room {
@@ -40,11 +41,15 @@ public class Room {
     @Comment("供应商代码")
     private String supplierCode;
 
-    @Column(name = "room_code", length = 64, nullable = false)
+    @Column(name = "room_code", length = 200, nullable = false)
     @Comment("房型编码")
     private String roomCode;
 
-    @Column(name = "hotel_code", length = 64)
+    @Column(name = "room_code_md5", length = 64, nullable = false)
+    @Comment("房型编码MD5")
+    private String roomCodeMd5;
+
+    @Column(name = "hotel_code", length = 200)
     @Comment("所属酒店编码")
     private String hotelCode;
 
