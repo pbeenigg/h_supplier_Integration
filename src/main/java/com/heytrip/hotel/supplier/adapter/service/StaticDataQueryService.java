@@ -37,5 +37,5 @@ public interface StaticDataQueryService {
      * @param businessType 业务类型（countries/cities/hotels/nationality/giata/all）可选
      * @param success 是否成功 可选
      */
-    Page<SyncLog> pageStaticSyncLogs(Long supplierId, String supplierCode, String businessType, Boolean success, int page, int size);
+    Page<SyncLog> pageSyncLogs(Long supplierId, String supplierCode, String businessType, Boolean success, int page, int size);
 }

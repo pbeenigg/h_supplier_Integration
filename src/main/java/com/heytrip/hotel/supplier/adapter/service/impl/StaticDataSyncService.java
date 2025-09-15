@@ -70,9 +70,9 @@ public class StaticDataSyncService {
         logger.info("开始静态数据同步，supplierId={}, supplierCode={}", supplierId, supplierCode);
         syncOne(() -> syncCountries(ftp, supplierId, supplierCode), supplierId, supplierCode, "countries", ftp.getCountriesPath());
         syncOne(() -> syncCities(ftp, supplierId, supplierCode), supplierId, supplierCode, "cities", ftp.getCitiesPath());
-        //syncOne(() -> syncHotels(ftp, supplierId, supplierCode), supplierId, supplierCode, "hotels", ftp.getHotelsPath());
+        syncOne(() -> syncHotels(ftp, supplierId, supplierCode), supplierId, supplierCode, "hotels", ftp.getHotelsPath());
         syncOne(() -> syncNationalities(ftp, supplierId, supplierCode), supplierId, supplierCode, "nationality", ftp.getNationalityPath());
-        //syncOne(() -> syncGiata(ftp, supplierId, supplierCode), supplierId, supplierCode, "giata", ftp.getGiataLocalPath());
+        syncOne(() -> syncGiata(ftp, supplierId, supplierCode), supplierId, supplierCode, "giata", ftp.getGiataLocalPath());
         logger.info("静态数据同步完成，supplierId={}, supplierCode={}", supplierId, supplierCode);
         // 同步完成后，清理静态数据相关缓存，避免读取到陈旧数据
         try {
