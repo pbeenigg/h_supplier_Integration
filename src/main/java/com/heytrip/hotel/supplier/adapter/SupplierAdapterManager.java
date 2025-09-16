@@ -62,7 +62,7 @@ public class SupplierAdapterManager {
                 logger.info("已启用的适配器: {} 具有优先级: {}",
                         adapter.getSupplierName(), adapter.getPriority()));
 
-        // 构建 supplierCode -> adapter 的映射（统一转大写存储，路由时忽略大小写）
+        // 构建 SupplierName -> adapter 的映射（统一转大写存储，路由时忽略大小写）
         adapterByName.clear();
         enabledAdapters.forEach(adapter -> {
             try {
@@ -70,13 +70,13 @@ public class SupplierAdapterManager {
                 if (supplierName != null && !supplierName.isEmpty()) {
                     adapterByName.put(supplierName.toUpperCase(), adapter);
                 } else {
-                    logger.warn("适配器未提供有效的supplierCode, supplierName={}", adapter.getSupplierName());
+                    logger.warn("适配器未提供有效的SupplierName, supplierName={}", adapter.getSupplierName());
                 }
             } catch (Exception ex) {
                 logger.error("构建适配器路由映射失败: {}", adapter.getSupplierName(), ex);
             }
         });
-        logger.info("已建立按supplierCode路由的映射表，数量: {}", adapterByName.size());
+        logger.info("已建立按SupplierName路由的映射表，数量: {}", adapterByName.size());
     }
     
 
@@ -91,7 +91,7 @@ public class SupplierAdapterManager {
     }
     
     /**
-     * 按 supplierCode 获取适配器
+     * 按 SupplierName 获取适配器
      * @param supplierName 供应商名称（不区分大小写）
      * @return 匹配到的适配器，若不存在返回 null
      */
@@ -99,7 +99,7 @@ public class SupplierAdapterManager {
         if (supplierName == null) return null;
         SupplierAdapter adapter = adapterByName.get(supplierName.toUpperCase());
         if (adapter == null) {
-            logger.warn("未找到匹配的供应商适配器，supplierCode={}", supplierName);
+            logger.warn("未找到匹配的供应商适配器，SupplierName={}", supplierName);
         }
         return adapter;
     }

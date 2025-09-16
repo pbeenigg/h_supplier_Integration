@@ -1,9 +1,13 @@
 package com.heytrip.hotel.supplier.dto.qtech.resp;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
@@ -89,7 +93,7 @@ public class QTechSearchResponse extends QTechBaseResponse {
          * 最便宜房型总价
          */
         @JsonProperty("TotalCharges")
-        private Double totalCharges;
+        private BigDecimal totalCharges;
         
         /**
          * 酒店房型列表
@@ -140,7 +144,7 @@ public class QTechSearchResponse extends QTechBaseResponse {
         private Boolean refundable;
         
         /**
-         * 政策信息
+         * 取消规则信息
          */
         @JsonProperty("Policies")
         private Policies policies;
@@ -152,7 +156,7 @@ public class QTechSearchResponse extends QTechBaseResponse {
     @Data
     public static class RoomRate {
         /**
-         * 是否可订
+         * 是否可订  1 - 可订，0 - 不可订
          */
         @JsonProperty("Available")
         private Integer available;
@@ -176,10 +180,10 @@ public class QTechSearchResponse extends QTechBaseResponse {
         private String numberOfChild;
         
         /**
-         * 儿童年龄列表
+         * 儿童年龄列表 [[ 5, 3 ]]
          */
         @JsonProperty("ChildAges")
-        private String childAges;
+        private String[][]  childAges;
         
         /**
          * 房型价格
@@ -238,8 +242,9 @@ public class QTechSearchResponse extends QTechBaseResponse {
         /**
          * 日期
          */
+        @JsonFormat(pattern = "dd-MM-yyyy")
         @JsonProperty("Date")
-        private String date;
+        private LocalDate date;
         
         /**
          * 星期
@@ -274,14 +279,16 @@ public class QTechSearchResponse extends QTechBaseResponse {
         /**
          * 开始时间
          */
+        @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss Z")
         @JsonProperty("Start")
-        private String start;
+        private OffsetDateTime start;
         
         /**
          * 结束时间
          */
+        @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss Z")
         @JsonProperty("End")
-        private String end;
+        private OffsetDateTime end;
         
         /**
          * 取消费用

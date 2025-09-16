@@ -1,5 +1,6 @@
 package com.heytrip.hotel.supplier.client;
 
+import cn.hutool.json.JSONUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.heytrip.hotel.supplier.entity.ApiCallLog;
 import com.heytrip.hotel.supplier.exception.HttpClientException;
@@ -175,7 +176,7 @@ public class HttpClientService {
                 .bodyToMono(responseType)
                 .doOnSuccess(response -> {
                     long responseTime = System.currentTimeMillis() - startTime;
-                    String responseBody = response != null ? toJson(response) : "";
+                    String responseBody = response != null ? JSONUtil.toJsonStr(response) : "";
                     String requestParamsJson = parseQueryParamsToJson(endpoint);
                     logApiCall(supplierId, endpoint, method.name(), requestData,
                               responseBody,
@@ -375,6 +376,7 @@ public class HttpClientService {
         try {
             return MAPPER.writeValueAsString(obj);
         } catch (Exception e) {
+            logger.info("对象转换为JSON失败: {}", e.getMessage());
             return null;
         }
     }

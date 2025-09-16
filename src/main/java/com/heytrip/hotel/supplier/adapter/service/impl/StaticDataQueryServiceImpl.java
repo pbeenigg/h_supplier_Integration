@@ -27,6 +27,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 
@@ -498,7 +499,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
 
     @Override
     @Cacheable(cacheNames = StaticCacheNames.HOTEL, key = "'ONE:'+ #supplierId + ':' + #supplierCode + ':' + #hotelCode")
-    public java.util.Optional<XHotel> getHotelByHotelCode(Long supplierId, String supplierCode, String hotelCode) {
+    public Optional<XHotel> getHotelByHotelCode(Long supplierId, String supplierCode, String hotelCode) {
         Specification<Hotel> spec = (root, q, cb) -> cb.and(
                 cb.equal(root.get("supplierId"), supplierId),
                 cb.equal(root.get("supplierCode"), supplierCode),
@@ -509,21 +510,21 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
 
     @Override
     @Cacheable(cacheNames = StaticCacheNames.ROOM, key = "'ONE:'+ #supplierId + ':' + #supplierCode + ':' + #hotelCode + ':' + #roomCode")
-    public java.util.Optional<XRoom> getRoomByRoomCode(Long supplierId, String supplierCode, String hotelCode, String roomCode) {
+    public Optional<XRoom> getRoomByRoomCode(Long supplierId, String supplierCode, String hotelCode, String roomCode) {
         // DTO 映射未完成，先返回空
-        return java.util.Optional.empty();
+        return Optional.empty();
     }
 
     @Override
     @Cacheable(cacheNames = StaticCacheNames.RATE_PLAN, key = "'ONE:'+ #supplierId + ':' + #supplierCode + ':' + #hotelCode + ':' + #roomCode + ':' + #ratePlanCode")
-    public java.util.Optional<XRatePlan> getRatePlanByRatePlanCode(Long supplierId, String supplierCode, String hotelCode, String roomCode, String ratePlanCode) {
+    public Optional<XRatePlan> getRatePlanByRatePlanCode(Long supplierId, String supplierCode, String hotelCode, String roomCode, String ratePlanCode) {
         // DTO 映射未完成，先返回空
-        return java.util.Optional.empty();
+        return Optional.empty();
     }
 
     @Override
     @Cacheable(cacheNames = StaticCacheNames.NATIONALITY, key = "'ONE:'+ #supplierId + ':' + #supplierCode + ':' + #nationalityCode")
-    public java.util.Optional<XNationality> getNationalityByNationalityCode(Long supplierId, String supplierCode, String nationalityCode) {
+    public Optional<XNationality> getNationalityByNationalityCode(Long supplierId, String supplierCode, String nationalityCode) {
         Specification<Nationality> spec = (root, q, cb) -> cb.and(
                 cb.equal(root.get("supplierId"), supplierId),
                 cb.equal(root.get("supplierCode"), supplierCode),
@@ -534,7 +535,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
 
     @Override
     @Cacheable(cacheNames = StaticCacheNames.COUNTRY, key = "'ONE:'+ #supplierId + ':' + #supplierCode + ':' + #countryCode")
-    public java.util.Optional<XCountryResponse> getCountryByCountryCode(Long supplierId, String supplierCode, String countryCode) {
+    public Optional<XCountryResponse> getCountryByCountryCode(Long supplierId, String supplierCode, String countryCode) {
         Specification<Country> spec = (root, q, cb) -> cb.and(
                 cb.equal(root.get("supplierId"), supplierId),
                 cb.equal(root.get("supplierCode"), supplierCode),
@@ -545,7 +546,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
 
     @Override
     @Cacheable(cacheNames = StaticCacheNames.CITY, key = "'ONE:'+ #supplierId + ':' + #supplierCode + ':' + #cityCode")
-    public java.util.Optional<XCityResponse> getCityByCityCode(Long supplierId, String supplierCode, String cityCode) {
+    public Optional<XCityResponse> getCityByCityCode(Long supplierId, String supplierCode, String cityCode) {
         Specification<City> spec = (root, q, cb) -> cb.and(
                 cb.equal(root.get("supplierId"), supplierId),
                 cb.equal(root.get("supplierCode"), supplierCode),
@@ -576,7 +577,8 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
         XHotel x = new XHotel();
         x.setHotelId(e.getHotelCode());
         x.setHotelName(e.getName());
-        x.setCity(e.getCityCode());
+        x.setCity(e.getCityName());
+        x.setCityId(Integer.valueOf(e.getCityCode()));
         x.setCountryCode(e.getCountryCode());
         x.setHeroImg(e.getMainImage());
         x.setDescription(e.getLongDesc());

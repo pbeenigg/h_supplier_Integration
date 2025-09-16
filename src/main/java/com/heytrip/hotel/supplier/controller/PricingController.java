@@ -43,7 +43,6 @@ public class PricingController {
      */
     @GetMapping("/getPrice")
     public Result<List<XRoom>> getPrice(@ModelAttribute XSupplierPriceRequest xwPriceRequest) {
-        xwPriceRequest.setHotelIds(xwPriceRequest.getHotelId());
         return supplierApiService.getPrice(xwPriceRequest);
     }
 
@@ -54,7 +53,7 @@ public class PricingController {
      * @return 酒店ID到房型列表的映射
      */
     @GetMapping("/getPrices")
-    public Result<Map<String, List<XRoom>>> getPrices(@ModelAttribute XSupplierPriceRequest xwPriceRequest) {
+    public  Result<Map<String, List<XRoom>>> getPrices(@ModelAttribute XSupplierPriceRequest xwPriceRequest) {
         return supplierApiService.getPrices(xwPriceRequest);
     }
 

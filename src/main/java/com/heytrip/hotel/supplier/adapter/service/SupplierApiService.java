@@ -1,4 +1,4 @@
-package com.heytrip.hotel.supplier.adapter.standard;
+package com.heytrip.hotel.supplier.adapter.service;
 
 import com.heytrip.common.apiservice.ISupplierApiService;
 import com.heytrip.common.request.*;
@@ -7,7 +7,6 @@ import com.heytrip.common.response.base.XRoom;
 import com.heytrip.common.response.other.*;
 import com.heytrip.common.result.Result;
 import com.heytrip.hotel.supplier.adapter.SupplierAdapterManager;
-import com.heytrip.hotel.supplier.adapter.service.StaticDataQueryService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
