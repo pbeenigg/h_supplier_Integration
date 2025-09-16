@@ -114,8 +114,8 @@ app:
       - /swagger-ui.html
       #- /suppliers/**
     authenticated-patterns:
-      - /static/**
       - /pax/**
       - /common/**
       - /config/**
       - /suppliers/**
+      - /cache/**

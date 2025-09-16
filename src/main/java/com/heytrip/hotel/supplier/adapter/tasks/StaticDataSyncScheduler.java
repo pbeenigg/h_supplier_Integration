@@ -90,6 +90,6 @@ public class StaticDataSyncScheduler {
             logger.info("AOQ 供应商未启用，跳过静态同步");
             return;
         }
-        syncService.syncAllForSupplier(sc.getId(), sc.getSupplierCode());
+        //syncService.syncAllForSupplier(sc.getId(), sc.getSupplierCode());
     }
 }

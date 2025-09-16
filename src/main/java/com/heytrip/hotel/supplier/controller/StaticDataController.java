@@ -20,7 +20,7 @@ import java.util.List;
 
 /**
  * StaticData
- * 静态数据控制器
+ * 静态数据模块
  * 提供城市,酒店信息，房型，床型，语言，国家,国籍等静态数据API
  *
  * @author Pax

@@ -19,7 +19,7 @@ import java.util.Map;
 
 /**
  * Suppliers
- * 供应商控制器
+ * 供应商模块
  * 提供供应商配置、健康检查等相关API
  * 
  * @author  Pax

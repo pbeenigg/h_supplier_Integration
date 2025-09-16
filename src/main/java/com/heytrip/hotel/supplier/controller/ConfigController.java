@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
 
 /**
  * Config
- * 系统配置控制器
+ * 系统配置模块
  *
  * @author  Pax
  */

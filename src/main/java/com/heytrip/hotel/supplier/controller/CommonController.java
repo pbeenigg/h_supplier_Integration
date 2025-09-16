@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * Common
- * 通用功能控制器
+ * 通用功能模块
  *
  * @author  Pax
  */

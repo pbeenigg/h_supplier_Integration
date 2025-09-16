@@ -31,7 +31,7 @@ import java.util.stream.Collectors;
 
 /**
  * Monitoring
- * 监控控制器
+ * 监控模块
  * 提供系统监控、健康检查和统计信息API
  * 
  * @author  Pax

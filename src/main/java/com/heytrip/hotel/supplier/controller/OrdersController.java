@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.*;
 
 /**
  * Orders
- * 订单类控制器
+ * 订单类模块
  * 提供酒店订单创建、取消,查询、修改相关的API接口
  * 
  * @author  Pax

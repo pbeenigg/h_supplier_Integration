@@ -20,7 +20,7 @@ import java.util.Map;
 
 /**
  * Quotation
- * 报价类控制器
+ * 报价类模块
  * 提供酒店报价、验单相关的API接口
  *
  * @author Pax
