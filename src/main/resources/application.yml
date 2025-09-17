@@ -8,10 +8,11 @@ spring:
     name: ${SERVER_NAME:heytrip-supplier-integration}
   # 数据源配置
   datasource:
-    url: ${DB_URL:jdbc:mysql://127.0.0.1:3306/supplier_pax?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai}
+    url: ${DB_URL:jdbc:p6spy:mysql://127.0.0.1:3306/supplier_pax?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai}
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:Root@123456}
-    driver-class-name: com.mysql.cj.jdbc.Driver
+    #driver-class-name: com.mysql.cj.jdbc.Driver
+    driver-class-name: com.p6spy.engine.spy.P6SpyDriver
     hikari:
       maximum-pool-size: 20
       minimum-idle: 5
@@ -31,9 +32,10 @@ spring:
         format_sql: true
         use_sql_comments: true
         jdbc:
-          batch_size: 50
+          batch_size: 1000
         order_inserts: true
         order_updates: true
+
 
     # 缓存配置
   cache:
@@ -52,8 +54,8 @@ logging:
   level:
     com.heytrip.hotel.supplier: DEBUG
     org.springframework.web: INFO
-    org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    com.p6spy: INFO  # P6Spy日志级别
+    p6spy: INFO      # P6Spy日志输出
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

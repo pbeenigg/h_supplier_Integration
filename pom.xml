@@ -26,6 +26,7 @@
         <therapi.version>0.15.0</therapi.version>
         <lombok.version>1.18.30</lombok.version>
         <commons-net.version>3.9.0</commons-net.version>
+        <p6spy.version>3.9.1</p6spy.version>
         <supplier-data-standard-version>1.2.2-RELEASES</supplier-data-standard-version>
     </properties>
 
@@ -98,6 +99,13 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- P6Spy SQL 分析打印 -->
+        <dependency>
+            <groupId>p6spy</groupId>
+            <artifactId>p6spy</artifactId>
+            <version>${p6spy.version}</version>
+        </dependency>
+
         <!-- 缓存支持：Spring Cache + Caffeine -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -147,12 +155,13 @@
             <version>${commons-codec.version}</version>
         </dependency>
 
-        <!-- 工具类 -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <optional>true</optional>
         </dependency>
+
+
         <dependency>
             <groupId>cn.hutool</groupId>
             <artifactId>hutool-all</artifactId>
