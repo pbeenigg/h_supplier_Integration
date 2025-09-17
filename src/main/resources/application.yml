@@ -8,6 +8,7 @@ spring:
     name: ${SERVER_NAME:heytrip-supplier-integration}
   # 数据源配置
   datasource:
+    #url: ${DB_URL:jdbc:mysql://127.0.0.1:3306/supplier_pax?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai}
     url: ${DB_URL:jdbc:p6spy:mysql://127.0.0.1:3306/supplier_pax?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai}
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:Root@123456}
