@@ -70,8 +70,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             "Dubai", "Singapore", "Bangkok", "Manila", "Jakarta"
     );
 
-    // 日期格式化器
-    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
 
     /**
@@ -478,8 +476,8 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
             // 日期格式转换 yyyy-MM-dd -> dd/MM/yyyy
             // 优先使用反射读取字符串日期（兼容不同DTO实现）；若失败可考虑本地日期格式
-            req.setCheckinDate(input.getCheckInDate().format(DATE_FORMATTER));
-            req.setCheckoutDate(input.getCheckOutDate().format(DATE_FORMATTER));
+            req.setCheckinDate(input.getCheckInDate().format(HeyUtil.DATE_FORMATTER_DDMMYYYY));
+            req.setCheckoutDate(input.getCheckOutDate().format(HeyUtil.DATE_FORMATTER_DDMMYYYY));
 
             // 酒店ID（必需）
             req.setHotelIds(input.getHotelId());
@@ -495,7 +493,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                     .ifPresent(hotel -> {
                         if(hotel != null){
                             //String country = hotel.getCountryCode();
-                            String country = "138"; //测试
+                            String country = "138"; //TODO  测试
                             req.setSelCountry(country);
                             req.setSelNationality(country);
                             req.setCountryOfResidence(country);
@@ -506,7 +504,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                     });
 
             // 房间明细与房间数
-            List<QTechSearchRequest.RoomDetail> details = buildRoomDetails(input);
+            List<QTechSearchRequest.RoomDetail> details = HeyUtil.buildQTechRoomDetails(input.getOccupancy());
             req.setRoomDetails(details);
             req.setNumberOfRooms(details != null ? details.size() : 0);
 
@@ -621,8 +619,8 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                                 XRatePlan.XCancelRule xCancelRule = new XRatePlan.XCancelRule();
                                 xCancelRule.setStartTimeOrig(policy.getStart().toString());
                                 xCancelRule.setStartTimeOrig(policy.getEnd().toString());
-                                xCancelRule.setStartTime(policy.getStart().format(DATE_FORMATTER));
-                                xCancelRule.setEndTime(policy.getEnd().format(DATE_FORMATTER));
+                                xCancelRule.setStartTime(policy.getStart().format(HeyUtil.DATE_FORMATTER_DDMMYYYY));
+                                xCancelRule.setEndTime(policy.getEnd().format(HeyUtil.DATE_FORMATTER_DDMMYYYY));
                                 xCancelRule.setIsAfter(true);
                                 xCancelRule.setDeductValue(String.valueOf(policy.getCharges()));
                                 xCancelRules.add(xCancelRule);
@@ -739,8 +737,8 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             req.setPassword(authConfig.getPassword());
 
             // 日期格式转换
-            req.setCheckinDate(input.getCheckInDate().format(DATE_FORMATTER));
-            req.setCheckoutDate(input.getCheckOutDate().format(DATE_FORMATTER));
+            req.setCheckinDate(input.getCheckInDate().format(HeyUtil.DATE_FORMATTER_DDMMYYYY));
+            req.setCheckoutDate(input.getCheckOutDate().format(HeyUtil.DATE_FORMATTER_DDMMYYYY));
 
             // 酒店ID
             req.setHotelIds(input.getHotelId());
@@ -759,7 +757,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             req.setCountryOfResidence(country);
 
             // 房间明细
-            req.setRoomDetails(buildRoomDetails(input));
+            req.setRoomDetails(HeyUtil.buildQTechRoomDetails(input.getOccupancy()));
 
             // 2. 调用供应商API并返回原始响应
             String endpoint = QTechQueryBuilder.buildEndpoint(req);
@@ -918,7 +916,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
         if (yyyyMMdd == null || yyyyMMdd.isEmpty()) return yyyyMMdd;
         try {
             LocalDate d = LocalDate.parse(yyyyMMdd);
-            return d.format(DATE_FORMATTER);
+            return d.format(HeyUtil.DATE_FORMATTER_DDMMYYYY);
         } catch (DateTimeParseException e) {
             logger.warn("日期格式解析失败(期望yyyy-MM-dd): {}", yyyyMMdd);
             return yyyyMMdd;
@@ -926,64 +924,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
     }
 
 
-    /**
-     * 构造房间明细列表
-     */
-    private List<QTechSearchRequest.RoomDetail> buildRoomDetails(XSupplierPriceRequest input) {
-        try {
-            // 兼容两种结构：rooms 列表或整体成人/儿童
-            List<QTechSearchRequest.RoomDetail> result = new ArrayList<>();
 
-
-            // 入住人信息 2-5-3代表2成人2个儿童（1个5岁，1个3岁） 多间房下滑线_分割
-            // 例：2-5_1-3_2-4-6 代表三间房，第一间 2成人1儿童5岁， 第二间 1成人1儿童3岁， 第三间 2成人2儿童4岁和6岁
-            String occupancy = input.getOccupancy();
-            if (HeyUtil.notBlank(occupancy)) {
-                String[] roomStrs = occupancy.split("_");
-                for (String r : roomStrs) {
-                    if (r == null || r.isEmpty()) continue;
-                    String[] parts = r.split("-");
-                    if (parts.length >= 1) {
-                        QTechSearchRequest.RoomDetail d = new QTechSearchRequest.RoomDetail();
-                        // 成人数
-                        int adults = 0;
-                        try {
-                            adults = Integer.parseInt(parts[0]);
-                        } catch (NumberFormatException ignore) {
-                        }
-                        d.setNumberOfAdults(adults > 0 ? adults : 2);
-
-                        // 儿童数与年龄
-                        if (parts.length > 1) {
-                            int children = parts.length - 1;
-                            d.setNumberOfChild(children);
-                            StringBuilder ages = new StringBuilder();
-                            for (int i = 1; i < parts.length; i++) {
-                                if (ages.length() > 0) ages.append(',');
-                                ages.append(parts[i]);
-                            }
-                            d.setChildAge(ages.toString());
-                        }
-
-                        result.add(d);
-                    }
-                }
-            }
-
-            // 为空默认1 成人
-            if (HeyUtil.isBlank(occupancy)) {
-                QTechSearchRequest.RoomDetail d = new QTechSearchRequest.RoomDetail();
-                d.setNumberOfAdults(2);
-                result.add(d);
-            }
-            return result;
-        } catch (Exception e) {
-            logger.error("构造房间明细失败，使用默认2成人", e);
-            QTechSearchRequest.RoomDetail d = new QTechSearchRequest.RoomDetail();
-            d.setNumberOfAdults(2);
-            return Collections.singletonList(d);
-        }
-    }
 
 
 

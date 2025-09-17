@@ -20,18 +20,27 @@ public interface StaticDataQueryService {
 
     // ================= 分页查询（page*） =================
     Page<XCountryResponse> pageCountries(Long supplierId, String supplierCode, String countryCode, int page, int size);
+    Page<XCountryResponse> pageCountries(Long supplierId, String supplierCode, int page, int size);
 
     Page<XCityResponse> pageCities(Long supplierId, String supplierCode, String cityCode, String countryCode, int page, int size);
+    Page<XCityResponse> pageCities(Long supplierId, String supplierCode, int page, int size);
 
-    Page<XHotel> pageHotels(Long supplierId, String supplierCode, String hotelCode, String cityCode, String countryCode, int page, int size);
+    Page<XNationality> pageNationalities(Long supplierId, String supplierCode, String nationalityCode, String isoCode, int page, int size);
+    Page<XNationality> pageNationalities(Long supplierId, String supplierCode, int page, int size);
 
-    Page<XRoom> pageRooms(Long supplierId, String supplierCode, String hotelCode, String roomCode, String name, int page, int size);
+    Page<XHotelGiata> pageGiataMappings(Long supplierId, String supplierCode, String hotelCode, String giataId, int page, int size);
+    Page<XHotelGiata> pageGiataMappings(Long supplierId, String supplierCode, int page, int size);
+
+
+    Page<XHotel> pageHotels(Long supplierId, String supplierCode, String cityCode, String countryCode, int page, int size);
+    Page<XHotel> pageHotels(Long supplierId, String supplierCode, int page, int size);
+
+    Page<XRoom> pageRooms(Long supplierId, String supplierCode, String hotelCode, String roomCode, int page, int size);
+    Page<XRoom> pageRooms(Long supplierId, String supplierCode, int page, int size);
 
     Page<XRatePlan> pageRatePlans(Long supplierId, String supplierCode, String hotelCode, String roomCode, String ratePlanCode, int page, int size);
 
-    Page<XNationality> pageNationalities(Long supplierId, String supplierCode, String nationalityCode, String isoCode, int page, int size);
 
-    Page<XHotelGiata> pageGiataMappings(Long supplierId, String supplierCode, String hotelCode, String giataId, int page, int size);
 
     Page<SyncLog> pageSyncLogs(Long supplierId, String supplierCode, String businessType, Boolean success, int page, int size);
 

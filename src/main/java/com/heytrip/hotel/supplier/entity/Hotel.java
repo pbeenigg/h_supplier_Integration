@@ -198,4 +198,10 @@ public class Hotel {
     @Column(name = "is_bookable", nullable = false, columnDefinition = "TINYINT(1)")
     @Comment("是否可预定：0-否，1-是")
     private Boolean isBookable = false;
+
+    @UpdateTimestamp
+    @Column(name = "sync_at")
+    @Comment("同步时间")
+    private LocalDateTime SyncAt;
+
 }

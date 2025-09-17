@@ -89,6 +89,11 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
         List<XCountryResponse> content = pageData.getContent().stream().map(this::toXCountry).collect(Collectors.toList());
         return new PageImpl<>(content, pageable, pageData.getTotalElements());
     }
+    @Override
+    @Cacheable(cacheNames = StaticCacheNames.COUNTRY, key = "#supplierId + ':' + #supplierCode + ':'  + #page + ':' + #size")
+    public Page<XCountryResponse> pageCountries(Long supplierId, String supplierCode, int page, int size) {
+        return pageCountries(supplierId, supplierCode, null, page, size);
+    }
 
 
     /**
@@ -119,6 +124,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
         };
         return syncLogRepository.findAll(spec, pageable);
     }
+
 
 
     /**
@@ -154,6 +160,12 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
         return new PageImpl<>(content, pageable, pageData.getTotalElements());
     }
 
+    @Override
+    @Cacheable(cacheNames = StaticCacheNames.CITY, key = "#supplierId + ':' + #supplierCode + ':'  + #page + ':' + #size")
+    public  Page<XCityResponse> pageCities(Long supplierId, String supplierCode, int page, int size) {
+        return pageCities(supplierId, supplierCode, null, null, page, size);
+    }
+
     /**
      * 国籍分页查询
      *
@@ -187,13 +199,18 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
         return new PageImpl<>(content, pageable, pageData.getTotalElements());
     }
 
+    @Override
+    @Cacheable(cacheNames = StaticCacheNames.NATIONALITY , key = "#supplierId + ':' + #supplierCode + ':'  + #page + ':' + #size")
+    public Page<XNationality> pageNationalities(Long supplierId, String supplierCode, int page, int size) {
+        return pageNationalities(supplierId, supplierCode, null, null, page, size);
+    }
+
 
     /**
      * 酒店分页查询
      *
      * @param supplierId
      * @param supplierCode
-     * @param hotelCode
      * @param cityCode
      * @param countryCode
      * @param page
@@ -202,15 +219,13 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
      */
     @Override
     @Cacheable(cacheNames = StaticCacheNames.HOTEL, key = "#supplierId + ':' + #supplierCode + ':' + #hotelCode + ':' + #cityCode + ':' + #countryCode + ':' + #page + ':' + #size")
-    public Page<XHotel> pageHotels(Long supplierId, String supplierCode, String hotelCode, String cityCode, String countryCode, int page, int size) {
+    public Page<XHotel> pageHotels(Long supplierId, String supplierCode, String cityCode, String countryCode, int page, int size) {
         Pageable pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100));
         Specification<Hotel> spec = (root, q, cb) -> {
             List<Predicate> ps = new ArrayList<>();
             ps.add(cb.equal(root.get("supplierId"), supplierId));
             ps.add(cb.equal(root.get("supplierCode"), supplierCode));
-            if (hotelCode != null && !hotelCode.isEmpty()) {
-                ps.add(cb.like(root.get("hotelCode"), "%" + hotelCode + "%"));
-            }
+
             if (cityCode != null && !cityCode.isEmpty()) {
                 ps.add(cb.equal(root.get("cityCode"), cityCode));
             }
@@ -225,6 +240,12 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
         return new PageImpl<>(content, pageable, pageData.getTotalElements());
     }
 
+    @Override
+    @Cacheable(cacheNames = StaticCacheNames.HOTEL, key = "#supplierId + ':' + #supplierCode + ':'  + #page + ':' + #size")
+    public Page<XHotel> pageHotels(Long supplierId, String supplierCode, int page, int size) {
+        return pageHotels(supplierId, supplierCode, null, null, page, size);
+    }
+
     /**
      * 房型分页查询
      *
@@ -232,13 +253,13 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
      * @param supplierCode
      * @param hotelCode
      * @param roomCode
-     * @param name
      * @param page
      * @param size
      * @return
      */
     @Override
-    public Page<XRoom> pageRooms(Long supplierId, String supplierCode, String hotelCode, String roomCode, String name, int page, int size) {
+    @Cacheable(cacheNames = StaticCacheNames.ROOM, key = "#supplierId + ':' + #supplierCode + ':' + #hotelCode + ':' + #roomCode + ':' + #page + ':' + #size")
+    public Page<XRoom> pageRooms(Long supplierId, String supplierCode, String hotelCode, String roomCode, int page, int size) {
         Pageable pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100));
         Specification<Room> spec = (root, q, cb) -> {
             List<Predicate> ps = new ArrayList<>();
@@ -250,15 +271,19 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
             if (roomCode != null && !roomCode.isEmpty()) {
                 ps.add(cb.like(root.get("roomCode"), "%" + roomCode + "%"));
             }
-            if (name != null && !name.isEmpty()) {
-                ps.add(cb.like(root.get("name"), "%" + name + "%"));
-            }
+
             return cb.and(ps.toArray(new Predicate[0]));
         };
         // 进行数据库分页查询
         Page<Room> pageData = roomRepo.findAll(spec, pageable);
         // 暂返回空列表（DTO 字段需确认），但返回正确 total 与分页信息
         return new PageImpl<>(Collections.emptyList(), pageable, pageData.getTotalElements());
+    }
+
+    @Override
+    @Cacheable(cacheNames = StaticCacheNames.ROOM, key = "#supplierId + ':' + #supplierCode + ':'  + #page + ':' + #size")
+    public Page<XRoom> pageRooms(Long supplierId, String supplierCode, int page, int size) {
+        return pageRooms(supplierId, supplierCode, null, null, page, size);
     }
 
     /**
@@ -327,6 +352,12 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
         Page<HotelGiata> pageData = giataRepo.findAll(spec, pageable);
         List<XHotelGiata> content = pageData.getContent().stream().map(this::toXGiata).collect(Collectors.toList());
         return new PageImpl<>(content, pageable, pageData.getTotalElements());
+    }
+
+    @Override
+    @Cacheable(cacheNames = StaticCacheNames.GIATA, key = "#supplierId + ':' + #supplierCode + ':'  + #page + ':' + #size")
+    public Page<XHotelGiata> pageGiataMappings(Long supplierId, String supplierCode, int page, int size) {
+        return pageGiataMappings(supplierId, supplierCode, null, null, page, size);
     }
 
 

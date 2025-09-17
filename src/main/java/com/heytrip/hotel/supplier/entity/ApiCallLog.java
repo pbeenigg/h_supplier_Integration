@@ -16,19 +16,8 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "api_call_log", indexes = {
     @Index(name = "idx_supplier_id", columnList = "supplierId"),
-    @Index(name = "idx_trace_id", columnList = "traceId"),
-    @Index(name = "idx_api_endpoint", columnList = "apiEndpoint"),
-    @Index(name = "idx_http_method", columnList = "httpMethod"),
-    @Index(name = "idx_response_status", columnList = "responseStatus"),
-    @Index(name = "idx_response_time_ms", columnList = "responseTimeMs"),
     @Index(name = "idx_is_success", columnList = "isSuccess"),
-    @Index(name = "idx_business_type", columnList = "businessType"),
-    @Index(name = "idx_channel", columnList = "channel"),
-    @Index(name = "idx_app_id", columnList = "appId"),
-    @Index(name = "idx_user_id", columnList = "userId"),
-    @Index(name = "idx_created_at", columnList = "createdAt"),
-    @Index(name = "idx_supplier_endpoint_time", columnList = "supplierId, apiEndpoint, createdAt"),
-    @Index(name = "idx_status_time", columnList = "responseStatus, createdAt")
+    @Index(name = "idx_business_type", columnList = "businessType")
 })
 @Data
 public class ApiCallLog {
@@ -58,7 +47,7 @@ public class ApiCallLog {
     /**
      * API端点路径
      */
-    @Column(name = "api_endpoint", nullable = false, length = 500)
+    @Column(name = "api_endpoint", nullable = false)
     @Comment("API端点路径")
     private String apiEndpoint;
     

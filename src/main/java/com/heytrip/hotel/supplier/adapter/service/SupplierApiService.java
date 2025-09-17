@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Map;
 import java.util.Collections;
+import java.util.Optional;
 
 /**
  * HeyTrip 内部供应商对接标准接口实现
@@ -138,9 +139,8 @@ public class SupplierApiService implements ISupplierApiService {
             Long supplierId = adapter.getSupplierId();
             String supplierName = adapter.getSupplierName();
 
-            var page = staticDataQueryService.pageHotels(supplierId, supplierName, hotelId, null,  null, 0, 1);
-            XHotel hotel = page.getContent().isEmpty() ? null : page.getContent().get(0);
-            return Result.ok(hotel);
+            Optional<XHotel> hotel = staticDataQueryService.getHotelByHotelCode(supplierId, supplierName, hotelId);
+            return Result.ok(hotel.orElse(null));
         } catch (Exception ex) {
             logger.error("[getHotel] 查询失败", ex);
             return Result.ok(null);
@@ -170,7 +170,7 @@ public class SupplierApiService implements ISupplierApiService {
             Long supplierId = adapter.getSupplierId();
             String supplierName = adapter.getSupplierName();
 
-            var page = staticDataQueryService.pageRooms(supplierId, supplierName, hotelId, null, null, 0, 1000);
+            var page = staticDataQueryService.pageRooms(supplierId, supplierName, hotelId, null, 0, 1000);
             return Result.ok(page.getContent());
         } catch (Exception ex) {
             logger.error("[getRooms] 查询失败", ex);
