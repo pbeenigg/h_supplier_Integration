@@ -19,17 +19,17 @@ import java.util.Optional;
 public interface StaticDataQueryService {
 
     // ================= 分页查询（page*） =================
-    Page<XCountryResponse> pageCountries(Long supplierId, String supplierCode, String countryCode, String countryName, int page, int size);
+    Page<XCountryResponse> pageCountries(Long supplierId, String supplierCode, String countryCode, int page, int size);
 
-    Page<XCityResponse> pageCities(Long supplierId, String supplierCode, String cityCode, String countryCode, String name, int page, int size);
+    Page<XCityResponse> pageCities(Long supplierId, String supplierCode, String cityCode, String countryCode, int page, int size);
 
-    Page<XHotel> pageHotels(Long supplierId, String supplierCode, String hotelCode, String cityCode, String countryCode, String name, int page, int size);
+    Page<XHotel> pageHotels(Long supplierId, String supplierCode, String hotelCode, String cityCode, String countryCode, int page, int size);
 
     Page<XRoom> pageRooms(Long supplierId, String supplierCode, String hotelCode, String roomCode, String name, int page, int size);
 
-    Page<XRatePlan> pageRatePlans(Long supplierId, String supplierCode, String hotelCode, String roomCode, String ratePlanCode, String name, int page, int size);
+    Page<XRatePlan> pageRatePlans(Long supplierId, String supplierCode, String hotelCode, String roomCode, String ratePlanCode, int page, int size);
 
-    Page<XNationality> pageNationalities(Long supplierId, String supplierCode, String nationalityCode, String nationality, String isoCode, int page, int size);
+    Page<XNationality> pageNationalities(Long supplierId, String supplierCode, String nationalityCode, String isoCode, int page, int size);
 
     Page<XHotelGiata> pageGiataMappings(Long supplierId, String supplierCode, String hotelCode, String giataId, int page, int size);
 
@@ -38,17 +38,17 @@ public interface StaticDataQueryService {
 
 
     // ================= 不分页查询（list*） =================
-    List<XCountryResponse> listCountries(Long supplierId, String supplierCode, String countryCode, String countryName);
+    List<XCountryResponse> listCountries(Long supplierId, String supplierCode, String countryCode);
 
-    List<XCityResponse> listCities(Long supplierId, String supplierCode, String cityCode, String countryCode, String name);
+    List<XCityResponse> listCities(Long supplierId, String supplierCode, String cityCode, String countryCode);
 
-    List<XHotel> listHotels(Long supplierId, String supplierCode, String hotelCode, String cityCode, String countryCode, String name);
+    List<XHotel> listHotels(Long supplierId, String supplierCode, String hotelCode, String cityCode, String countryCode);
 
-    List<XRoom> listRooms(Long supplierId, String supplierCode, String hotelCode, String roomCode, String name);
+    List<XRoom> listRooms(Long supplierId, String supplierCode, String hotelCode, String roomCode);
 
-    List<XRatePlan> listRatePlans(Long supplierId, String supplierCode, String hotelCode, String roomCode, String ratePlanCode, String name);
+    List<XRatePlan> listRatePlans(Long supplierId, String supplierCode, String hotelCode, String roomCode, String ratePlanCode);
 
-    List<XNationality> listNationalities(Long supplierId, String supplierCode, String nationalityCode, String nationality, String isoCode);
+    List<XNationality> listNationalities(Long supplierId, String supplierCode, String nationalityCode, String isoCode);
 
     List<XHotelGiata> listGiataMappings(Long supplierId, String supplierCode, String hotelCode, String giataId);
 

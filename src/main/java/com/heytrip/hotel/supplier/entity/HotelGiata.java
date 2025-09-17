@@ -10,8 +10,8 @@ import java.time.LocalDateTime;
 
 /**
  * 静态数据-GIATA酒店映射
- * 约束： (city_code, supplier_code, hotel_code, giata_id) 唯一
- * 文档字段：id, hotel_code, giata_id, name, city_code, city_name, country_code, long_desc, latitude, longitude, rating, address, main_image
+ * 约束： (city_code, supplier_code, hotel_id, giata_id) 唯一
+ * 文档字段：id, hotel_id, giata_id, name, city_code, city_name, country_code, long_desc, latitude, longitude, rating, address, main_image
  */
 @Data
 @Entity
@@ -40,8 +40,8 @@ public class HotelGiata {
     @Comment("供应商代码")
     private String supplierCode;
 
-    @Column(name = "hotel_code", length = 64, nullable = false)
-    @Comment("酒店编码/ID")
+    @Column(name = "hotel_code", length = 200, nullable = false)
+    @Comment("酒店编码")
     private String hotelCode;
 
     @Column(name = "giata_id", length = 64, nullable = false)

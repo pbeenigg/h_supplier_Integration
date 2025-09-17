@@ -5,6 +5,7 @@ import com.heytrip.hotel.supplier.adapter.parser.StaticDataParser;
 import com.heytrip.hotel.supplier.client.FtpClientService;
 import com.heytrip.hotel.supplier.config.CacheEvictor;
 import com.heytrip.hotel.supplier.config.FtpClientConfig;
+import com.heytrip.hotel.supplier.constant.SyncBusinessTypeNames;
 import com.heytrip.hotel.supplier.dto.supplier.SupplierFtp;
 import com.heytrip.hotel.supplier.entity.*;
 import com.heytrip.hotel.supplier.repository.*;
@@ -26,6 +27,8 @@ import java.util.List;
 import java.util.Map;
 
 import java.util.function.Supplier;
+
+import static com.heytrip.hotel.supplier.constant.SyncBusinessTypeNames.*;
 
 /**
  * 静态数据同步服务
@@ -68,11 +71,11 @@ public class StaticDataSyncService {
         }
         SupplierFtp ftp = parseFtpConfig(sc.getFtpConfig());
         logger.info("开始静态数据同步，supplierId={}, supplierCode={}", supplierId, supplierCode);
-        syncOne(() -> syncCountries(ftp, supplierId, supplierCode), supplierId, supplierCode, "countries", ftp.getCountriesPath());
-        syncOne(() -> syncCities(ftp, supplierId, supplierCode), supplierId, supplierCode, "cities", ftp.getCitiesPath());
-        syncOne(() -> syncHotels(ftp, supplierId, supplierCode), supplierId, supplierCode, "hotels", ftp.getHotelsPath());
-        syncOne(() -> syncNationalities(ftp, supplierId, supplierCode), supplierId, supplierCode, "nationality", ftp.getNationalityPath());
-        syncOne(() -> syncGiata(ftp, supplierId, supplierCode), supplierId, supplierCode, "giata", ftp.getGiataLocalPath());
+        syncOne(() -> syncCountries(ftp, supplierId, supplierCode), supplierId, supplierCode, COUNTRIES, ftp.getCountriesPath());
+        //syncOne(() -> syncCities(ftp, supplierId, supplierCode), supplierId, supplierCode, CITIES, ftp.getCitiesPath());
+        //syncOne(() -> syncNationalities(ftp, supplierId, supplierCode), supplierId, supplierCode, NATIONALITY, ftp.getNationalityPath());
+        //syncOne(() -> syncGiata(ftp, supplierId, supplierCode), supplierId, supplierCode, GIATA, ftp.getGiataLocalPath());
+        //syncOne(() -> syncHotels(ftp, supplierId, supplierCode), supplierId, supplierCode, HOTELS, ftp.getHotelsPath());
         logger.info("静态数据同步完成，supplierId={}, supplierCode={}", supplierId, supplierCode);
         // 同步完成后，清理静态数据相关缓存，避免读取到陈旧数据
         try {

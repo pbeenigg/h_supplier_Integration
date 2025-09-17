@@ -15,7 +15,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import static com.heytrip.hotel.supplier.constant.SyncBusinessTypeNames.*;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -61,8 +61,11 @@ public class HotelSyncSyncService {
             return;
         }
         logger.info("开始酒店数据同步，supplierId={}, supplierCode={}", supplierId, supplierCode);
-        syncOne(() -> syncHotels(supplierId, supplierCode), supplierId, supplierCode, "hotelsDetail");
-        logger.info("酒店同步完成，supplierId={}, supplierCode={}", supplierId, supplierCode);
+        syncOne(() -> syncHotels(supplierId, supplierCode), supplierId, supplierCode, HOTELS_DETAIL);
+        syncOne(() -> syncBookableHotel(supplierId, supplierCode), supplierId, supplierCode, BOOKABLE_HOTEL);
+        syncOne(() -> syncRoom(supplierId, supplierCode), supplierId, supplierCode, ROOM);
+        syncOne(() -> syncRatePlan(supplierId, supplierCode), supplierId, supplierCode, RATE_PLAN);
+        logger.info("酒店数据同步完成，supplierId={}, supplierCode={}", supplierId, supplierCode);
         // 同步完成后，清理静态数据相关缓存，避免读取到陈旧数据
         try {
             cacheEvictor.evictAllStaticCaches();
@@ -94,6 +97,27 @@ public class HotelSyncSyncService {
      * @return
      */
     private SyncStats syncBookableHotel(Long supplierId, String supplierCode) {
+        return  null;
+    }
+
+
+    /**
+     * 同步基础房型
+     * @param supplierId
+     * @param supplierCode
+     * @return
+     */
+    private SyncStats syncRoom(Long supplierId, String supplierCode) {
+        return  null;
+    }
+
+    /**
+     * 同步基础价格计划
+     * @param supplierId
+     * @param supplierCode
+     * @return
+     */
+    private SyncStats syncRatePlan(Long supplierId, String supplierCode) {
         return  null;
     }
 

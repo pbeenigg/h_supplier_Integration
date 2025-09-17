@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -74,19 +75,19 @@ public class AOStaticDataParser implements StaticDataParser {
             // 当供应商酒店ID超过64字符，使用原始ID的SHA-256（64位十六进制）作为 hotelCodeMd5；否则直接使用原始ID
             String hotelCodeMd5 = hotelCode.length() > 64 ? HeyUtil.sha256Hex(hotelCode) : hotelCode;
             e.setHotelCodeMd5(hotelCodeMd5);
-            e.setName(val(row, "NAME"));
+            e.setHotelName(val(row, "NAME"));
             e.setCityCode(val(row, "city_code"));
-            e.setCityName(val(row, "city_name"));
+            e.setCity(val(row, "city_name"));
             e.setCountryCode(val(row, "country_code"));
-            e.setMainImage(val(row, "main_image"));
-            e.setShortDesc(val(row, "short_desc"));
+            e.setHeroImg(val(row, "main_image"));
+            e.setDescription(val(row, "short_desc"));
             e.setLongDesc(val(row, "long_desc"));
             e.setAddress(val(row, "address"));
             e.setPhone(val(row, "phone"));
             e.setWebsite(val(row, "website"));
-            e.setLatitude(parseDouble(val(row, "latitude")));
-            e.setLongitude(parseDouble(val(row, "longitude")));
-            e.setRating(parseDouble(val(row, "rating")));
+            e.setLatitude(val(row, "latitude"));
+            e.setLongitude(val(row, "longitude"));
+            e.setRating(val(row, "rating"));
             list.add(e);
         }
         return list;
@@ -166,6 +167,15 @@ public class AOStaticDataParser implements StaticDataParser {
             return Double.parseDouble(s.trim());
         } catch (Exception e) {
             return null;
+        }
+    }
+
+    private BigDecimal parseBigDecimal(String s) {
+        try {
+            if (isBlank(s)) return BigDecimal.ZERO;
+            return new BigDecimal(s.trim());
+        } catch (Exception e) {
+            return BigDecimal.ZERO;
         }
     }
 

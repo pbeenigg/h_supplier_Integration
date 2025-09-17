@@ -49,8 +49,12 @@ public class RatePlan {
     @Comment("价格计划编码MD5")
     private String ratePlanCodeMd5;
 
-    @Column(name = "hotel_code", length = 64)
-    @Comment("所属酒店编码")
+    @Column(name = "hotel_id", length = 64, nullable = false)
+    @Comment("酒店ID")
+    private Long hotelId;
+
+    @Column(name = "hotel_code", length = 200, nullable = false)
+    @Comment("酒店编码")
     private String hotelCode;
 
     @Column(name = "room_code", length = 64)
