@@ -1,6 +1,5 @@
-package com.heytrip.hotel.supplier.adapter.service.impl;
+package com.heytrip.hotel.supplier.adapter.parser;
 
-import com.heytrip.hotel.supplier.adapter.service.StaticDataParser;
 import com.heytrip.hotel.supplier.entity.*;
 import com.heytrip.hotel.supplier.utils.HeyUtil;
 import org.slf4j.Logger;

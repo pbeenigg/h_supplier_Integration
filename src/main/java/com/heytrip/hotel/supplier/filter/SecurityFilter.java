@@ -1,4 +1,4 @@
-package com.heytrip.hotel.supplier.authorization;
+package com.heytrip.hotel.supplier.filter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.heytrip.hotel.supplier.config.Config;

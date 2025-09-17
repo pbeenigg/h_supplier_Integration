@@ -1,5 +1,6 @@
 package com.heytrip.hotel.supplier.adapter;
 
+import com.heytrip.common.response.other.XPriceCacheIncrementResponse;
 import jakarta.annotation.PostConstruct;
 import lombok.Data;
 import org.slf4j.Logger;
@@ -104,7 +105,7 @@ public class SupplierAdapterManager {
         return adapter;
     }
 
-    // ======================= 报价与订单委派（第2阶段骨架） =======================
+    // ======================= 报价与订单委派 =======================
 
     /**
      * 单酒店报价
@@ -124,6 +125,100 @@ public class SupplierAdapterManager {
         } catch (Exception ex) {
             logger.error("[getPrice] 委派执行失败, supplierName={}", supplierName, ex);
             return Result.ok(Collections.emptyList());
+        }
+    }
+
+    /**
+     * 获取原始单酒店报价（供应商原始数据格式）
+     */
+    public Object getPriceOrig(XSupplierPriceRequest input) {
+        String supplierName = input.getSupplierType();
+        SupplierAdapter adapter = getAdapterByName(supplierName);
+        if (adapter == null) {
+            logger.warn("[getPriceOrig] 未找到供应商适配器: {}", supplierName);
+            return Collections.emptyMap();
+        }
+
+        try {
+            if (adapter instanceof PricingBridge bridge) {
+                return bridge.getPriceOrig(input);
+            }
+            logger.warn("[getPriceOrig] 适配器不支持 PricingBridge: {}", supplierName);
+            return Collections.emptyMap();
+        } catch (Exception ex) {
+            logger.error("[getPriceOrig] 委派执行失败, supplierName={}", supplierName, ex);
+            return Collections.emptyMap();
+        }
+    }
+
+    /**
+     * 获取原始多酒店报价（供应商原始数据格式）
+     */
+    public Object getPricesOrg(XSupplierPriceRequest input) {
+        String supplierName = input.getSupplierType();
+        SupplierAdapter adapter = getAdapterByName(supplierName);
+        if (adapter == null) {
+            logger.warn("[getPricesOrg] 未找到供应商适配器: {}", supplierName);
+            return Collections.emptyMap();
+        }
+
+        try {
+            if (adapter instanceof PricingBridge bridge) {
+                return bridge.getPricesOrg(input);
+            }
+            logger.warn("[getPricesOrg] 适配器不支持 PricingBridge: {}", supplierName);
+            return Collections.emptyMap();
+        } catch (Exception ex) {
+            logger.error("[getPricesOrg] 委派执行失败, supplierName={}", supplierName, ex);
+            return Collections.emptyMap();
+        }
+    }
+
+
+    /**
+     * 订单前置校验（标准格式）
+     */
+    public List<XRoom> orderCheck(XSupplierPriceRequest input) {
+        String supplierName = input.getSupplierType();
+        SupplierAdapter adapter = getAdapterByName(supplierName);
+        if (adapter == null) {
+            logger.warn("[orderCheck] 未找到供应商适配器: {}", supplierName);
+            return Collections.emptyList();
+        }
+
+        try {
+            if (adapter instanceof PricingBridge bridge) {
+                List<XRoom> rooms = bridge.orderCheck(input);
+                return rooms != null ? rooms : Collections.emptyList();
+            }
+            logger.warn("[orderCheck] 适配器不支持 PricingBridge: {}", supplierName);
+            return Collections.emptyList();
+        } catch (Exception ex) {
+            logger.error("[orderCheck] 委派执行失败, supplierName={}", supplierName, ex);
+            return Collections.emptyList();
+        }
+    }
+
+    /**
+     * 订单前置校验（供应商原始格式）
+     */
+    public Object orderCheckOrg(XSupplierPriceRequest input) {
+        String supplierName = input.getSupplierType();
+        SupplierAdapter adapter = getAdapterByName(supplierName);
+        if (adapter == null) {
+            logger.warn("[orderCheckOrg] 未找到供应商适配器: {}", supplierName);
+            return Collections.emptyMap();
+        }
+
+        try {
+            if (adapter instanceof PricingBridge bridge) {
+                return bridge.orderCheckOrg(input);
+            }
+            logger.warn("[orderCheckOrg] 适配器不支持 PricingBridge: {}", supplierName);
+            return Collections.emptyMap();
+        } catch (Exception ex) {
+            logger.error("[orderCheckOrg] 委派执行失败, supplierName={}", supplierName, ex);
+            return Collections.emptyMap();
         }
     }
 

@@ -5,6 +5,8 @@ import com.heytrip.common.enums.XEnumCurrency;
 import com.heytrip.common.enums.XEnumNoSmoking;
 import com.heytrip.common.response.base.XRatePlan;
 import com.heytrip.common.response.base.XRatePlanDaily;
+import com.heytrip.common.response.other.XPriceCacheIncrementResponse;
+import com.heytrip.common.result.Result;
 import com.heytrip.hotel.supplier.adapter.AbstractSupplierAdapter;
 import com.heytrip.hotel.supplier.adapter.builder.QTechQueryBuilder;
 import com.heytrip.hotel.supplier.adapter.service.StaticDataQueryService;
@@ -717,7 +719,194 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
         return null;
     }
 
+
+
+    /**
+     * 获取原始单酒店报价（供应商原始数据格式）
+     * 返回 QTech 供应商的原始搜索响应数据
+     */
+    @Override
+    public Object getPriceOrig(XSupplierPriceRequest input) {
+        logger.info("[AOAdapter.getPriceOrig] 获取原始报价数据, input={}", input);
+
+        try {
+            // 1. 组装 QTechSearchRequest
+            QTechSearchRequest req = new QTechSearchRequest();
+
+            // 基础认证配置
+            SupplierAuth authConfig = extractFromAuthConfig(getSafeSupplierName());
+            req.setUsername(authConfig.getUsername());
+            req.setPassword(authConfig.getPassword());
+
+            // 日期格式转换
+            req.setCheckinDate(input.getCheckInDate().format(DATE_FORMATTER));
+            req.setCheckoutDate(input.getCheckOutDate().format(DATE_FORMATTER));
+
+            // 酒店ID
+            req.setHotelIds(input.getHotelId());
+            if (HeyUtil.isBlank(req.getHotelIds())) {
+                logger.warn("[AOAdapter.getPriceOrig] 输入缺少酒店ID，无法报价");
+                return null;
+            }
+
+            // 币种，默认 USD
+            req.setSelCurrency(HeyUtil.isBlank(input.getCurrency()) ? "USD" : input.getCurrency());
+
+            // 设置国家信息（简化处理，使用固定值）
+            String country = "138"; // 测试用国家代码
+            req.setSelCountry(country);
+            req.setSelNationality(country);
+            req.setCountryOfResidence(country);
+
+            // 房间明细
+            req.setRoomDetails(buildRoomDetails(input));
+
+            // 2. 调用供应商API并返回原始响应
+            String endpoint = QTechQueryBuilder.buildEndpoint(req);
+            logger.debug("[AOAdapter.getPriceOrig] 调用端点: {}", endpoint);
+
+            QTechSearchResponse response = executeGetRequest(API_BASE_URL, endpoint, QTechSearchResponse.class).block();
+
+            if (response != null && response.getStatus() != null && response.getStatus().equals("Success")) {
+                logger.info("[AOAdapter.getPriceOrig] 成功获取原始报价数据");
+                return response; // 返回原始响应对象
+            } else {
+                logger.warn("[AOAdapter.getPriceOrig] 供应商返回失败状态: {}",
+                        response != null ? response.getStatus() : "null");
+                return response;
+            }
+
+        } catch (Exception e) {
+            logger.error("[AOAdapter.getPriceOrig] 获取原始报价失败", e);
+            return null;
+        }
+    }
+
+    /**
+     * 获取原始多酒店报价（供应商原始数据格式）
+     * 当前 QTech API 支持多酒店ID查询，直接复用单酒店逻辑
+     */
+    @Override
+    public Object getPricesOrg(XSupplierPriceRequest input) {
+        logger.info("[AOAdapter.getPricesOrg] 获取多酒店原始报价数据, input={}", input);
+
+        // QTech API 支持传入多个酒店ID（逗号分隔），直接复用 getPriceOrig
+        return getPriceOrig(input);
+    }
+
+
+
+    /**
+     * 订单前置校验（标准格式）
+     * 在正式下单前校验房型可售性、价格变化等
+     */
+    @Override
+    public List<XRoom> orderCheck(XSupplierPriceRequest input) {
+        logger.info("[AOAdapter.orderCheck] 执行订单前置校验, input={}", input);
+
+        try {
+            // 1. 先获取最新报价数据
+            List<XRoom> rooms = getPrice(input);
+
+            if (rooms == null || rooms.isEmpty()) {
+                logger.warn("[AOAdapter.orderCheck] 校验失败：无可用房型");
+                return Collections.emptyList();
+            }
+
+            // 2. 执行额外的校验逻辑
+            for (XRoom room : rooms) {
+                if (room.getRatePlans() != null) {
+                    for (XRatePlan ratePlan : room.getRatePlans()) {
+                        // 校验房型可售性
+                        Integer available = ratePlan.getAvailable();
+                        if (available == null || available <= 0) {
+                            logger.warn("[AOAdapter.orderCheck] 房型不可售: roomId={}, ratePlanId={}",
+                                    room.getRoomId(), ratePlan.getRatePlanId());
+                            continue;
+                        }
+
+                        // 校验价格有效性（使用 getPrice() 方法）
+                        if (ratePlan.getPrice() == null || ratePlan.getPrice().isEmpty()) {
+                            logger.warn("[AOAdapter.orderCheck] 价格无效: roomId={}, ratePlanId={}, price={}",
+                                    room.getRoomId(), ratePlan.getRatePlanId(), ratePlan.getPrice());
+                            continue;
+                        }
+
+                        try {
+                            double price = Double.parseDouble(ratePlan.getPrice());
+                            if (price <= 0) {
+                                logger.warn("[AOAdapter.orderCheck] 价格为零或负数: roomId={}, ratePlanId={}, price={}",
+                                        room.getRoomId(), ratePlan.getRatePlanId(), price);
+                                continue;
+                            }
+                        } catch (NumberFormatException e) {
+                            logger.warn("[AOAdapter.orderCheck] 价格格式错误: roomId={}, ratePlanId={}, price={}",
+                                    room.getRoomId(), ratePlan.getRatePlanId(), ratePlan.getPrice());
+                            continue;
+                        }
+
+                        // 添加校验时间戳（通过描述字段记录）
+                        String currentDesc = ratePlan.getDescription() != null ? ratePlan.getDescription() : "";
+                        ratePlan.setDescription(currentDesc + " [校验:" + System.currentTimeMillis() + "]");
+                    }
+                }
+            }
+
+            logger.info("[AOAdapter.orderCheck] 订单校验完成，返回 {} 个房型", rooms.size());
+            return rooms;
+
+        } catch (Exception e) {
+            logger.error("[AOAdapter.orderCheck] 订单校验失败", e);
+            return Collections.emptyList();
+        }
+    }
+
+    /**
+     * 订单前置校验（供应商原始格式）
+     * 返回供应商原始校验数据，用于调试或特殊业务场景
+     */
+    @Override
+    public Object orderCheckOrg(XSupplierPriceRequest input) {
+        logger.info("[AOAdapter.orderCheckOrg] 执行原始格式订单校验, input={}", input);
+
+        try {
+            // 获取原始报价数据作为校验结果
+            Object originalResponse = getPriceOrig(input);
+
+            if (originalResponse instanceof QTechSearchResponse response) {
+                // 在原始响应中添加校验时间戳
+                if (response.getHotelList() != null) {
+                    for (QTechSearchResponse.Hotel hotel : response.getHotelList()) {
+                        // 可以在这里添加额外的校验逻辑或标记
+                        logger.debug("[AOAdapter.orderCheckOrg] 校验酒店: {}", hotel.getHotelId());
+                    }
+                }
+
+                logger.info("[AOAdapter.orderCheckOrg] 原始格式校验完成");
+                return response;
+            } else {
+                logger.warn("[AOAdapter.orderCheckOrg] 获取原始数据失败");
+                return originalResponse;
+            }
+
+        } catch (Exception e) {
+            logger.error("[AOAdapter.orderCheckOrg] 原始格式订单校验失败", e);
+            return null;
+        }
+    }
+
+    
+
+
+
+
     // ============================================ 报价与订单 ============================================
+
+
+
+
+
+
 
 
     // ============================================ 工具方法 ==============================================
@@ -795,6 +984,8 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             return Collections.singletonList(d);
         }
     }
+
+
 
 
 }

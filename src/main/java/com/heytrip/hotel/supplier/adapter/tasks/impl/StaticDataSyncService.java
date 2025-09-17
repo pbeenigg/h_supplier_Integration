@@ -1,7 +1,7 @@
-package com.heytrip.hotel.supplier.adapter.service.impl;
+package com.heytrip.hotel.supplier.adapter.tasks.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.heytrip.hotel.supplier.adapter.service.StaticDataParser;
+import com.heytrip.hotel.supplier.adapter.parser.StaticDataParser;
 import com.heytrip.hotel.supplier.client.FtpClientService;
 import com.heytrip.hotel.supplier.config.CacheEvictor;
 import com.heytrip.hotel.supplier.config.FtpClientConfig;

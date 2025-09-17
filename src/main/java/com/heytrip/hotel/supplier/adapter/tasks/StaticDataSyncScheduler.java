@@ -1,8 +1,9 @@
 package com.heytrip.hotel.supplier.adapter.tasks;
 
-import com.heytrip.hotel.supplier.adapter.service.impl.StaticDataSyncService;
+import com.heytrip.hotel.supplier.adapter.tasks.impl.StaticDataSyncService;
 import com.heytrip.hotel.supplier.entity.SupplierConfig;
 import com.heytrip.hotel.supplier.repository.SupplierConfigRepository;
+import lombok.AllArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -21,6 +22,7 @@ import java.util.concurrent.TimeUnit;
  * - 每15天凌晨2点定时同步
  */
 @Component
+@AllArgsConstructor
 public class StaticDataSyncScheduler {
 
     private static final Logger logger = LoggerFactory.getLogger(StaticDataSyncScheduler.class);
@@ -31,11 +33,6 @@ public class StaticDataSyncScheduler {
     // AsianOverland 供应商代码
     private static final String AO_SUPPLIER_CODE = "AsianOverland";
 
-    public StaticDataSyncScheduler(StaticDataSyncService syncService,
-                                   SupplierConfigRepository supplierConfigRepository) {
-        this.syncService = syncService;
-        this.supplierConfigRepository = supplierConfigRepository;
-    }
 
     /**
      * 应用启动后，延迟10分钟执行一次同步，避免影响启动性能
@@ -54,7 +51,7 @@ public class StaticDataSyncScheduler {
         ses.schedule(() -> {
             try {
                 logger.info("[初始] 开始执行 AsianOverland 静态数据同步（延迟10分钟）");
-                runForAOQ();
+                //runForAOQ();
             } catch (Exception e) {
                 logger.warn("[初始] 静态数据同步失败: {}", e.getMessage());
             }
@@ -67,7 +64,7 @@ public class StaticDataSyncScheduler {
      * TODO 目前固定为AOQ，后续可扩展为多供应商
      */
     @Scheduled(cron = "0 0 2 */15 * ?")
-    public void schedulePeriodicSync() {
+    public void SyncTasks() {
         try {
             logger.info("[定时] 开始执行 AsianOverland 静态数据同步");
             runForAOQ();
@@ -90,6 +87,6 @@ public class StaticDataSyncScheduler {
             logger.info("AOQ 供应商未启用，跳过静态同步");
             return;
         }
-        //syncService.syncAllForSupplier(sc.getId(), sc.getSupplierCode());
+        syncService.syncAllForSupplier(sc.getId(), sc.getSupplierCode());
     }
 }

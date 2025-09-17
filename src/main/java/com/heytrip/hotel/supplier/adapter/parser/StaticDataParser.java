@@ -1,4 +1,4 @@
-package com.heytrip.hotel.supplier.adapter.service;
+package com.heytrip.hotel.supplier.adapter.parser;
 
 import com.heytrip.hotel.supplier.entity.*;
 

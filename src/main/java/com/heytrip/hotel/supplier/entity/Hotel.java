@@ -24,7 +24,8 @@ import java.time.LocalDateTime;
                 @Index(name = "idx_hotel_code", columnList = "hotel_code"),
                 @Index(name = "idx_hotel_city", columnList = "city_code"),
                 @Index(name = "idx_hotel_country", columnList = "country_code"),
-                @Index(name = "idx_hotel_code_md5", columnList = "hotel_code_md5")
+                @Index(name = "idx_hotel_code_md5", columnList = "hotel_code_md5"),
+                @Index(name = "idx_supplier_id_supplier_code_is_bookable", columnList = "supplier_id,supplier_code,is_bookable")
         }
 )
 public class Hotel {
@@ -45,7 +46,6 @@ public class Hotel {
     @Column(name = "hotel_code", length = 200, nullable = false)
     @Comment("酒店编码/ID")
     private String hotelCode;
-
 
     @Column(name = "hotel_code_md5", length = 64, nullable = false)
     @Comment("酒店编码Md5")
@@ -116,4 +116,9 @@ public class Hotel {
     @Column(name = "is_deleted", nullable = false, columnDefinition = "TINYINT(1)")
     @Comment("逻辑删除：0-否，1-是")
     private Boolean isDeleted = false;
+
+
+    @Column(name = "is_bookable", nullable = false, columnDefinition = "TINYINT(1)")
+    @Comment("是否可预定：0-否，1-是")
+    private Boolean isBookable = false;
 }

@@ -1,6 +1,6 @@
 package com.heytrip.hotel.supplier.config;
 
-import com.heytrip.hotel.supplier.authorization.SecurityFilter;
+import com.heytrip.hotel.supplier.filter.SecurityFilter;
 import jakarta.annotation.Resource;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

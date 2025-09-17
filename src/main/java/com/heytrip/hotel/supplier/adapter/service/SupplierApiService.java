@@ -296,7 +296,6 @@ public class SupplierApiService implements ISupplierApiService {
     @Override
     public Result<XPriceCacheIncrementResponse> GetPriceCacheIncrement(String supplierType, long maxId, Long minTime, Boolean includeChangeDate, String query) {
         logger.info("[GetPriceCacheIncrement] supplierType={}, maxId={}, minTime={}, includeChangeDate={}, query={}", supplierType, maxId, minTime, includeChangeDate, query);
-        // 占位实现
         return Result.ok(null);
     }
 
@@ -326,10 +325,13 @@ public class SupplierApiService implements ISupplierApiService {
     @Override
     public Object getPriceOrig(XSupplierPriceRequest input) {
         logger.info("[getPriceOrig] input={}", input);
-        // 第2阶段-子阶段1：优先打通原文接口，后续桥接到适配器 searchHotels 原文
-        return Collections.emptyMap();
+        try {
+            return adapterManager.getPriceOrig(input);
+        } catch (Exception e) {
+            logger.error("[getPriceOrig] 获取原始报价失败", e);
+            return Collections.emptyMap();
+        }
     }
-
 
     /**
      * 获取报价(多酒店)原文
@@ -340,10 +342,13 @@ public class SupplierApiService implements ISupplierApiService {
     @Override
     public Object getPricesOrg(XSupplierPriceRequest input) {
         logger.info("[getPricesOrg] input={}", input);
-        // 占位实现
-        return Collections.emptyMap();
+        try {
+            return adapterManager.getPricesOrg(input);
+        } catch (Exception e) {
+            logger.error("[getPricesOrg] 获取多酒店原始报价失败", e);
+            return Collections.emptyMap();
+        }
     }
-
 
     /**
      * 验单原文
@@ -354,9 +359,16 @@ public class SupplierApiService implements ISupplierApiService {
     @Override
     public Object orderCheckOrg(XSupplierCheckRequest input) {
         logger.info("[orderCheckOrg] input={}", input);
-        // 占位实现
-        return Collections.emptyMap();
+        try {
+            // 将 XSupplierCheckRequest 转换为 XSupplierPriceRequest
+            XSupplierPriceRequest priceRequest = convertCheckRequestToPriceRequest(input);
+            return adapterManager.orderCheckOrg(priceRequest);
+        } catch (Exception e) {
+            logger.error("[orderCheckOrg] 验单原文失败", e);
+            return Collections.emptyMap();
+        }
     }
+
 
     // ================================== 报价类接口 ==================================
 
@@ -420,6 +432,32 @@ public class SupplierApiService implements ISupplierApiService {
         // 占位实现
         return Result.ok(null);
     }
+    
+    // ================================== 工具方法 ==================================
+    
+    /**
+     * 将 XSupplierCheckRequest 转换为 XSupplierPriceRequest
+     * 
+     * @param checkRequest 验单请求
+     * @return 报价请求
+     */
+    private XSupplierPriceRequest convertCheckRequestToPriceRequest(XSupplierCheckRequest checkRequest) {
+        XSupplierPriceRequest priceRequest = new XSupplierPriceRequest();
+        
+        // 复制基础字段
+        priceRequest.setSupplierType(checkRequest.getSupplierType());
+        priceRequest.setHotelId(checkRequest.getHotelId());
+        priceRequest.setCheckInDate(checkRequest.getCheckInDate());
+        priceRequest.setCheckOutDate(checkRequest.getCheckOutDate());
+        priceRequest.setCurrency(checkRequest.getCurrency());
+        priceRequest.setOccupancy(checkRequest.getOccupancy());
+        priceRequest.setRoomNum(checkRequest.getRoomNum());
+        
+        // 如果有其他特定字段需要转换，可以在这里添加
+        
+        return priceRequest;
+    }
+    
     // ================================== 订单类接口入口 ==================================
 
 

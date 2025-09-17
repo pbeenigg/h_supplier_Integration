@@ -134,7 +134,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
             ps.add(cb.equal(root.get("supplierId"), supplierId));
             ps.add(cb.equal(root.get("supplierCode"), supplierCode));
             if (cityCode != null && !cityCode.isEmpty()) {
-                ps.add(cb.like(root.get("cityCode"), "%" + cityCode + "%"));
+                ps.add(cb.equal(root.get("cityCode"), cityCode));
             }
             if (countryCode != null && !countryCode.isEmpty()) {
                 ps.add(cb.equal(root.get("countryCode"), countryCode));

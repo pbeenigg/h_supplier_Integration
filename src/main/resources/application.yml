@@ -6,7 +6,6 @@ server:
 spring:
   application:
     name: ${SERVER_NAME:heytrip-supplier-integration}
-
   # 数据源配置
   datasource:
     url: ${DB_URL:jdbc:mysql://127.0.0.1:3306/supplier_pax?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai}
@@ -41,6 +40,7 @@ spring:
     type: caffeine
     caffeine:
       spec: maximumSize=1000,expireAfterWrite=30m
+
   # JSON配置
   jackson:
     date-format: yyyy-MM-dd HH:mm:ss
@@ -87,6 +87,8 @@ management:
     health:
       show-details: always
 
+
+
 # 自定义配置
 app:
   supplier:
@@ -102,9 +104,10 @@ app:
     key: ${ENCRYPTION_KEY:427ae41e4649b934ca495991b7852b855}
   api:
     rate-limit:
-      requests-per-minute: 1000
+      requests-per-minute: 1000 # 每分钟请求数限制
+    timeout: 30000 # API请求超时时间（毫秒）
   security:
-    permit-all-patterns:
+    permit-all-patterns: # 无需认证的路径模式
       - /actuator/health
       - /actuator/info
       - /monitor/**
@@ -113,7 +116,7 @@ app:
       - /v1/api-docs/**
       - /swagger-ui.html
       #- /suppliers/**
-    authenticated-patterns:
+    authenticated-patterns: # 需要认证的路径模式
       - /pax/**
       - /common/**
       - /config/**
