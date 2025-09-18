@@ -2,11 +2,13 @@ package com.heytrip.hotel.supplier.controller;
 
 import com.heytrip.common.apiservice.ISupplierApiService;
 import com.heytrip.common.response.base.XHotel;
+import com.heytrip.common.response.base.XRoom;
 import com.heytrip.common.response.other.XCityResponse;
 import com.heytrip.common.response.other.XCountryResponse;
 import com.heytrip.common.response.other.XHotelIncrement;
 import com.heytrip.common.response.other.XRoomIncrement;
 import com.heytrip.common.result.Result;
+import com.heytrip.hotel.supplier.adapter.service.SupplierApiService;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,6 +37,9 @@ public class StaticDataController {
 
     @Resource
     private ISupplierApiService supplierApiService;
+    
+    @Resource
+    private SupplierApiService localSupplierApiService;
 
     /**
      * 获取国家信息 (国际供应商要实现)

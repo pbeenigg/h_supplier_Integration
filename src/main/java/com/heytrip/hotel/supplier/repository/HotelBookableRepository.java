@@ -1,6 +1,8 @@
 package com.heytrip.hotel.supplier.repository;
 
 import com.heytrip.hotel.supplier.entity.HotelBookable;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
@@ -67,4 +69,21 @@ public interface HotelBookableRepository extends JpaRepository<HotelBookable, Lo
     @Modifying
     @Query("DELETE FROM HotelBookable h WHERE h.hotelId IN :hotelIds")
     int deleteByHotelIdIn(@Param("hotelIds") List<Long> hotelIds);
+    
+    /**
+     * 分页查询可预定酒店的酒店代码列表
+     * 
+     * @param supplierCode 供应商代码
+     * @param isBookable 是否可预定
+     * @param pageable 分页参数
+     * @return 酒店代码分页结果
+     */
+    @Query("SELECT h.hotelCode FROM HotelBookable h WHERE h.supplierCode = :supplierCode AND h.isBookable = :isBookable ORDER BY h.createdAt DESC")
+    Page<String> findHotelCodesBySupplierCodeAndIsBookable(
+        @Param("supplierCode") String supplierCode, 
+        @Param("isBookable") Boolean isBookable, 
+        Pageable pageable
+    );
+    
+
 }

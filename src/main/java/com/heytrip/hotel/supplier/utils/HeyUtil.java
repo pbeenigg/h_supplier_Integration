@@ -1,5 +1,6 @@
 package com.heytrip.hotel.supplier.utils;
 
+import cn.hutool.core.util.StrUtil;
 import com.heytrip.common.enums.XEnumCurrency;
 import com.heytrip.hotel.supplier.dto.qtech.req.QTechSearchRequest;
 import org.slf4j.Logger;
@@ -35,7 +36,7 @@ public class HeyUtil {
 
             // 入住人信息 2-5-3代表2成人2个儿童（1个5岁，1个3岁） 多间房下滑线_分割
             // 例：2-5_1-3_2-4-6 代表三间房，第一间 2成人1儿童5岁， 第二间 1成人1儿童3岁， 第三间 2成人2儿童4岁和6岁
-            if (HeyUtil.notBlank(occupancy)) {
+            if (StrUtil.isNotBlank(occupancy)) {
                 String[] roomStrs = occupancy.split("_");
                 for (String r : roomStrs) {
                     if (r == null || r.isEmpty()) continue;
@@ -68,7 +69,7 @@ public class HeyUtil {
             }
 
             // 为空默认2 成人
-            if (HeyUtil.isBlank(occupancy)) {
+            if (StrUtil.isBlank(occupancy)) {
                 QTechSearchRequest.RoomDetail d = new QTechSearchRequest.RoomDetail();
                 d.setNumberOfAdults(2);
                 result.add(d);
@@ -141,35 +142,6 @@ public class HeyUtil {
         return code;
     }
 
-    /**
-     * 字符串非空检查
-     *
-     * @param s
-     * @return
-     */
-    public static boolean notBlank(String s) {
-        return s != null && !s.trim().isEmpty();
-    }
-
-    /**
-     * 字符串空检查
-     *
-     * @param s
-     * @return
-     */
-    public static boolean isBlank(String s) {
-        return s == null || s.trim().isEmpty();
-    }
-
-    /**
-     * 字符串安全处理，null转为空字符串
-     *
-     * @param s
-     * @return
-     */
-    public static String safe(String s) {
-        return s == null ? "" : s;
-    }
 
     /**
      * 获取指定日期之后的下一个工作日（周一到周五）

@@ -7,8 +7,11 @@ import com.heytrip.common.response.other.XCityResponse;
 import com.heytrip.common.response.other.XCountryResponse;
 import com.heytrip.hotel.supplier.dto.basic.XHotelGiata;
 import com.heytrip.hotel.supplier.dto.basic.XNationality;
+import com.heytrip.hotel.supplier.entity.Hotel;
+import com.heytrip.hotel.supplier.entity.Room;
 import com.heytrip.hotel.supplier.entity.SyncLog;
 import org.springframework.data.domain.Page;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -66,13 +69,67 @@ public interface StaticDataQueryService {
     // ================= 单条查询（ByCode） =================
     Optional<XHotel> getHotelByHotelCode(Long supplierId, String supplierCode, String hotelCode);
 
-    Optional<XRoom> getRoomByRoomCode(Long supplierId, String supplierCode, String hotelCode, String roomCode);
+    Optional<XRoom> getRoomByRoomCode(Long supplierId, String supplierCode,String roomCode);
 
-    Optional<XRatePlan> getRatePlanByRatePlanCode(Long supplierId, String supplierCode, String hotelCode, String roomCode, String ratePlanCode);
+    Optional<XRatePlan> getRatePlanByRatePlanCode(Long supplierId, String supplierCode,String ratePlanCode);
 
     Optional<XNationality> getNationalityByNationalityCode(Long supplierId, String supplierCode, String nationalityCode);
 
     Optional<XCountryResponse> getCountryByCountryCode(Long supplierId, String supplierCode, String countryCode);
 
     Optional<XCityResponse> getCityByCityCode(Long supplierId, String supplierCode, String cityCode);
+
+    // ================= 增量查询（基于自增ID） =================
+    
+    /**
+     * 酒店基础信息增量查询
+     * 基于自增ID的增量查询，查询ID大于指定maxId的酒店记录
+     * 
+     * @param supplierId 供应商ID
+     * @param supplierCode 供应商代码
+     * @param maxId 上次请求的最大增量编号（酒店ID，传0表示从头开始）
+     * @param pageSize 每页大小（最大100）
+     * @return 分页的酒店增量数据
+     */
+    Page<Hotel> getIncrementalHotels(Long supplierId, String supplierCode, Long maxId, int pageSize);
+    
+    /**
+     * 酒店基础信息增量查询（带时间过滤）
+     * 基于自增ID和更新时间的增量查询
+     * 
+     * @param supplierId 供应商ID
+     * @param supplierCode 供应商代码
+     * @param maxId 上次请求的最大增量编号（酒店ID，传0表示从头开始）
+     * @param minTime 最小更新时间
+     * @param pageSize 每页大小（最大100）
+     * @return 分页的酒店增量数据
+     */
+    Page<Hotel> getIncrementalHotelsByTime(Long supplierId, String supplierCode, Long maxId, LocalDateTime minTime, int pageSize);
+    
+    /**
+     * 房型基础信息增量查询
+     * 基于自增ID的增量查询，查询ID大于指定maxId的房型记录
+     * 
+     * @param supplierId 供应商ID
+     * @param supplierCode 供应商代码
+     * @param maxId 上次请求的最大增量编号（房型ID，传0表示从头开始）
+     * @param pageSize 每页大小（最大100）
+     * @return 分页的房型增量数据
+     */
+    Page<Room> getIncrementalRooms(Long supplierId, String supplierCode, Long maxId, int pageSize);
+    
+    /**
+     * 房型基础信息增量查询（带时间过滤）
+     * 基于自增ID和更新时间的增量查询
+     * 
+     * @param supplierId 供应商ID
+     * @param supplierCode 供应商代码
+     * @param maxId 上次请求的最大增量编号（房型ID，传0表示从头开始）
+     * @param minTime 最小更新时间
+     * @param pageSize 每页大小（最大100）
+     * @return 分页的房型增量数据
+     */
+    Page<Room> getIncrementalRoomsByTime(Long supplierId, String supplierCode, Long maxId, LocalDateTime minTime, int pageSize);
+    
+
 }

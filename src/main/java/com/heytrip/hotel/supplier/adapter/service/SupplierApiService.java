@@ -5,21 +5,32 @@ import com.heytrip.common.request.*;
 import com.heytrip.common.response.base.XHotel;
 import com.heytrip.common.response.base.XRoom;
 import com.heytrip.common.response.other.*;
+import com.heytrip.common.result.PageDto;
 import com.heytrip.common.result.Result;
 import com.heytrip.hotel.supplier.adapter.SupplierAdapterManager;
+import com.heytrip.hotel.supplier.entity.Hotel;
+import com.heytrip.hotel.supplier.entity.Room;
+import com.heytrip.hotel.supplier.repository.HotelBookableRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import jakarta.persistence.criteria.Predicate;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Collections;
-import java.util.Optional;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.*;
+import java.util.stream.Collectors;
+import com.heytrip.hotel.supplier.entity.HotelBookable;
 
 /**
  * HeyTrip 内部供应商对接标准接口实现
- *
+ * <p>
  * ### 静态数据类接口
  * - getCities
  * - getCountries
@@ -29,7 +40,7 @@ import java.util.Optional;
  * - getHotelIncrement
  * - getRoomIncrement
  * - getHotelRoomOrigContent
- *
+ * <p>
  * ### 报价类接口
  * - getPrice
  * - getPrices
@@ -38,7 +49,7 @@ import java.util.Optional;
  * - getPriceOrig
  * - getPricesOrg
  * - orderCheckOrg
- *
+ * <p>
  * ### 订单类接口
  * - createOrder
  * - cancelOrder
@@ -58,7 +69,11 @@ public class SupplierApiService implements ISupplierApiService {
     @Autowired
     private StaticDataQueryService staticDataQueryService;
 
+    @Autowired
+    private HotelBookableRepository hotelBookableRepository;
+
     // ================================== 静态数据类查询接口入口 ==================================
+
     /**
      * 获取城市信息 (国际供应商要实现)
      *
@@ -189,42 +204,227 @@ public class SupplierApiService implements ISupplierApiService {
      */
     @Override
     public Result<List<String>> getBookableHotelIds(String supplierType, int pageIndex, int pageSize, String ext) {
-        // 第1阶段占位返回，后续与可售标识同步流程打通
         logger.info("[getBookableHotelIds] supplierType={}, pageIndex={}, pageSize={}, ext={}", supplierType, pageIndex, pageSize, ext);
-        return Result.ok(Collections.emptyList());
+
+        try {
+            var adapter = adapterManager.getAdapterByName(supplierType);
+            if (adapter == null) {
+                logger.warn("[getBookableHotelIds] 未找到供应商适配器, supplierType={}", supplierType);
+                return Result.ok(Collections.emptyList());
+            }
+
+            Long supplierId = adapter.getSupplierId();
+            String supplierCode = adapter.getSupplierName();
+
+            // 构建分页参数，限制pageSize最大100
+            Pageable pageable = PageRequest.of(Math.max(pageIndex, 0), Math.min(Math.max(pageSize, 1), 100));
+
+
+
+            // 构建Specification查询条件（必须条件：supplierId + supplierCode + isBookable=true）
+            Specification<HotelBookable> spec = (root, query, criteriaBuilder) -> {
+                List<Predicate> predicates = new ArrayList<>();
+                // 必须条件：supplierId
+                predicates.add(criteriaBuilder.equal(root.get("supplierId"), supplierId));
+                // 必须条件：supplierCode
+                predicates.add(criteriaBuilder.equal(root.get("supplierCode"), supplierCode));
+                // 必须条件：isBookable = true
+                predicates.add(criteriaBuilder.equal(root.get("isBookable"), true));
+                
+                // 按创建时间倒序排列
+                query.orderBy(criteriaBuilder.desc(root.get("createdAt")));
+                
+                return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
+            };
+
+            // 执行分页查询
+            Page<HotelBookable> pageData = hotelBookableRepository.findAll(spec, pageable);
+            
+            // 提取酒店代码列表
+            List<String> hotelCodes = pageData.getContent().stream()
+                    .map(HotelBookable::getHotelCode)
+                    .collect(Collectors.toList());
+
+            logger.info("[getBookableHotelIds] 查询完成，supplierType={}, supplierId={}, supplierCode={}, pageIndex={}, pageSize={}, totalElements={}, currentPageSize={}",
+                    supplierType, supplierId, supplierCode, pageIndex, pageSize, pageData.getTotalElements(), hotelCodes.size());
+
+            // 构建分页信息
+            PageDto resultPage = new PageDto(
+                pageData.getNumber() + 1, // 当前页(从1开始)
+                pageData.getSize(), // 每页行数
+                (int) pageData.getTotalElements(), // 总记录数
+                pageData.getTotalPages() // 总页数
+            );
+
+            return Result.ok(hotelCodes, resultPage);
+
+        } catch (Exception e) {
+            logger.error("[getBookableHotelIds] 查询可售酒店列表失败，supplierType={}, pageIndex={}, pageSize={}",
+                    supplierType, pageIndex, pageSize, e);
+            return Result.ok(Collections.emptyList());
+        }
     }
 
 
+
+
+    // ================================== 增量查询接口入口 ==================================
+
     /**
-     * 获取酒店增量信息
-     *
+     * 获取酒店基础信息关键信息变化增量（例如名称，坐标，地址，电话，城市，国家）
+     * 基于自增ID的增量查询，查询ID大于指定maxId的记录
      * @param supplierType 供应商类型
-     * @param maxId        最大ID
+     * @param maxId        上次请求的最大增量编
      * @param query        查询参数
      * @return 酒店增量信息
      */
     @Override
     public Result<XHotelIncrement> getHotelIncrement(String supplierType, long maxId, String query) {
-        // 第1阶段占位返回，后续结合同步日志/增量表完善
-        logger.info("[getHotelIncrement] supplierType={}, maxId={}, query={}", supplierType, maxId, query);
-        return Result.ok(null);
+        logger.info("[getHotelIncrement] 开始执行酒店增量查询，供应商类型：{}，最大ID：{}，查询参数：{}", 
+                   supplierType, maxId, query);
+        
+        try {
+            // 获取供应商适配器
+            var adapter = adapterManager.getAdapterByName(supplierType);
+            if (adapter == null) {
+                logger.warn("[getHotelIncrement] 未找到供应商适配器, supplierType={}", supplierType);
+                return Result.fail("未找到供应商适配器");
+            }
+
+            Long supplierId = adapter.getSupplierId();
+            String supplierCode = adapter.getSupplierName(); // 按约定：supplierName 等于 supplierType
+            
+            // 默认每页大小为1000，可以通过query参数调整
+            int pageSize = 1000;
+            if (query != null && query.contains("pageSize=")) {
+                try {
+                    String pageSizeStr = query.substring(query.indexOf("pageSize=") + 9);
+                    if (pageSizeStr.contains("&")) {
+                        pageSizeStr = pageSizeStr.substring(0, pageSizeStr.indexOf("&"));
+                    }
+                    pageSize = Math.min(Integer.parseInt(pageSizeStr), 1000);
+                } catch (Exception e) {
+                    logger.warn("[getHotelIncrement] 解析pageSize参数失败，使用默认值50");
+                }
+            }
+            
+            // 调用增量ID查询服务
+            Page<Hotel> pageData = staticDataQueryService.getIncrementalHotels(supplierId, supplierCode, maxId, pageSize);
+            // 提取房型代码并转换为XRoomIncrementDetail对象
+            List<XHotelIncrement.XHotelIncrementDetail> hotelDetails = pageData.getContent().stream()
+                    .map(hotel -> {
+                        XHotelIncrement.XHotelIncrementDetail detail = new XHotelIncrement.XHotelIncrementDetail();
+                        detail.setHotelId(hotel.getHotelCodeMd5());
+                        return detail;
+                    })
+                    .collect(Collectors.toList());
+
+            // 计算本次查询的最大ID
+            Long currentMaxId = pageData.getContent().stream()
+                    .mapToLong(Hotel::getId)
+                    .max()
+                    .orElse(maxId);
+
+            // 构建XHotelIncrement响应对象
+            XHotelIncrement increment = new XHotelIncrement();
+            increment.setMaxId(currentMaxId);
+            increment.setDetails(hotelDetails);
+
+            // 构建分页信息
+            PageDto resultPage = new PageDto(
+                    pageData.getNumber() + 1, // 当前页(从1开始)
+                    pageData.getSize(), // 每页行数
+                    (int) pageData.getTotalElements(), // 总记录数
+                    pageData.getTotalPages() // 总页数
+            );
+            
+            return Result.ok(increment,resultPage);
+            
+        } catch (Exception e) {
+            logger.error("[getHotelIncrement] 酒店增量查询异常", e);
+            return Result.fail("酒店增量查询失败：" + e.getMessage());
+        }
     }
 
 
     /**
-     * 获取房型增量信息
-     *
+     * 获取房型基础信息关键信息变化增量（例如名称，床型，入住人数，面积，窗型，景观）
+     * 基于自增ID的增量查询，查询ID大于指定maxId的记录
      * @param supplierType 供应商类型
-     * @param maxId        最大ID
+     * @param maxId        上次请求的最大增量编号
      * @param query        查询参数
      * @return 房型增量信息
      */
     @Override
     public Result<XRoomIncrement> getRoomIncrement(String supplierType, long maxId, String query) {
-        // 第1阶段占位返回，后续结合同步日志/增量表完善
-        logger.info("[getRoomIncrement] supplierType={}, maxId={}, query={}", supplierType, maxId, query);
-        return Result.ok(null);
+        logger.info("[getRoomIncrement] 开始执行房型增量查询，供应商类型：{}，最大ID：{}，查询参数：{}", 
+                   supplierType, maxId, query);
+        
+        try {
+            // 获取供应商适配器
+            var adapter = adapterManager.getAdapterByName(supplierType);
+            if (adapter == null) {
+                logger.warn("[getRoomIncrement] 未找到供应商适配器, supplierType={}", supplierType);
+                return Result.fail("未找到供应商适配器");
+            }
+
+            Long supplierId = adapter.getSupplierId();
+            String supplierCode = adapter.getSupplierName(); // 按约定：supplierName 等于 supplierType
+            
+            // 默认每页大小为50，可以通过query参数调整
+            int pageSize = 50;
+            if (query != null && query.contains("pageSize=")) {
+                try {
+                    String pageSizeStr = query.substring(query.indexOf("pageSize=") + 9);
+                    if (pageSizeStr.contains("&")) {
+                        pageSizeStr = pageSizeStr.substring(0, pageSizeStr.indexOf("&"));
+                    }
+                    pageSize = Math.min(Integer.parseInt(pageSizeStr), 100);
+                } catch (Exception e) {
+                    logger.warn("[getRoomIncrement] 解析pageSize参数失败，使用默认值50");
+                }
+            }
+            
+            // 调用增量ID查询服务
+            Page<Room> pageData = staticDataQueryService.getIncrementalRooms(supplierId, supplierCode, maxId, pageSize);
+            // 提取房型代码并转换为XRoomIncrementDetail对象
+            List<XRoomIncrement.XRoomIncrementDetail> roomDetails = pageData.getContent().stream()
+                    .map(room -> {
+                        XRoomIncrement.XRoomIncrementDetail detail = new XRoomIncrement.XRoomIncrementDetail();
+                        detail.setHotelId(room.getRoomCodeMd5());
+                        return detail;
+                    })
+                    .collect(Collectors.toList());
+
+            // 计算本次查询的最大ID
+            Long currentMaxId = pageData.getContent().stream()
+                    .mapToLong(Room::getId)
+                    .max()
+                    .orElse(maxId);
+
+            // 构建XRoomIncrement响应对象
+            XRoomIncrement increment = new XRoomIncrement();
+            increment.setMaxId(currentMaxId);
+            increment.setDetails(roomDetails);
+
+            // 构建分页信息
+            PageDto resultPage = new PageDto(
+                    pageData.getNumber() + 1, // 当前页(从1开始)
+                    pageData.getSize(), // 每页行数
+                    (int) pageData.getTotalElements(), // 总记录数
+                    pageData.getTotalPages() // 总页数
+            );
+            
+            return Result.ok(increment,resultPage);
+            
+        } catch (Exception e) {
+            logger.error("[getRoomIncrement] 房型增量查询异常", e);
+            return Result.fail("房型增量查询失败：" + e.getMessage());
+        }
     }
+
+
+
 
 
     /**
@@ -234,22 +434,21 @@ public class SupplierApiService implements ISupplierApiService {
      * @param hotelId      酒店ID
      * @param language     语言
      * @param ext          扩展参数
-     * @return             原文数据
+     * @return 原文数据
      */
     @Override
     public Object getHotelRoomOrigContent(String supplierType, String hotelId, String language, String ext) {
-        // 第1阶段占位返回，后续在静态数据同步中维护原文快照字段
         logger.info("[getHotelRoomOrigContent] supplierType={}, hotelId={}, language={}, ext={}", supplierType, hotelId, language, ext);
-        return Collections.emptyMap();
+        return adapterManager.getHotelRoomOrigContent(supplierType, hotelId, language, ext);
     }
+
+
+
     // ================================== 静态数据查询接口 ==================================
 
 
-
-
-
-
     // ================================== 报价类接口入口 ==================================
+
     /**
      * 获取报价(单酒店)
      *
@@ -275,7 +474,7 @@ public class SupplierApiService implements ISupplierApiService {
         logger.info("[getPrices] input={}", input);
         // 多酒店报价委派（后续在适配器补齐具体实现）；暂返回单酒店结构的兼容实现
         Result<List<XRoom>> single = getPrice(input);
-        Map<String, List<XRoom>> map = new java.util.HashMap<>();
+        Map<String, List<XRoom>> map = new HashMap<>();
         if (single != null && single.getData() != null) {
             map.put(input.getHotelIds(), single.getData());
         }
@@ -287,11 +486,11 @@ public class SupplierApiService implements ISupplierApiService {
      * 获取价格增量信息
      *
      * @param supplierType      供应商类型
-     * @param maxId             最大ID
+     * @param maxId             上次请求的最大增量编号
      * @param minTime           最小更新时间
      * @param includeChangeDate 是否包含变更日期
      * @param query             查询参数
-     * @return                  价格增量信息
+     * @return 价格增量信息
      */
     @Override
     public Result<XPriceCacheIncrementResponse> GetPriceCacheIncrement(String supplierType, long maxId, Long minTime, Boolean includeChangeDate, String query) {
@@ -312,8 +511,6 @@ public class SupplierApiService implements ISupplierApiService {
         // 占位：可在适配器内结合取消政策或库存校验实现，当前返回空
         return Result.ok(null);
     }
-
-
 
 
     /**
@@ -373,9 +570,8 @@ public class SupplierApiService implements ISupplierApiService {
     // ================================== 报价类接口 ==================================
 
 
-
-
     // ================================== 订单类接口入口 ==================================
+
     /**
      * 创建订单
      *
@@ -432,18 +628,18 @@ public class SupplierApiService implements ISupplierApiService {
         // 占位实现
         return Result.ok(null);
     }
-    
+
     // ================================== 工具方法 ==================================
-    
+
     /**
      * 将 XSupplierCheckRequest 转换为 XSupplierPriceRequest
-     * 
+     *
      * @param checkRequest 验单请求
      * @return 报价请求
      */
     private XSupplierPriceRequest convertCheckRequestToPriceRequest(XSupplierCheckRequest checkRequest) {
         XSupplierPriceRequest priceRequest = new XSupplierPriceRequest();
-        
+
         // 复制基础字段
         priceRequest.setSupplierType(checkRequest.getSupplierType());
         priceRequest.setHotelId(checkRequest.getHotelId());
@@ -452,12 +648,13 @@ public class SupplierApiService implements ISupplierApiService {
         priceRequest.setCurrency(checkRequest.getCurrency());
         priceRequest.setOccupancy(checkRequest.getOccupancy());
         priceRequest.setRoomNum(checkRequest.getRoomNum());
-        
+
         // 如果有其他特定字段需要转换，可以在这里添加
-        
+
         return priceRequest;
     }
-    
+
+
     // ================================== 订单类接口入口 ==================================
 
 

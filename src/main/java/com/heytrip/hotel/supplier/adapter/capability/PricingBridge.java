@@ -29,7 +29,7 @@ public interface PricingBridge {
      * @return 酒店ID -> 房型价格列表的映射
      */
     default Map<String, List<XRoom>> getPrices(XSupplierPriceRequest input) {
-        return Collections.emptyMap();
+        throw new UnsupportedOperationException("[PricingBridge.getPrices] 多酒店报价,方法未实现");
     }
     
     // ================= 原始报价接口 =================
@@ -40,7 +40,7 @@ public interface PricingBridge {
      * @return 供应商原始报价数据（JSON字符串或对象）
      */
     default Object getPriceOrig(XSupplierPriceRequest input) {
-        throw new UnsupportedOperationException("getPriceOrig 方法未实现");
+        throw new UnsupportedOperationException("[PricingBridge.getPriceOrig] 获取原始单酒店报价 ,方法未实现");
     }
     
     /**
@@ -49,7 +49,7 @@ public interface PricingBridge {
      * @return 供应商原始报价数据（JSON字符串或对象）
      */
     default Object getPricesOrg(XSupplierPriceRequest input) {
-        throw new UnsupportedOperationException("getPricesOrg 方法未实现");
+        throw new UnsupportedOperationException("[PricingBridge.getPricesOrg] 获取原始多酒店报价,方法未实现");
     }
     
 

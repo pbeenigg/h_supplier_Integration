@@ -107,6 +107,16 @@ public class SupplierAdapterManager {
 
     // ==============================================  报价与订单委派 ==============================================
 
+
+    public Object getHotelRoomOrigContent(String supplierType, String hotelId, String language, String ext){
+
+
+        return null;
+    }
+
+
+
+
     /**
      * 单酒店报价
      */

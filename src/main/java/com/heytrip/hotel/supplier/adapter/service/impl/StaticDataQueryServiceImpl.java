@@ -5,6 +5,7 @@ import com.heytrip.common.response.base.XRatePlan;
 import com.heytrip.common.response.base.XRoom;
 import com.heytrip.common.response.other.XCityResponse;
 import com.heytrip.common.response.other.XCountryResponse;
+import com.heytrip.common.response.other.XRoomIncrement;
 import com.heytrip.hotel.supplier.adapter.service.StaticDataQueryService;
 import com.heytrip.hotel.supplier.constant.StaticCacheNames;
 import com.heytrip.hotel.supplier.dto.basic.XHotelGiata;
@@ -24,6 +25,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -318,7 +320,9 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
             return cb.and(ps.toArray(new Predicate[0]));
         };
         Page<RatePlan> pageData = ratePlanRepo.findAll(spec, pageable);
-        return new PageImpl<>(Collections.emptyList(), pageable, pageData.getTotalElements());
+        // 转换为XRatePlan列表
+        List<XRatePlan> content = pageData.getContent().stream().map(this::toXRatePlan).collect(Collectors.toList());
+        return new PageImpl<>(content, pageable, pageData.getTotalElements());
     }
 
 
@@ -375,7 +379,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
 
             return cb.and(ps.toArray(new Predicate[0]));
         };
-        return countryRepo.findAll(spec, PageRequest.of(0, 1000)).getContent().stream().map(this::toXCountry).collect(Collectors.toList());
+        return countryRepo.findAll(spec, PageRequest.of(0, 100)).getContent().stream().map(this::toXCountry).collect(Collectors.toList());
     }
 
     @Override
@@ -394,7 +398,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
 
             return cb.and(ps.toArray(new Predicate[0]));
         };
-        return cityRepo.findAll(spec, PageRequest.of(0, 1000)).getContent().stream().map(this::toXCity).collect(Collectors.toList());
+        return cityRepo.findAll(spec, PageRequest.of(0, 100)).getContent().stream().map(this::toXCity).collect(Collectors.toList());
     }
 
     @Override
@@ -416,7 +420,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
 
             return cb.and(ps.toArray(new Predicate[0]));
         };
-        return hotelRepo.findAll(spec, PageRequest.of(0, 1000)).getContent().stream().map(this::toXHotel).collect(Collectors.toList());
+        return hotelRepo.findAll(spec, PageRequest.of(0, 100)).getContent().stream().map(this::toXHotel).collect(Collectors.toList());
     }
 
     @Override
@@ -435,8 +439,12 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
 
             return cb.and(ps.toArray(new Predicate[0]));
         };
-        // 暂返回空列表（DTO 字段需确认）
-        return Collections.emptyList();
+        // 执行查询并转换为XRoom列表
+        return roomRepo.findAll(spec, PageRequest.of(0, 100))
+                .getContent()
+                .stream()
+                .map(this::toXRoom)
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -458,8 +466,12 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
 
             return cb.and(ps.toArray(new Predicate[0]));
         };
-        // 暂返回空列表（DTO 字段需确认）
-        return Collections.emptyList();
+        // 执行查询并转换为XRatePlan列表
+        return ratePlanRepo.findAll(spec, PageRequest.of(0, 100))
+                .getContent()
+                .stream()
+                .map(this::toXRatePlan)
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -478,7 +490,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
             }
             return cb.and(ps.toArray(new Predicate[0]));
         };
-        return nationalityRepo.findAll(spec, PageRequest.of(0, 1000))
+        return nationalityRepo.findAll(spec, PageRequest.of(0, 100))
                 .getContent()
                 .stream()
                 .map(this::toXNationality)
@@ -500,7 +512,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
             }
             return cb.and(ps.toArray(new Predicate[0]));
         };
-        return giataRepo.findAll(spec, PageRequest.of(0, 1000))
+        return giataRepo.findAll(spec, PageRequest.of(0, 100))
                 .getContent()
                 .stream()
                 .map(this::toXGiata)
@@ -522,15 +534,15 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
     }
 
     @Override
-    @Cacheable(cacheNames = StaticCacheNames.ROOM, key = "'ONE:'+ #supplierId + ':' + #supplierCode + ':' + #hotelCode + ':' + #roomCode")
-    public Optional<XRoom> getRoomByRoomCode(Long supplierId, String supplierCode, String hotelCode, String roomCode) {
+    @Cacheable(cacheNames = StaticCacheNames.ROOM, key = "'ONE:'+ #supplierId + ':' + #supplierCode + ':' +  #roomCode")
+    public Optional<XRoom> getRoomByRoomCode(Long supplierId, String supplierCode,String roomCode) {
         // DTO 映射未完成，先返回空
         return Optional.empty();
     }
 
     @Override
-    @Cacheable(cacheNames = StaticCacheNames.RATE_PLAN, key = "'ONE:'+ #supplierId + ':' + #supplierCode + ':' + #hotelCode + ':' + #roomCode + ':' + #ratePlanCode")
-    public Optional<XRatePlan> getRatePlanByRatePlanCode(Long supplierId, String supplierCode, String hotelCode, String roomCode, String ratePlanCode) {
+    @Cacheable(cacheNames = StaticCacheNames.RATE_PLAN, key = "'ONE:'+ #supplierId + ':' + #supplierCode + ':' + #ratePlanCode")
+    public Optional<XRatePlan> getRatePlanByRatePlanCode(Long supplierId, String supplierCode,  String ratePlanCode) {
         // DTO 映射未完成，先返回空
         return Optional.empty();
     }
@@ -572,6 +584,11 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
     // ================== 映射方法 ==================
 
 
+    /**
+     * 国家实体转XCountry DTO
+     * @param e
+     * @return
+     */
     private XCountryResponse toXCountry(Country e) {
         XCountryResponse x = new XCountryResponse();
         x.setId(e.getCountryCode());
@@ -579,6 +596,11 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
         return x;
     }
 
+    /**
+     * 城市实体转XCity DTO
+     * @param e
+     * @return
+     */
     private XCityResponse toXCity(City e) {
         XCityResponse x = new XCityResponse();
         x.setNameEn(e.getName());
@@ -587,6 +609,12 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
         return x;
     }
 
+
+    /**
+     * 国籍实体转XNationality DTO
+     * @param e
+     * @return
+     */
     private XNationality toXNationality(Nationality e) {
         XNationality x = new XNationality();
         x.setNationalityCode(e.getNationalityCode());
@@ -595,6 +623,12 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
         return x;
     }
 
+    /**
+     * Giata实体转XHotelGiata DTO
+     *
+     * @param e Giata实体
+     * @return XHotelGiata DTO
+     */
     private XHotelGiata toXGiata(HotelGiata e) {
         XHotelGiata x = new XHotelGiata();
         x.setHotelCode(e.getHotelCode());
@@ -613,6 +647,13 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
     }
 
 
+
+    /**
+     * Hotel实体转XHotel DTO
+     *
+     * @param e Hotel实体
+     * @return XHotel DTO
+     */
     private XHotel toXHotel(Hotel e) {
         XHotel x = new XHotel();
         x.setHotelId(e.getHotelCode());
@@ -655,4 +696,195 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
         x.setExt(e.getExt());
         return x;
     }
+
+    /**
+     * Room实体转XRoom DTO
+     * 
+     * @param room Room实体
+     * @return XRoom DTO
+     */
+    private XRoom toXRoom(Room room) {
+        XRoom xRoom = new XRoom();
+        
+        // 基础信息
+        xRoom.setRoomId(room.getRoomCode());
+        xRoom.setRoomName(room.getRoomName());
+        xRoom.setRoomNameEn(room.getRoomNameEn());
+        xRoom.setDescription(room.getDescription());
+        
+        // 床型信息
+        xRoom.setBedTypeDesc(room.getBedTypeDesc());
+        xRoom.setBedTypeDescEn(room.getBedTypeDescEn());
+        xRoom.setBedWidth(room.getBedWidth());
+        
+        // 房型属性
+        xRoom.setMaxOccupancy(room.getMaxOccupancy());
+        xRoom.setFloor(room.getFloor());
+        xRoom.setArea(room.getArea());
+        xRoom.setViews(room.getViews());
+        
+
+        
+        // 价格信息
+        xRoom.setMinPrice(room.getMinPrice());
+        xRoom.setMinBasePrice(room.getMinBasePrice());
+        xRoom.setExt(room.getExt());
+        
+        return xRoom;
+    }
+
+    /**
+     * RatePlan实体转XRatePlan DTO
+     * 
+     * @param ratePlan RatePlan实体
+     * @return XRatePlan DTO
+     */
+    private XRatePlan toXRatePlan(RatePlan ratePlan) {
+        XRatePlan xRatePlan = new XRatePlan();
+        
+        // 基础信息
+        xRatePlan.setRatePlanId(ratePlan.getRatePlanCode());
+        xRatePlan.setRatePlanName(ratePlan.getName());
+        xRatePlan.setDescription(ratePlan.getName());
+        
+        // 餐食信息
+
+        // 取消政策（JSON字符串字段暂时设为原始值，需要解析JSON转换为取消规则列表）
+        // TODO: 需要实现JSON字符串到XCancelRule列表的转换
+        
+        // 默认值设置（这些字段在静态数据中通常没有具体值，需要在报价时填充）
+        xRatePlan.setAvailable(0); // 可售数量需要从实时报价获取，默认为0
+        xRatePlan.setCancelable(false); // 是否可取消需要从实时报价获取，默认为false
+        xRatePlan.setInstantConfirm(false); // 是否即时确认需要从实时报价获取，默认为false
+        
+        // 餐食标识（需要根据meal字段解析）
+        if (ratePlan.getMeal() != null) {
+            String meal = ratePlan.getMeal().toLowerCase();
+            xRatePlan.setBreakfast(meal.contains("breakfast") ? 1 : 0);
+            xRatePlan.setLunch(meal.contains("lunch") ? 1 : 0);
+            xRatePlan.setDinner(meal.contains("dinner") ? 1 : 0);
+        } else {
+            xRatePlan.setBreakfast(0);
+            xRatePlan.setLunch(0);
+            xRatePlan.setDinner(0);
+        }
+        
+        return xRatePlan;
+    }
+
+    // ================= 增量查询实现（基于自增ID） =================
+
+    @Override
+    public Page<Hotel> getIncrementalHotels(Long supplierId, String supplierCode, Long maxId, int pageSize) {
+        logger.info("开始执行酒店增量查询，供应商ID：{}，供应商代码：{}，最大ID：{}，页面大小：{}", 
+                   supplierId, supplierCode, maxId, pageSize);
+        
+        try {
+            // 参数校验和规范化
+            Long validMaxId = maxId != null ? Math.max(maxId, 0L) : 0L;
+            int validPageSize = Math.min(Math.max(pageSize, 1), 1000);
+            
+            // 创建分页对象，按ID升序排列确保增量顺序
+            Pageable pageable = PageRequest.of(0, validPageSize);
+            
+            // 执行增量查询
+            Page<Hotel> pageData = hotelRepo.findIncrementalHotels(supplierId, supplierCode, validMaxId, pageable);
+
+            
+            logger.info("酒店增量查询完成，返回{}条记录，总记录数：{}", pageData.getContent().size(), pageData.getTotalElements());
+            
+            return new PageImpl<>(pageData.getContent(), pageable, pageData.getTotalElements());
+            
+        } catch (Exception e) {
+            logger.error("酒店增量查询异常，供应商ID：{}，供应商代码：{}，最大ID：{}", 
+                        supplierId, supplierCode, maxId, e);
+            return new PageImpl<>(Collections.emptyList(), PageRequest.of(0, pageSize), 0);
+        }
+    }
+
+    @Override
+    public Page<Hotel> getIncrementalHotelsByTime(Long supplierId, String supplierCode, Long maxId,
+                                                  LocalDateTime minTime, int pageSize) {
+        logger.info("开始执行酒店增量查询（带时间过滤），供应商ID：{}，供应商代码：{}，最大ID：{}，最小时间：{}，页面大小：{}", 
+                   supplierId, supplierCode, maxId, minTime, pageSize);
+        
+        try {
+            // 参数校验和规范化
+            Long validMaxId = maxId != null ? Math.max(maxId, 0L) : 0L;
+            int validPageSize = Math.min(Math.max(pageSize, 1), 1000);
+            LocalDateTime validMinTime = minTime != null ? minTime : LocalDateTime.now().minusDays(30);
+            
+            // 创建分页对象，按ID升序排列确保增量顺序
+            Pageable pageable = PageRequest.of(0, validPageSize);
+            
+            // 执行增量查询（带时间过滤）
+            Page<Hotel> pageData = hotelRepo.findIncrementalHotelsByTime(supplierId, supplierCode, validMaxId, validMinTime, pageable);
+
+            logger.info("酒店增量查询（带时间过滤）完成，返回{}条记录，总记录数：{}", pageData.getContent().size(), pageData.getTotalElements());
+            
+            return new PageImpl<>(pageData.getContent(), pageable, pageData.getTotalElements());
+            
+        } catch (Exception e) {
+            logger.error("酒店增量查询（带时间过滤）异常，供应商ID：{}，供应商代码：{}，最大ID：{}", 
+                        supplierId, supplierCode, maxId, e);
+            return new PageImpl<>(Collections.emptyList(), PageRequest.of(0, pageSize), 0);
+        }
+    }
+
+    @Override
+    public Page<Room> getIncrementalRooms(Long supplierId, String supplierCode, Long maxId, int pageSize) {
+        logger.info("开始执行房型增量查询，供应商ID：{}，供应商代码：{}，最大ID：{}，页面大小：{}", 
+                   supplierId, supplierCode, maxId, pageSize);
+        
+        try {
+            // 参数校验和规范化
+            Long validMaxId = maxId != null ? Math.max(maxId, 0L) : 0L;
+            int validPageSize = Math.min(Math.max(pageSize, 1), 1000);
+            
+            // 创建分页对象，按ID升序排列确保增量顺序
+            Pageable pageable = PageRequest.of(0, validPageSize);
+            
+            // 执行增量查询
+            Page<Room> pageData = roomRepo.findIncrementalRooms(supplierId, supplierCode, validMaxId, pageable);
+            logger.info("房型增量查询完成，返回{}条记录，总记录数：{}", pageData.getContent().size(), pageData.getTotalElements());
+
+            return new PageImpl<>(pageData.getContent(), pageable, pageData.getTotalElements());
+            
+        } catch (Exception e) {
+            logger.error("房型增量查询异常，供应商ID：{}，供应商代码：{}，最大ID：{}", 
+                        supplierId, supplierCode, maxId, e);
+            return new PageImpl<>(Collections.emptyList(), PageRequest.of(0, pageSize), 0);
+        }
+    }
+
+    @Override
+    public Page<Room> getIncrementalRoomsByTime(Long supplierId, String supplierCode, Long maxId,
+                                                LocalDateTime minTime, int pageSize) {
+        logger.info("开始执行房型增量查询（带时间过滤），供应商ID：{}，供应商代码：{}，最大ID：{}，最小时间：{}，页面大小：{}", 
+                   supplierId, supplierCode, maxId, minTime, pageSize);
+        
+        try {
+            // 参数校验和规范化
+            Long validMaxId = maxId != null ? Math.max(maxId, 0L) : 0L;
+            int validPageSize = Math.min(Math.max(pageSize, 1), 1000);
+            LocalDateTime validMinTime = minTime != null ? minTime : LocalDateTime.now().minusDays(30);
+            
+            // 创建分页对象，按ID升序排列确保增量顺序
+            Pageable pageable = PageRequest.of(0, validPageSize);
+            
+            // 执行增量查询（带时间过滤）
+            Page<Room> pageData = roomRepo.findIncrementalRoomsByTime(supplierId, supplierCode, validMaxId, validMinTime, pageable);
+
+            logger.info("房型增量查询（带时间过滤）完成，返回{}条记录，总记录数：{}", pageData.getContent().size(), pageData.getTotalElements());
+
+            return new PageImpl<>(pageData.getContent(), pageable, pageData.getTotalElements());
+            
+        } catch (Exception e) {
+            logger.error("房型增量查询（带时间过滤）异常，供应商ID：{}，供应商代码：{}，最大ID：{}", 
+                        supplierId, supplierCode, maxId, e);
+            return new PageImpl<>(Collections.emptyList(), PageRequest.of(0, pageSize), 0);
+        }
+    }
+
+
 }
