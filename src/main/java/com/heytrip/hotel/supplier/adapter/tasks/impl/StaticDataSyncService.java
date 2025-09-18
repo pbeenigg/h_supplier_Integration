@@ -121,17 +121,17 @@ public class StaticDataSyncService {
                 log.setErrorCount(stats.error);
                 if (stats.errorMessage != null && !stats.errorMessage.isBlank()) {
                     // 将批量写入阶段的错误信息附加到日志
-                    String existed = log.getErrorMessage();
+                    String existed = log.getMessage();
                     if (existed == null || existed.isBlank()) {
-                        log.setErrorMessage(stats.errorMessage);
+                        log.setMessage(stats.errorMessage);
                     } else {
-                        log.setErrorMessage(existed + " | " + stats.errorMessage);
+                        log.setMessage(existed + " | " + stats.errorMessage);
                     }
                 }
             }
             log.setIsSuccess(true);
         } catch (Exception e) {
-            log.setErrorMessage(e.getMessage());
+            log.setMessage(e.getMessage());
             logger.warn("同步 {} 失败: {}", biz, e.getMessage());
         } finally {
             log.setEndTime(LocalDateTime.now());

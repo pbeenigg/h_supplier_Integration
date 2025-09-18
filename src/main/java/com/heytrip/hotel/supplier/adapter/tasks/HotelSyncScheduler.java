@@ -62,10 +62,10 @@ public class HotelSyncScheduler {
 
 
     /**
-     * 每2天凌晨2点定时同步
+     * 每2天凌晨4点定时同步
      *
      */
-    @Scheduled(cron = "0 0 2 */2 * ?")
+    @Scheduled(cron = "0 0 4 */2 * ?")
     public void SyncTasks() {
         try {
             logger.info("[定时] 开始执行 AsianOverland 静态数据同步");

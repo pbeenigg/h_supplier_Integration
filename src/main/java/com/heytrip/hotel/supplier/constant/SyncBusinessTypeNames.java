@@ -18,8 +18,8 @@ public final class SyncBusinessTypeNames {
     public static final String GIATA = "giata";
 
 
-    // 同步酒店详情数据
-    public static final String HOTELS_DETAIL = "hotelsDetail";
+    // 同步酒店可预定数据（同步酒店基础信息和基础房型）
+    public static final String HOTEL_BOOKABLE = "hotel_bookable";
     // 同步基础房型
     public static final String ROOM = "room";
     // 同步基础价计划

@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -13,4 +14,6 @@ import java.util.Optional;
 @Repository
 public interface HotelRepository extends JpaRepository<Hotel, Long>, JpaSpecificationExecutor<Hotel> {
     Optional<Hotel> findBySupplierIdAndSupplierCodeAndHotelCode(Long supplierId, String supplierCode, String hotelCode);
+    
+    List<Hotel> findBySupplierIdAndSupplierCodeAndHotelCodeIn(Long supplierId, String supplierCode, List<String> hotelCodes);
 }

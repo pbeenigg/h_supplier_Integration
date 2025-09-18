@@ -5,8 +5,20 @@ import cn.hutool.core.collection.ListUtil;
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.stream.StreamUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.crypto.digest.DigestUtil;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
+
+import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toMap;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.heytrip.common.enums.XEnumCurrency;
 import com.heytrip.common.enums.XEnumNoSmoking;
@@ -25,11 +37,13 @@ import com.heytrip.hotel.supplier.dto.qtech.req.QTechSearchRequest;
 import com.heytrip.hotel.supplier.dto.qtech.resp.QTechSearchResponse;
 import com.heytrip.hotel.supplier.entity.*;
 import com.heytrip.hotel.supplier.repository.*;
+
+import java.util.concurrent.CompletableFuture;
 import com.heytrip.hotel.supplier.utils.HeyUtil;
-import java.util.concurrent.ConcurrentHashMap;
 import jakarta.annotation.Resource;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import lombok.Data;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,6 +51,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.DefaultTransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import static com.heytrip.hotel.supplier.constant.SyncBusinessTypeNames.*;
 import static java.util.stream.Collectors.groupingBy;
@@ -59,6 +79,13 @@ import java.util.stream.Collectors;
 @Service
 public class HotelSyncSyncService {
     private static final Logger logger = LoggerFactory.getLogger(HotelSyncSyncService.class);
+    
+    // 批处理配置
+    private static final int BATCH_SIZE = 100; // 每批次处理100个酒店
+    private static final int MAX_THREADS = 10; // 最大线程数
+    
+    // 线程池（懒加载）
+    private volatile ExecutorService threadPool;
 
     @Resource
     private SupplierConfigRepository supplierConfigRepo;
@@ -66,6 +93,8 @@ public class HotelSyncSyncService {
     private HotelRepository hotelRepo;
     @Resource
     private RoomRepository roomRepo;
+    @Resource
+    private HotelBookableRepository hotelBookableRepository;
     @Resource
     private RatePlanRepository ratePlanRepo;
     @Resource
@@ -84,8 +113,41 @@ public class HotelSyncSyncService {
 
     @PersistenceContext
     private EntityManager entityManager;
+    
+    @Resource
+    private PlatformTransactionManager transactionManager;
+    
+    @Resource
+    private TransactionTemplate transactionTemplate;
+    
+    /**
+     * 初始化线程池（懒加载）
+     */
+    private void initializeThreadPool() {
+        if (threadPool == null) {
+            synchronized (this) {
+                if (threadPool == null) {
+                    threadPool = Executors.newFixedThreadPool(MAX_THREADS, r -> {
+                        Thread t = new Thread(r, "HotelSync-Thread-" + System.currentTimeMillis());
+                        t.setDaemon(true);
+                        return t;
+                    });
+                    logger.info("[HotelSyncSyncService.initializeThreadPool] 线程池初始化完成，最大线程数：{}", MAX_THREADS);
+                }
+            }
+        }
+    }
+    
+    /**
+     * 关闭线程池
+     */
+    public void shutdown() {
+        if (threadPool != null && !threadPool.isShutdown()) {
+            threadPool.shutdown();
+            logger.info("[HotelSyncSyncService.shutdown] 线程池已关闭");
+        }
+    }
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     /**
      * 同步指定供应商的酒店详情数据，包括房型、房价、可售状态
@@ -98,7 +160,7 @@ public class HotelSyncSyncService {
             return;
         }
         logger.info("开始酒店数据同步，supplierId={}, supplierCode={}", supplierId, supplierCode);
-        syncOne(() -> syncHotels(supplierId, supplierCode), supplierId, supplierCode, HOTELS_DETAIL);
+        syncOne(() -> syncHotels(supplierId, supplierCode), supplierId, supplierCode, HOTEL_BOOKABLE);
         logger.info("酒店数据同步完成，supplierId={}, supplierCode={}", supplierId, supplierCode);
         // 同步完成后，清理静态数据相关缓存，避免读取到陈旧数据
         try {
@@ -109,15 +171,16 @@ public class HotelSyncSyncService {
 
     }
 
+
+
     /**
-     * 同步酒店详情数据，包括房型和房价
-     * Hotel：酒店
-     * Room: 房型
-     * RatePlan: 房价
-     *
-     * @param supplierId
-     * @param supplierCode
-     * @return
+     * 同步酒店详情数据（优化版本）
+     * 优化项：
+     * 1. 酒店可售数据分离到 hotel_bookable 表
+     * 2. 分批次处理，每批100个酒店
+     * 3. 线程池并发处理
+     * 4. 按批次清理可售酒店数据
+     * 5. 完善的错误处理和日志记录
      */
     private SyncStats syncHotels(Long supplierId, String supplierCode) {
         logger.info("[HotelSyncSyncService.syncHotels] 开始同步酒店详情数据，supplierId={}, supplierCode={}", supplierId, supplierCode);
@@ -128,11 +191,9 @@ public class HotelSyncSyncService {
         AtomicLong availableHotels = new AtomicLong(0);
         AtomicInteger totalBatches = new AtomicInteger(0);
         AtomicInteger processedBatches = new AtomicInteger(0);
-        
-        // 批量保存的数据集合
-        List<Hotel> hotelsToSave = new ArrayList<>();
-        List<Room> roomsToSave = new ArrayList<>();
-        List<RatePlan> ratePlansToSave = new ArrayList<>();
+        AtomicLong savedHotels = new AtomicLong(0);
+        AtomicLong savedRooms = new AtomicLong(0);
+        AtomicLong totalErrors = new AtomicLong(0);
 
         /**
          * 入离时间代表酒店的：入住时间 和 离店时间
@@ -163,10 +224,16 @@ public class HotelSyncSyncService {
             datePairs.stream().map(pair -> pair[0] + " - " + pair[1]).collect(toList()));
 
         try {
+            // 初始化线程池
+            initializeThreadPool();
+            
             // 分页处理所有酒店
             int page = 0;
             int pageSize = 1000;
             Page<XHotel> hotelPage;
+            
+            // 收集所有批次任务
+            List<CompletableFuture<BatchProcessResult>> batchFutures = new ArrayList<>();
             
             do {
                 hotelPage = staticDataQueryService.pageHotels(supplierId, supplierCode, page, pageSize);
@@ -176,131 +243,60 @@ public class HotelSyncSyncService {
                     page + 1, hotelPage.getTotalPages(), hotelPage.getContent().size(), hotelPage.getTotalElements());
 
                 // 将酒店分批处理，每批100个
-                List<List<XHotel>> batches = ListUtil.partition(hotelPage.getContent(), 100);
+                List<List<XHotel>> batches = ListUtil.partition(hotelPage.getContent(), BATCH_SIZE);
                 totalBatches.addAndGet(batches.size());
                 
+                // 为每个批次创建异步任务
                 for (List<XHotel> batch : batches) {
-                    processedBatches.incrementAndGet();
+                    int currentBatchIndex = processedBatches.incrementAndGet();
                     
-                    logger.info("[HotelSyncSyncService.syncHotels] 处理批次 {}/{}, 酒店数：{}",
-                        processedBatches.get(), totalBatches.get(), batch.size());
-
-                    // 用于记录本批次中有价可用的酒店，实现早期跳出
-                    Set<String> availableHotelIds = new HashSet<>();
+                    CompletableFuture<BatchProcessResult> batchFuture = CompletableFuture.supplyAsync(() ->
+                            processBatch(batch, currentBatchIndex, totalBatches.get(),
+                                       supplierId, supplierCode, datePairs), threadPool).exceptionally(ex -> {
+                        logger.error("[HotelSyncSyncService.syncHotels] 批次 {}/{} 处理异常", 
+                            currentBatchIndex, totalBatches.get(), ex);
+                        totalErrors.incrementAndGet();
+                        return new BatchProcessResult(0, 0, 0, 1, "批次处理异常: " + ex.getMessage());
+                    });
                     
-                    // 遍历每组入离日期，调用酒店搜索接口
-                    for (int dateIndex = 0; dateIndex < datePairs.size(); dateIndex++) {
-                        LocalDate[] pair = datePairs.get(dateIndex);
-                        LocalDate checkIn = pair[0];
-                        LocalDate checkOut = pair[1];
-                        
-                        logger.info("[HotelSyncSyncService.syncHotels] 处理日期组 {}/{}：{} - {}", 
-                            dateIndex + 1, datePairs.size(), checkIn, checkOut);
-
-                        // 过滤掉已经有价的酒店，实现早期跳出优化
-                        List<XHotel> remainingHotels = batch.stream()
-                            .filter(h -> !availableHotelIds.contains(h.getHotelId()))
-                            .collect(toList());
-                            
-                        if (remainingHotels.isEmpty()) {
-                            logger.info("[HotelSyncSyncService.syncHotels] 本批次所有酒店都已有价，跳过剩余日期组");
-                            break;
-                        }
-
-                        // 构造酒店ID字符串 - 逗号分隔的字符串，最多100个酒店ID
-                        String remainingHotelIds = remainingHotels.stream()
-                            .map(XHotel::getHotelId)
-                            .collect(Collectors.joining(","));
-
-                        // 构造搜索请求
-                        QTechSearchRequest req = buildSearchRequest(remainingHotelIds, checkIn, checkOut);
-
-                        // 调用 QTECH 搜索
-                        QTechSearchResponse resp = asianOverlandAdapter.searchHotels(req)
-                                .doOnError(e -> logger.error("[HotelSyncSyncService.syncHotels] 酒店搜索失败", e))
-                                .block();
-
-                        if (resp == null || !"success".equalsIgnoreCase(resp.getMessage())) {
-                            logger.warn("[HotelSyncSyncService.syncHotels] QTECH响应异常: message={}, info={}", 
-                                resp != null ? resp.getMessage() : "null", 
-                                resp != null ? resp.getMessageInfo() : "null");
-                            continue;
-                        }
-
-                        List<QTechSearchResponse.Hotel> hotelList = resp.getHotelList();
-                        if (CollUtil.isEmpty(hotelList)) {
-                            logger.warn("[HotelSyncSyncService.syncHotels] 返回成功但无酒店数据");
-                            continue;
-                        }
-
-                        // 处理有效的酒店数据
-                        List<QTechSearchResponse.Hotel> validHotels = hotelList.stream()
-                            .filter(h -> StrUtil.isNotBlank(h.getHotelId()) && StrUtil.isNotBlank(h.getHotelName()))
-                            .filter(h -> CollUtil.isNotEmpty(h.getHotelProperty()))
-                            .collect(toList());
-
-                        logger.info("[HotelSyncSyncService.syncHotels] 有效酒店数：{}/{}", validHotels.size(), hotelList.size());
-
-                        for (QTechSearchResponse.Hotel hotel : validHotels) {
-                            String hotelId = hotel.getHotelId();
-                            availableHotelIds.add(hotelId); // 记录有效酒店ID
-                            availableHotels.incrementAndGet(); // 统计有效酒店数
-                            
-                            // 同步酒店详情
-                            Hotel hotelEntity = buildHotelEntity(hotel, supplierId, supplierCode, checkIn, checkOut);
-                            hotelsToSave.add(hotelEntity); // 酒店信息，后续批量保存
-
-                            // 同步房型和房价
-                            List<QTechSearchResponse.HotelProperty> properties = hotel.getHotelProperty();
-                            for (QTechSearchResponse.HotelProperty property : properties) {
-                                if (CollUtil.isEmpty(property.getRoomRates())) {
-                                    continue;
-                                }
-
-                                for (QTechSearchResponse.RoomRate roomRate : property.getRoomRates()) {
-                                    // 过滤无效房型
-                                    if (roomRate.getAvailable() == null || roomRate.getAvailable() != 1 ||
-                                        roomRate.getRoomRate() == null || roomRate.getRoomRate().compareTo(BigDecimal.ZERO) <= 0) {
-                                        continue;
-                                    }
-
-                                    // 同步房型
-                                    Room roomEntity = buildRoomEntity(roomRate, property, hotelId, supplierId, supplierCode);
-                                    roomsToSave.add(roomEntity);
-
-                                    // 同步房价计划
-                                    //RatePlan ratePlanEntity = buildRatePlanEntity(roomRate, property, hotelId, supplierId, supplierCode);
-                                    //ratePlansToSave.add(ratePlanEntity);
-                                }
-                            }
-                            
-                            processedHotels.incrementAndGet();
-                        }
-                    }
+                    batchFutures.add(batchFuture);
                 }
                 
                 page++;
             } while (hotelPage.hasNext());
 
-            // 批量保存到数据库
-            logger.info("[HotelSyncSyncService.syncHotels] 开始批量保存数据：酒店{}个，房型{}个，房价计划{}个", 
-                hotelsToSave.size(), roomsToSave.size(), ratePlansToSave.size());
-                
-            SaveResult hotelSaveResult = saveInBatchesReturnCount(hotelsToSave, hotelRepo);
-            SaveResult roomSaveResult = saveInBatchesReturnCount(roomsToSave, roomRepo);
-            SaveResult ratePlanSaveResult = saveInBatchesReturnCount(ratePlansToSave, ratePlanRepo);
-
-            logger.info("[HotelSyncSyncService.syncHotels] 数据保存完成：酒店保存{}个，房型保存{}个，房价计划保存{}个", 
-                hotelSaveResult.saved, roomSaveResult.saved, ratePlanSaveResult.saved);
+            // 等待所有批次完成并汇总结果
+            logger.info("[HotelSyncSyncService.syncHotels] 等待 {} 个批次任务完成...", batchFutures.size());
+            
+            for (CompletableFuture<BatchProcessResult> future : batchFutures) {
+                try {
+                    BatchProcessResult result = future.get(30, TimeUnit.MINUTES); // 每批次最多等待30分钟
+                    availableHotels.addAndGet(result.getAvailableHotels());
+                    savedHotels.addAndGet(result.getSavedHotels());
+                    savedRooms.addAndGet(result.getSavedRooms());
+                    if (result.getErrorCount() > 0) {
+                        totalErrors.addAndGet(result.getErrorCount());
+                    }
+                } catch (TimeoutException e) {
+                    logger.error("[HotelSyncSyncService.syncHotels] 批次任务超时", e);
+                    totalErrors.incrementAndGet();
+                } catch (Exception e) {
+                    logger.error("[HotelSyncSyncService.syncHotels] 批次任务执行异常", e);
+                    totalErrors.incrementAndGet();
+                }
+            }
 
             // 返回统计结果
+            logger.info("[HotelSyncSyncService.syncHotels] 同步完成：总酒店{}个，有价酒店{}个，保存酒店{}个，保存房型{}个，错误{}个", 
+                totalHotels.get(), availableHotels.get(), savedHotels.get(), savedRooms.get(), totalErrors.get());
+
             return new SyncStats(
                 totalHotels.get(),
-                availableHotels.get(),
-                totalHotels.get() - availableHotels.get(),
-                hotelSaveResult.errors + roomSaveResult.errors + ratePlanSaveResult.errors,
-                String.format("酒店:%d/%d, 房型:%d, 房价:%d", 
-                    hotelSaveResult.saved, totalHotels.get(), roomSaveResult.saved, ratePlanSaveResult.saved)
+                savedHotels.get(),
+                totalHotels.get() - savedHotels.get(),
+                totalErrors.get(),
+                String.format("酒店:%d/%d, 房型:%d, 有价:%d", 
+                    savedHotels.get(), totalHotels.get(), savedRooms.get(), availableHotels.get())
             );
 
         } catch (Exception ex) {
@@ -309,6 +305,238 @@ public class HotelSyncSyncService {
         }
     }
 
+    /**
+     * 处理单个批次的酒店数据（线程池中执行）
+     * 优化项：
+     * 1. 按批次清理可售酒店数据
+     * 2. 分离酒店静态数据和可售数据
+     * 3. 完善的错误处理和日志记录
+     */
+    public BatchProcessResult processBatch(List<XHotel> batch, int batchIndex, int totalBatches,
+                                          Long supplierId, String supplierCode, List<LocalDate[]> datePairs) {
+        logger.info("[HotelSyncSyncService.processBatch] 开始处理批次 {}/{}, 酒店数：{}", 
+            batchIndex, totalBatches, batch.size());
+        
+        long availableHotels = 0;
+        long savedHotels = 0;
+        long savedRooms = 0;
+        long errorCount = 0;
+        
+        try {
+            // 1. 按批次清理可售酒店数据
+            List<String> batchHotelCodes = batch.stream()
+                .map(XHotel::getHotelId)
+                .collect(toList());
+            
+            // 直接调用删除操作，使用编程式事务
+            clearBookableHotels(supplierId, supplierCode, batchHotelCodes);
+            
+            logger.info("[HotelSyncSyncService.processBatch] 批次 {}/{} 清理可售酒店数据完成，酒店数：{}", 
+                batchIndex, totalBatches, batchHotelCodes.size());
+            
+            // 2. 批量保存的数据集合
+            List<Hotel> batchHotelsToSave = new ArrayList<>();
+            List<Room> batchRoomsToSave = new ArrayList<>();
+            
+            // 构建酒店和房型的映射关系
+            Map<String, List<QTechSearchResponse.RoomRate>> hotelRoomMap = new HashMap<>();
+            
+            // 存储酒店数据，用于后续构建可售酒店数据
+            Map<String, QTechSearchResponse.Hotel> hotelDataMap = new HashMap<>();
+            
+            // 用于记录本批次中有价可用的酒店，实现早期跳出
+            Set<String> availableHotelIds = new HashSet<>();
+            
+            // 3. 遍历每组入离日期，调用酒店搜索接口
+            for (int dateIndex = 0; dateIndex < datePairs.size(); dateIndex++) {
+                LocalDate[] pair = datePairs.get(dateIndex);
+                LocalDate checkIn = pair[0];
+                LocalDate checkOut = pair[1];
+                
+                logger.info("[HotelSyncSyncService.processBatch] 批次 {}/{} 处理日期组 {}/{}：{} - {}", 
+                    batchIndex, totalBatches, dateIndex + 1, datePairs.size(), checkIn, checkOut);
+
+                // 过滤掉已经有价的酒店，实现早期跳出优化
+                List<XHotel> remainingHotels = batch.stream()
+                    .filter(h -> !availableHotelIds.contains(h.getHotelId()))
+                    .collect(toList());
+                    
+                if (remainingHotels.isEmpty()) {
+                    logger.info("[HotelSyncSyncService.processBatch] 批次 {}/{} 所有酒店都已有价，跳过剩余日期组", 
+                        batchIndex, totalBatches);
+                    break;
+                }
+
+                // 构造酒店ID字符串 - 逗号分隔的字符串，最多100个酒店ID
+                String remainingHotelIds = remainingHotels.stream()
+                    .map(XHotel::getHotelId)
+                    .collect(Collectors.joining(","));
+
+                // 构造搜索请求
+                QTechSearchRequest req = buildSearchRequest(remainingHotelIds, checkIn, checkOut);
+
+                // 调用 QTECH 搜索
+                QTechSearchResponse resp = asianOverlandAdapter.searchHotels(req)
+                        .doOnError(e -> logger.error("[HotelSyncSyncService.processBatch] 批次 {}/{} 酒店搜索失败", 
+                            batchIndex, totalBatches, e))
+                        .block();
+
+                if (resp == null || !"success".equalsIgnoreCase(resp.getMessage())) {
+                    logger.warn("[HotelSyncSyncService.processBatch] 批次 {}/{} QTECH响应异常: message={}, info={}", 
+                        batchIndex, totalBatches,
+                        resp != null ? resp.getMessage() : "null", 
+                        resp != null ? resp.getMessageInfo() : "null");
+                    continue;
+                }
+
+                List<QTechSearchResponse.Hotel> hotelList = resp.getHotelList();
+                if (CollUtil.isEmpty(hotelList)) {
+                    logger.warn("[HotelSyncSyncService.processBatch] 批次 {}/{} 返回成功但无酒店数据", 
+                        batchIndex, totalBatches);
+                    continue;
+                }
+
+                // 处理有效的酒店数据
+                List<QTechSearchResponse.Hotel> validHotels = hotelList.stream()
+                    .filter(h -> StrUtil.isNotBlank(h.getHotelId()) && StrUtil.isNotBlank(h.getHotelName()))
+                    .filter(h -> CollUtil.isNotEmpty(h.getHotelProperty()))
+                    .collect(toList());
+
+                logger.info("[HotelSyncSyncService.processBatch] 批次 {}/{} 有效酒店数：{}/{}", 
+                    batchIndex, totalBatches, validHotels.size(), hotelList.size());
+
+                // 更新酒店和房型的映射关系
+                for (QTechSearchResponse.Hotel hotel : validHotels) {
+                    String hotelId = hotel.getHotelId();
+                    availableHotelIds.add(hotelId); // 记录有效酒店ID
+                    availableHotels++; // 统计有效酒店数
+                    
+                    // 同步酒店静态数据
+                    Hotel hotelEntity = buildHotelEntity(hotel, supplierId, supplierCode, checkIn, checkOut);
+                    batchHotelsToSave.add(hotelEntity);
+                    
+                    // 存储酒店数据，用于后续构建可售酒店数据（需要hotel_id）
+                    hotelDataMap.put(hotelId, hotel);
+
+                    // 收集房型数据，稍后处理
+                    List<QTechSearchResponse.RoomRate> roomRates = new ArrayList<>();
+                    List<QTechSearchResponse.HotelProperty> properties = hotel.getHotelProperty();
+                    for (QTechSearchResponse.HotelProperty property : properties) {
+                        if (CollUtil.isEmpty(property.getRoomRates())) {
+                            continue;
+                        }
+
+                        for (QTechSearchResponse.RoomRate roomRate : property.getRoomRates()) {
+                            // 过滤无效房型
+                            if (roomRate.getAvailable() == null || roomRate.getAvailable() != 1 ||
+                                roomRate.getRoomRate() == null || roomRate.getRoomRate().compareTo(BigDecimal.ZERO) <= 0) {
+                                continue;
+                            }
+                            roomRates.add(roomRate);
+                        }
+                    }
+                    
+                    if (!roomRates.isEmpty()) {
+                        hotelRoomMap.put(hotelId, roomRates);
+                    }
+                }
+            }
+
+            // 4. 批次处理完成后，立即保存到数据库（避免大事务）
+            if (!batchHotelsToSave.isEmpty()) {
+                // 先保存酒店静态数据，获得保存后的实体（包含ID）
+                Map<String, Long> hotelIdMap = saveBatchHotelsAndGetIds(batchHotelsToSave, supplierId, supplierCode);
+                savedHotels = hotelIdMap.size();
+                
+                // 构建并保存可售酒店数据（现在有了hotel_id）
+                List<HotelBookable> batchBookableHotelsToSave = new ArrayList<>();
+                for (Map.Entry<String, Long> entry : hotelIdMap.entrySet()) {
+                    String hotelCode = entry.getKey();
+                    Long hotelEntityId = entry.getValue();
+                    
+                    // 获取对应的酒店数据
+                    QTechSearchResponse.Hotel hotelData = hotelDataMap.get(hotelCode);
+                    if (hotelData != null) {
+                        HotelBookable bookableHotel = buildBookableHotelEntity(hotelData, supplierId, supplierCode, hotelEntityId);
+                        batchBookableHotelsToSave.add(bookableHotel);
+                    }
+                }
+                
+                if (!batchBookableHotelsToSave.isEmpty()) {
+                    hotelBookableRepository.saveAll(batchBookableHotelsToSave);
+                    logger.info("[HotelSyncSyncService.processBatch] 批次 {}/{} 保存可售酒店数据完成：{}个", 
+                        batchIndex, totalBatches, batchBookableHotelsToSave.size());
+                }
+                
+                // 然后构建和保存房型
+                for (Map.Entry<String, Long> entry : hotelIdMap.entrySet()) {
+                    String hotelCode = entry.getKey();
+                    Long hotelEntityId = entry.getValue();
+                    
+                    List<QTechSearchResponse.RoomRate> roomRates = hotelRoomMap.get(hotelCode);
+                    if (roomRates != null) {
+                        for (QTechSearchResponse.RoomRate roomRate : roomRates) {
+                            Room roomEntity = buildRoomEntity(roomRate, hotelCode, supplierId, supplierCode, hotelEntityId);
+                            if (roomEntity != null) {
+                                batchRoomsToSave.add(roomEntity);
+                            }
+                        }
+                    }
+                }
+                
+                // 保存房型
+                if (!batchRoomsToSave.isEmpty()) {
+                    savedRooms = upsertRooms(batchRoomsToSave, supplierId, supplierCode);
+                }
+                
+                logger.info("[HotelSyncSyncService.processBatch] 批次 {}/{} 保存完成：酒店{}个，房型{}个，可售酒店{}个", 
+                    batchIndex, totalBatches, savedHotels, savedRooms, batchBookableHotelsToSave.size());
+            }
+            
+            return new BatchProcessResult(availableHotels, savedHotels, savedRooms, errorCount, 
+                String.format("批次 %d/%d 处理成功", batchIndex, totalBatches));
+                
+        } catch (Exception e) {
+            logger.error("[HotelSyncSyncService.processBatch] 批次 {}/{} 处理失败", 
+                batchIndex, totalBatches, e);
+            errorCount = 1;
+            return new BatchProcessResult(availableHotels, savedHotels, savedRooms, errorCount, 
+                String.format("批次 %d/%d 处理失败: %s", batchIndex, totalBatches, e.getMessage()));
+        }
+    }
+
+    /**
+     * 构建可售酒店实体
+     */
+    private HotelBookable buildBookableHotelEntity(QTechSearchResponse.Hotel hotel, Long supplierId, String supplierCode, Long hotelId) {
+        HotelBookable bookable = new HotelBookable();
+        bookable.setSupplierId(supplierId);
+        bookable.setSupplierCode(supplierCode);
+        bookable.setHotelCode(hotel.getHotelId());
+        bookable.setHotelCodeMd5(DigestUtil.md5Hex(hotel.getHotelId()));
+        bookable.setHotelId(hotelId);  // 设置酒店表主键ID
+        bookable.setName(hotel.getHotelName());
+        bookable.setIsBookable(true);
+        
+        // 计算最低价格
+        BigDecimal minPrice = null;
+        if (CollUtil.isNotEmpty(hotel.getHotelProperty())) {
+            for (QTechSearchResponse.HotelProperty property : hotel.getHotelProperty()) {
+                if (CollUtil.isNotEmpty(property.getRoomRates())) {
+                    for (QTechSearchResponse.RoomRate roomRate : property.getRoomRates()) {
+                        if (roomRate.getRoomRate() != null && roomRate.getRoomRate().compareTo(BigDecimal.ZERO) > 0) {
+                            if (minPrice == null || roomRate.getRoomRate().compareTo(minPrice) < 0) {
+                                minPrice = roomRate.getRoomRate();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        bookable.setMinPrice(minPrice);
+        
+        return bookable;
+    }
 
     /**
      * 同步单个业务数据，并记录日志
@@ -340,17 +568,17 @@ public class HotelSyncSyncService {
                 log.setErrorCount(stats.error);
                 if (stats.errorMessage != null && !stats.errorMessage.isBlank()) {
                     // 将批量写入阶段的错误信息附加到日志
-                    String existed = log.getErrorMessage();
+                    String existed = log.getMessage();
                     if (existed == null || existed.isBlank()) {
-                        log.setErrorMessage(stats.errorMessage);
+                        log.setMessage(stats.errorMessage);
                     } else {
-                        log.setErrorMessage(existed + " | " + stats.errorMessage);
+                        log.setMessage(existed + " | " + stats.errorMessage);
                     }
                 }
             }
             log.setIsSuccess(true);
         } catch (Exception e) {
-            log.setErrorMessage(e.getMessage());
+            log.setMessage(e.getMessage());
             logger.warn("同步 {} 失败: {}", biz, e.getMessage());
         } finally {
             log.setEndTime(LocalDateTime.now());
@@ -433,12 +661,13 @@ public class HotelSyncSyncService {
     /**
      * 构建房型实体对象
      */
-    private Room buildRoomEntity(QTechSearchResponse.RoomRate roomRate, QTechSearchResponse.HotelProperty property,
-                                String hotelId, Long supplierId, String supplierCode) {
+    private Room buildRoomEntity(QTechSearchResponse.RoomRate roomRate,
+                                String hotelId, Long supplierId, String supplierCode, Long hotelEntityId) {
         Room roomEntity = new Room();
         roomEntity.setSupplierId(supplierId);
         roomEntity.setSupplierCode(supplierCode);
         roomEntity.setHotelCode(hotelId);
+        roomEntity.setHotelId(hotelEntityId); // 直接使用传入的Hotel实体ID
 
         String roomCode = roomRate.getClassUniqueId();
         roomEntity.setRoomCode(roomCode);
@@ -469,102 +698,286 @@ public class HotelSyncSyncService {
         return roomEntity;
     }
 
+
+
+
+
     /**
-     * 构建房价计划实体对象
+     * 批量保存酒店并返回酒店ID映射
+     * 每批次独立事务，避免大事务回滚
      */
-    private RatePlan buildRatePlanEntity(QTechSearchResponse.RoomRate roomRate, QTechSearchResponse.HotelProperty property,
-                                        String hotelId, Long supplierId, String supplierCode) {
-        RatePlan ratePlanEntity = new RatePlan();
-        ratePlanEntity.setSupplierId(supplierId);
-        ratePlanEntity.setSupplierCode(supplierCode);
-        ratePlanEntity.setHotelCode(hotelId);
-        ratePlanEntity.setRoomCode(roomRate.getClassUniqueId());
-
-        String ratePlanCode = property.getSectionUniqueId() + "_" + roomRate.getClassUniqueId();
-        ratePlanEntity.setRatePlanCode(ratePlanCode);
-        // 当供应商ID超过64字符，使用原始ID的SHA-256（64位十六进制）作为 ratePlanCodeMd5；否则直接使用原始ID
-        String ratePlanCodeMd5 = ratePlanCode.length() > 64 ? HeyUtil.sha256Hex(ratePlanCode) : ratePlanCode;
-        ratePlanEntity.setRatePlanCodeMd5(ratePlanCodeMd5);
-
-        ratePlanEntity.setName(roomRate.getRoomType());
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Map<String, Long> saveBatchHotelsAndGetIds(List<Hotel> hotels, Long supplierId, String supplierCode) {
+        Map<String, Long> hotelIdMap = new HashMap<>();
         
-        // 设置餐食信息
-        String mealBasis = roomRate.getMealBasis();
-        String roomType = roomRate.getRoomType();
-        StringBuilder mealInfo = new StringBuilder();
-        if (mealBasis != null || roomType != null) {
-            if ((mealBasis != null && mealBasis.toLowerCase().contains("breakfast")) || 
-                (roomType != null && roomType.toLowerCase().contains("breakfast"))) {
-                mealInfo.append("早餐,");
-            }
-            if ((mealBasis != null && mealBasis.toLowerCase().contains("lunch")) || 
-                (roomType != null && roomType.toLowerCase().contains("lunch"))) {
-                mealInfo.append("午餐,");
-            }
-            if ((mealBasis != null && mealBasis.toLowerCase().contains("dinner")) || 
-                (roomType != null && roomType.toLowerCase().contains("dinner"))) {
-                mealInfo.append("晚餐,");
-            }
-        }
-        if (mealInfo.length() > 0) {
-            ratePlanEntity.setMeal(mealInfo.substring(0, mealInfo.length() - 1));
-        }
-
-        // 设置取消政策
-        if (property.getPolicies() != null && CollUtil.isNotEmpty(property.getPolicies().getCancellationPolicy())) {
+        for (Hotel hotel : hotels) {
             try {
-                String cancellationPolicyJson = MAPPER.writeValueAsString(property.getPolicies().getCancellationPolicy());
-                ratePlanEntity.setCancellationPolicy(cancellationPolicyJson);
+                // 根据唯一约束查询是否存在
+                Optional<Hotel> existingHotel = hotelRepo.findBySupplierIdAndSupplierCodeAndHotelCode(
+                    supplierId, supplierCode, hotel.getHotelCode());
+                
+                Hotel savedHotel;
+                if (existingHotel.isPresent()) {
+                    // 更新现有记录
+                    Hotel existing = existingHotel.get();
+                    updateHotelFields(existing, hotel);
+                    savedHotel = hotelRepo.save(existing);
+                } else {
+                    // 新增记录
+                    savedHotel = hotelRepo.save(hotel);
+                }
+                
+                // 记录酒店代码和ID的映射关系
+                hotelIdMap.put(hotel.getHotelCode(), savedHotel.getId());
+                
             } catch (Exception e) {
-                logger.warn("序列化取消政策失败: {}", e.getMessage());
+                logger.error("[HotelSyncSyncService.saveBatchHotelsAndGetIds] 保存酒店失败: hotelCode={}", hotel.getHotelCode(), e);
             }
         }
-
-        return ratePlanEntity;
+        
+        return hotelIdMap;
     }
 
-
-    // =========== 批量Upsert（JPA saveAll） ==========
-
-
-    private SyncStats batchUpsertHotels(List<Map<String, String>> rows, Long supplierId, String supplierCode) {
-        int deleted = deleteBySupplier(Hotel.class, supplierId, supplierCode);
-        logger.info("已清理旧酒店数据，supplierId={}, supplierCode={}, 删除行数={}", supplierId, supplierCode, deleted);
-        List<Hotel> list = staticDataParser.parseHotels(rows, supplierId, supplierCode);
-        SaveResult sr = saveInBatchesReturnCount(list, hotelRepo);
-        return new SyncStats(rows.size(), sr.saved, rows.size() - list.size(), sr.errors, sr.errorMsg);
-    }
 
 
     /**
-     * 分批入库，避免单次数据量过大
-     *
-     * @param list
-     * @param repo
-     * @param <T>
+     * Upsert房型数据（批量优化版本，增强防重复机制）
+     * 性能优化：1次批量查询 + 1次批量保存，而不是N次单独查询
+     * 约束：(supplier_id, supplier_code, room_code) 唯一
      */
-    private <T> SaveResult saveInBatchesReturnCount(List<T> list, JpaRepository<T, Long> repo) {
-        int batchSize = 1000;
+    private long upsertRooms(List<Room> rooms, Long supplierId, String supplierCode) {
+        if (CollUtil.isEmpty(rooms)) {
+            return 0;
+        }
+        
         long saved = 0;
-        long errors = 0;
-        StringBuilder err = new StringBuilder();
-        for (int i = 0; i < list.size(); i += batchSize) {
-            int end = Math.min(i + batchSize, list.size());
-            List<T> sub = list.subList(i, end);
+        
+        try {
+            // 0. 输入数据去重（防止同一批次中有重复的roomCode）
+            Map<String, Room> uniqueRooms = new LinkedHashMap<>();
+            for (Room room : rooms) {
+                String roomCode = room.getRoomCode();
+                if (uniqueRooms.containsKey(roomCode)) {
+                    logger.warn("[HotelSyncSyncService.upsertRooms] 发现重复的roomCode，保留最后一个: {}", roomCode);
+                }
+                uniqueRooms.put(roomCode, room);
+            }
+            
+            List<Room> deduplicatedRooms = new ArrayList<>(uniqueRooms.values());
+            logger.debug("[HotelSyncSyncService.upsertRooms] 原始房型数: {}, 去重后: {}", 
+                rooms.size(), deduplicatedRooms.size());
+            
+            // 1. 批量查询现有数据（1次数据库查询）
+            List<String> roomCodes = deduplicatedRooms.stream()
+                .map(Room::getRoomCode)
+                .collect(toList());
+            
+            List<Room> existingRooms = roomRepo.findBySupplierIdAndSupplierCodeAndRoomCodeIn(
+                supplierId, supplierCode, roomCodes);
+            
+            logger.debug("[HotelSyncSyncService.upsertRooms] 批量查询结果: 查询{}个roomCode，找到{}个现有记录", 
+                roomCodes.size(), existingRooms.size());
+            
+            // 2. 构建现有数据映射表
+            Map<String, Room> existingRoomMap = existingRooms.stream()
+                .collect(toMap(Room::getRoomCode, r -> r));
+            
+            // 3. 分离新增和更新数据
+            List<Room> toInsert = new ArrayList<>();
+            List<Room> toUpdate = new ArrayList<>();
+            
+            for (Room room : deduplicatedRooms) {
+                Room existing = existingRoomMap.get(room.getRoomCode());
+                if (existing != null) {
+                    // 更新现有记录
+                    updateRoomFields(existing, room);
+                    toUpdate.add(existing);
+                } else {
+                    // 新增记录
+                    toInsert.add(room);
+                }
+            }
+            
+            // 4. 批量保存（分两阶段：先处理更新，再处理新增）
+            List<Room> additionalInserts = new ArrayList<>();
+            
+            // 第一阶段：处理更新实体
+            if (!toUpdate.isEmpty()) {
+                List<Room> validUpdates = new ArrayList<>();
+                for (Room room : toUpdate) {
+                    if (room.getId() == null) {
+                        logger.error("[HotelSyncSyncService.upsertRooms] 更新房型实体ID为null: roomCode={}", 
+                            room.getRoomCode());
+                        // 将ID为null的实体转为新增
+                        room.setId(null);
+                        additionalInserts.add(room);
+                    } else {
+                        validUpdates.add(room);
+                    }
+                }
+                
+                if (!validUpdates.isEmpty()) {
+                    List<Room> updatedRooms = roomRepo.saveAll(validUpdates);
+                    saved += updatedRooms.size();
+                    logger.debug("[HotelSyncSyncService.upsertRooms] 批量更新房型: {}个", updatedRooms.size());
+                }
+            }
+            
+            // 第二阶段：处理所有新增实体（包括原始新增 + 从更新转换的）
+            List<Room> allInserts = new ArrayList<>(toInsert);
+            allInserts.addAll(additionalInserts);
+            
+            if (!allInserts.isEmpty()) {
+                // 验证新增实体的ID应该为null
+                for (Room room : allInserts) {
+                    if (room.getId() != null) {
+                        logger.warn("[HotelSyncSyncService.upsertRooms] 新增房型实体ID不为null: roomCode={}, id={}", 
+                            room.getRoomCode(), room.getId());
+                        room.setId(null); // 强制设置为null，让数据库自动生成
+                    }
+                }
+                List<Room> insertedRooms = roomRepo.saveAll(allInserts);
+                saved += insertedRooms.size();
+                logger.debug("[HotelSyncSyncService.upsertRooms] 批量新增房型: {}个", insertedRooms.size());
+            }
+            
+        } catch (Exception e) {
+            logger.error("[HotelSyncSyncService.upsertRooms] 批量保存房型失败", e);
+            
+            // 如果是唯一约束冲突，尝试更智能的处理
+            if (e.getMessage() != null && e.getMessage().contains("Duplicate entry") && 
+                e.getMessage().contains("uk_room_supplier_code")) {
+                logger.warn("[HotelSyncSyncService.upsertRooms] 检测到唯一约束冲突，尝试智能恢复");
+                return upsertRoomsWithConstraintHandling(rooms, supplierId, supplierCode);
+            }
+            
+            // 其他错误，降级到逐个保存
+            return upsertRoomsOneByOne(rooms, supplierId, supplierCode);
+        }
+        
+        return saved;
+    }
+    
+    /**
+     * 智能处理唯一约束冲突的房型保存方案
+     */
+    private long upsertRoomsWithConstraintHandling(List<Room> rooms, Long supplierId, String supplierCode) {
+        long saved = 0;
+        
+        logger.info("[HotelSyncSyncService.upsertRoomsWithConstraintHandling] 开始智能处理{}个房型的唯一约束冲突", rooms.size());
+        
+        // 对每个房型进行单独的upsert处理，跳过重复记录
+        for (Room room : rooms) {
             try {
-                List<T> ret = repo.saveAll(sub);
-                saved += (ret != null ? ret.size() : sub.size());
-            } catch (Exception ex) {
-                errors += sub.size();
-                String msg = ex.getClass().getSimpleName() + ": " + (ex.getMessage() == null ? "" : ex.getMessage());
-                if (err.length() > 0) err.append("; ");
-                err.append(msg);
-                logger.warn("批量入库异常，已计为错误条数：{}，原因：{}", sub.size(), ex.getMessage());
+                Optional<Room> existingRoom = roomRepo.findBySupplierIdAndSupplierCodeAndRoomCode(
+                    supplierId, supplierCode, room.getRoomCode());
+                
+                if (existingRoom.isPresent()) {
+                    // 更新现有记录
+                    Room existing = existingRoom.get();
+                    updateRoomFields(existing, room);
+                    roomRepo.save(existing);
+                    saved++;
+                    logger.debug("[HotelSyncSyncService.upsertRoomsWithConstraintHandling] 更新房型: {}", room.getRoomCode());
+                } else {
+                    // 新增记录
+                    room.setId(null); // 确保ID为null
+                    roomRepo.save(room);
+                    saved++;
+                    logger.debug("[HotelSyncSyncService.upsertRoomsWithConstraintHandling] 新增房型: {}", room.getRoomCode());
+                }
+            } catch (Exception e) {
+                // 如果仍然有唯一约束冲突，说明可能是并发问题，跳过这条记录
+                if (e.getMessage() != null && e.getMessage().contains("Duplicate entry")) {
+                    logger.warn("[HotelSyncSyncService.upsertRoomsWithConstraintHandling] 跳过重复房型: roomCode={}, 错误: {}", 
+                        room.getRoomCode(), e.getMessage());
+                } else {
+                    logger.error("[HotelSyncSyncService.upsertRoomsWithConstraintHandling] 保存房型失败: roomCode={}", 
+                        room.getRoomCode(), e);
+                }
             }
         }
-        logger.info("批量入库完成，总数={}，成功={}，错误={}", list.size(), saved, errors);
-        return new SaveResult(saved, errors, err.toString());
+        
+        logger.info("[HotelSyncSyncService.upsertRoomsWithConstraintHandling] 智能处理完成，成功保存{}个房型", saved);
+        return saved;
     }
+    
+    /**
+     * 降级方案：逐个保存房型（当批量保存失败时使用）
+     */
+    private long upsertRoomsOneByOne(List<Room> rooms, Long supplierId, String supplierCode) {
+        long saved = 0;
+        
+        for (Room room : rooms) {
+            try {
+                Optional<Room> existingRoom = roomRepo.findBySupplierIdAndSupplierCodeAndRoomCode(
+                    supplierId, supplierCode, room.getRoomCode());
+                
+                if (existingRoom.isPresent()) {
+                    Room existing = existingRoom.get();
+                    updateRoomFields(existing, room);
+                    roomRepo.save(existing);
+                } else {
+                    roomRepo.save(room);
+                }
+                saved++;
+            } catch (Exception e) {
+                logger.error("[HotelSyncSyncService.upsertRoomsOneByOne] 保存房型失败: roomCode={}", room.getRoomCode(), e);
+            }
+        }
+        
+        return saved;
+    }
+
+    /**
+     * 更新酒店字段
+     */
+    private void updateHotelFields(Hotel existing, Hotel newHotel) {
+        existing.setHotelName(newHotel.getHotelName());
+        existing.setDescription(newHotel.getDescription());
+        existing.setAddress(newHotel.getAddress());
+        existing.setLatitude(newHotel.getLatitude());
+        existing.setLongitude(newHotel.getLongitude());
+        existing.setHeroImg(newHotel.getHeroImg());
+        existing.setRating(newHotel.getRating());
+        existing.setMinPrice(newHotel.getMinPrice());
+        existing.setIsBookable(newHotel.getIsBookable());
+        existing.setSyncAt(newHotel.getSyncAt()); // 更新同步时间
+    }
+
+    /**
+     * 更新房型字段（安全更新，保护ID字段）
+     */
+    private void updateRoomFields(Room existing, Room newRoom) {
+        // 验证existing实体必须有有效的ID
+        if (existing.getId() == null) {
+            logger.error("[HotelSyncSyncService.updateRoomFields] existing房型实体ID为null: roomCode={}", 
+                existing.getRoomCode());
+            throw new IllegalArgumentException("existing房型实体ID不能为null");
+        }
+        
+        // 保存原始ID，确保不被意外覆盖
+        Long originalId = existing.getId();
+        
+        // 更新业务字段
+        existing.setRoomName(newRoom.getRoomName());
+        existing.setRoomNameEn(newRoom.getRoomNameEn());
+        existing.setDescription(newRoom.getDescription());
+        existing.setBedTypeDesc(newRoom.getBedTypeDesc());
+        existing.setBedTypeDescEn(newRoom.getBedTypeDescEn());
+        existing.setMinPrice(newRoom.getMinPrice());
+        existing.setMinBasePrice(newRoom.getMinBasePrice());
+        existing.setNoSmoking(newRoom.getNoSmoking());
+        
+        // 确保ID没有被意外修改
+        if (!originalId.equals(existing.getId())) {
+            logger.warn("[HotelSyncSyncService.updateRoomFields] 房型实体ID被意外修改，恢复原值: {} -> {}", 
+                existing.getId(), originalId);
+            existing.setId(originalId);
+        }
+    }
+
+
 
     /**
      * 日志统计结构
@@ -589,32 +1002,53 @@ public class HotelSyncSyncService {
         }
     }
 
-    /**
-     * 批量保存结果
-     */
-    private static class SaveResult {
-        long saved;
-        long errors;
-        String errorMsg;
 
-        SaveResult(long saved, long errors, String errorMsg) {
-            this.saved = saved;
-            this.errors = errors;
-            this.errorMsg = errorMsg;
+    /**
+     * 批次处理结果结构
+     */
+    @Data
+    private static class BatchProcessResult {
+
+        private final long availableHotels;  // 有价酒店数量
+        private final long savedHotels;      // 保存的酒店数量
+        private final long savedRooms;       // 保存的房型数量
+        private final long errorCount;       // 错误数量
+        private final String message;        // 处理消息
+
+        public BatchProcessResult(long availableHotels, long savedHotels, long savedRooms, long errorCount, String message) {
+            this.availableHotels = availableHotels;
+            this.savedHotels = savedHotels;
+            this.savedRooms = savedRooms;
+            this.errorCount = errorCount;
+            this.message = message;
         }
+
+        @Override
+        public String toString() {
+            return String.format("BatchProcessResult{有价酒店=%d, 保存酒店=%d, 保存房型=%d, 错误=%d, 消息='%s'}",
+                    availableHotels, savedHotels, savedRooms, errorCount, message);
+        }
+
     }
+
 
     /**
-     * 删除指定实体在某个供应商维度下的旧数据
+     * 使用TransactionTemplate手动管理事务清理可售酒店数据
+     * 解决线程池中事务代理失效的问题
      */
-    private int deleteBySupplier(Class<?> entityClass, Long supplierId, String supplierCode) {
-        String entityName = entityClass.getSimpleName();
-        String jpql = "delete from " + entityName + " e where e.supplierId = :sid and e.supplierCode = :scode";
-        return entityManager.createQuery(jpql)
-                .setParameter("sid", supplierId)
-                .setParameter("scode", supplierCode)
-                .executeUpdate();
+    private void clearBookableHotels(Long supplierId, String supplierCode, List<String> hotelCodes) {
+        transactionTemplate.execute(status -> {
+            try {
+                int deletedCount = hotelBookableRepository.deleteBySupplierIdAndSupplierCodeAndHotelCodeIn(
+                    supplierId, supplierCode, hotelCodes);
+                logger.debug("[HotelSyncSyncService.clearBookableHotels] 删除可售酒店数据 {} 条", deletedCount);
+                return deletedCount;
+            } catch (Exception ex) {
+                logger.error("[HotelSyncSyncService.clearBookableHotels] 删除可售酒店数据失败", ex);
+                status.setRollbackOnly();
+                throw ex;
+            }
+        });
     }
-
 
 }

@@ -74,9 +74,9 @@ public class SyncLog {
 
 
 
-    @Column(name = "error_message", columnDefinition = "TEXT")
-    @Comment("错误信息")
-    private String errorMessage;
+    @Column(name = "message", columnDefinition = "TEXT")
+    @Comment("同步消息日志（包含成功和错误的日志）")
+    private String message;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
