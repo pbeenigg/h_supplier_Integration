@@ -205,7 +205,7 @@ public class HttpClientService {
                             retryCounter.set(attempt);
                             logger.warn("Retrying request to {} {}, attempt: {}", method, endpoint, attempt);
                         }))
-                .timeout(Duration.ofSeconds(30))
+                .timeout(Duration.ofSeconds(180))
                 .onErrorResume(error -> {
                     logger.error("请求失败: {} {}", method, endpoint, error);
                     return Mono.error(new HttpClientException("请求失败: " + error.getMessage(), error));
