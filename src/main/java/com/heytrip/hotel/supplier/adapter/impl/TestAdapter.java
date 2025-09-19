@@ -208,7 +208,7 @@ public class TestAdapter extends AbstractSupplierAdapter {
 
             return getCancellationPolicy(policyRequest)
                     .flatMap(policy -> {
-                        if (policy == null || !"success".equals(policy.getMessage())) {
+                        if (policy == null || !"success".equalsIgnoreCase(policy.getMessage())) {
                             return Mono.error(new RuntimeException("获取取消规则失败,无法进行预定"));
                         }
 
@@ -311,7 +311,7 @@ public class TestAdapter extends AbstractSupplierAdapter {
             // 1. 先获得取消费用
             return getCancellationCharges(chargesRequest)
                     .flatMap(chargesResult -> {
-                        if (chargesResult == null || !"success".equals(chargesResult.getStatus())) {
+                        if (chargesResult == null || !"success".equalsIgnoreCase(chargesResult.getStatus())) {
                             return Mono.error(new RuntimeException("获取取消费用失败"));
                         }
 

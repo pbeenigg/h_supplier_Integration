@@ -44,6 +44,14 @@ public class QTechBookingDetailResponse extends QTechBaseResponse {
          */
         @JsonProperty("BookingReference")
         private String bookingReference;
+
+
+        /**
+         * 凭证ID
+         */
+        @JsonProperty("VoucherId")
+        private String voucherId;
+
         
         /**
          * 预订日期

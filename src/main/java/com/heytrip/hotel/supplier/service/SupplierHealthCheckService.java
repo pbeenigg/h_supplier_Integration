@@ -228,7 +228,7 @@ public class SupplierHealthCheckService {
                 .onErrorReturn("connection_failed");
             
             String result = response.block();
-            return !"connection_failed".equals(result);
+            return !"connection_failed".equalsIgnoreCase(result);
             
         } catch (Exception e) {
             logger.debug("供应商{}连接性检查失败: {}", supplier.getSupplierName(), e.getMessage());

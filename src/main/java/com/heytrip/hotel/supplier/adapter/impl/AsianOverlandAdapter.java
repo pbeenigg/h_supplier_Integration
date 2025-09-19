@@ -1,6 +1,7 @@
 package com.heytrip.hotel.supplier.adapter.impl;
 
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONUtil;
 import com.heytrip.common.enums.XEnumCurrency;
 import com.heytrip.common.enums.XEnumNoSmoking;
 import com.heytrip.common.request.XSupplierCheckRequest;
@@ -8,6 +9,7 @@ import com.heytrip.common.response.base.XRatePlan;
 import com.heytrip.common.response.base.XRatePlanDaily;
 import com.heytrip.common.response.other.*;
 import com.heytrip.common.result.Result;
+import com.heytrip.common.enums.SupplierOrderStatusEnum;
 import com.heytrip.hotel.supplier.adapter.AbstractSupplierAdapter;
 import com.heytrip.hotel.supplier.adapter.builder.QTechQueryBuilder;
 import com.heytrip.hotel.supplier.adapter.capability.StaticBridge;
@@ -16,6 +18,7 @@ import com.heytrip.hotel.supplier.client.HttpClientService;
 import com.heytrip.hotel.supplier.dto.qtech.req.*;
 import com.heytrip.hotel.supplier.dto.qtech.resp.*;
 import com.heytrip.hotel.supplier.dto.supplier.SupplierAuth;
+import com.heytrip.hotel.supplier.enums.QTechBookingStatusEnum;
 import com.heytrip.hotel.supplier.entity.SupplierConfig;
 import com.heytrip.common.request.XSupplierPriceRequest;
 import com.heytrip.common.request.XCreateOrderRequest;
@@ -28,6 +31,8 @@ import com.heytrip.hotel.supplier.adapter.capability.PricingBridge;
 import com.heytrip.hotel.supplier.adapter.capability.OrderBridge;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
+
+import java.time.Duration;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -242,12 +247,16 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
             return getCancellationPolicy(policyRequest)
                     .flatMap(policy -> {
-                        if (policy == null || !"success".equals(policy.getMessage())) {
+                        if (policy == null || !"success".equalsIgnoreCase(policy.getMessage())) {
                             return Mono.error(new RuntimeException("获取取消规则失败,无法进行预定"));
                         }
 
                         if (policy == null || policy.getTotalBookingAmount() == null) {
                             return Mono.error(new RuntimeException("获取取消规则失败,无法获取预定价格"));
+                        }
+
+                        if (!validatePriceConsistency(request.getExpectedPrice(), policy.getTotalBookingAmount())) {
+                            return Mono.error(new RuntimeException("预定价格与取消规则价格不一致,无法进行预定"));
                         }
 
                         QTechCancellationPolicyResponse.BookingAllowedInfo allowedInfo = policy.getBookingAllowedInfo();
@@ -345,7 +354,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             // 1. 先获得取消费用
             return getCancellationCharges(chargesRequest)
                     .flatMap(chargesResult -> {
-                        if (chargesResult == null || !"success".equals(chargesResult.getStatus())) {
+                        if (chargesResult == null || !"success".equalsIgnoreCase(chargesResult.getStatus())) {
                             return Mono.error(new RuntimeException("获取取消费用失败"));
                         }
 
@@ -503,7 +512,9 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             List<QTechSearchRequest.RoomDetail> details = HeyUtil.buildQTechRoomDetails(input.getOccupancy());
             req.setRoomDetails(details);
             req.setNumberOfRooms(details != null ? details.size() : 0);
-
+            if (details.size() != input.getRoomNum()) {
+                throw new IllegalArgumentException("房间数与入住信息不匹配");
+            }
             // 可根据需要设置静态信息、limit、availableonly 等
             req.setAvailableonly(1);
             req.setStaticData(1);
@@ -594,7 +605,9 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             List<QTechSearchRequest.RoomDetail> details = HeyUtil.buildQTechRoomDetails(input.getOccupancy());
             req.setRoomDetails(details);
             req.setNumberOfRooms(details != null ? details.size() : 0);
-
+            if (details.size() != input.getRoomNum()) {
+                throw new IllegalArgumentException("房间数与入住信息不匹配");
+            }
             // 可根据需要设置静态信息、limit、availableonly 等
             req.setAvailableonly(1);
             req.setStaticData(1);
@@ -646,29 +659,195 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
 
     /**
-     * 创建订单桥接（占位实现）
+     * 创建订单桥接（预定酒店）
      */
     public XCreateOrderResponse createOrder(XCreateOrderRequest input) {
         logger.info("[AsianOverlandAdapter.createOrder] 占位实现, input={}", input);
-        /// TODO
+        /// 需求前提条件：必须先通过 搜索酒店接口获取 到的房型ID（sectionUniqueId）和搜索唯一标识（searchUniqueId）才能预定。
+        /// 预订流程：
+        ///  1. 使用订单请求参数组装 QTechReservationRequest 对象。
+        ///  2. 调用 bookHotel 方法执行预订。
+        ///  3. 处理预订响应，转换为 XCreateOrderResponse 格式返回。
+        ///  4. 通过搜索酒店接口，可以拿到最新价格，可预定状态，搜索唯一标识（searchUniqueId），房型唯一标识（sectionUniqueId）等信息。  拿到了才能去调用预定酒店接口
+        ///  5. 预定成功后，如若预定接口在（3s ~ 10s）还未响应成功， 就异步调用订单详情接口，获取最终的订单状态和信息。 然后预定立即返回给渠道状态 （预定中 ｜预定成功 ｜预定失败）
 
-        return null;
+        // 组装 QTechSearchRequest
+        QTechSearchRequest searchRequest = new QTechSearchRequest();
+        // 日期格式转换
+        searchRequest.setCheckinDate(input.getCheckInDate().format(HeyUtil.DATE_FORMATTER_DDMMYYYY));
+        searchRequest.setCheckoutDate(input.getCheckOutDate().format(HeyUtil.DATE_FORMATTER_DDMMYYYY));
+
+        searchRequest.setHotelIds(input.getHotelId());
+        if (StrUtil.isBlank(searchRequest.getHotelIds())) {
+            logger.warn("[AsianOverlandAdapter.getPriceOrig] 输入缺少酒店ID，无法报价");
+            throw new IllegalArgumentException("输入缺少酒店ID，无法报价");
+        }
+        // 币种，默认 USD
+        searchRequest.setSelCurrency(StrUtil.isBlank(input.getCurrency()) ? "USD" : input.getCurrency());
+
+        // 设置国家信息
+        staticDataQueryService.getHotelByHotelCode(getSafeSupplierId(), getSafeSupplierName(), searchRequest.getHotelIds())
+                .ifPresent(hotel -> {
+                    if (hotel != null) {
+                        String country = hotel.getCountryCode();
+                        //String country = "138"; //TODO  测试
+                        searchRequest.setSelNationality(country);
+                        searchRequest.setCountryOfResidence(country);
+                    } else {
+                        throw new IllegalArgumentException("酒店ID无效，无法获取酒店信息");
+                    }
+                });
+
+        // 房间明细与房间数
+        List<QTechSearchRequest.RoomDetail> roomDetails = HeyUtil.buildQTechRoomDetails(input.getOccupancy());
+        searchRequest.setRoomDetails(roomDetails);
+        searchRequest.setNumberOfRooms(roomDetails != null ? roomDetails.size() : 0);
+        if (roomDetails.size() != input.getRoomNum()) {
+            throw new IllegalArgumentException("房间数与入住信息不匹配");
+        }
+        // 可根据需要设置静态信息、limit、availableonly 等
+        searchRequest.setAvailableonly(1);
+        searchRequest.setStaticData(1);
+
+        // 2. 调用 QTECH 搜索
+        QTechSearchResponse searchResponse = this.searchHotels(searchRequest)
+                .doOnError(e -> logger.error("[AsianOverlandAdapter.createOrder] 酒店搜索失败", e))
+                .block();
+
+        if (searchResponse != null && searchResponse.getStatus() != null && searchResponse.getStatus().equalsIgnoreCase("Success")) {
+            // 组装预订请求
+            QTechReservationRequest reservationRequest = new QTechReservationRequest();
+            // 这里需要根据 input 构建预订请求对象
+
+            // 设置预定价格 - 实现价格判断和设置逻辑
+            BigDecimal finalBookingPrice = determineFinalBookingPrice(input, searchResponse);
+            reservationRequest.setExpectedPrice(finalBookingPrice);
+            reservationRequest.setHotelId(input.getHotelId());
+            reservationRequest.setAgentRefNo(input.getCreateKey()); // 订单校验返回的 订单唯一号
+            reservationRequest.setSectionUniqueId(input.getRoomId());
+            reservationRequest.setUniqueId(searchResponse.getSearchUniqueId()); //从搜索酒店结果中获取
+
+            //// 构建预订房间明细（需要转换为JSON字符串格式）
+            /// 根据 input.getRoomNum() 入参的房间数，构建对应数量的房间明细，如果只有一个房间，则只构建一个
+            /// 然后还需要为每个房间设置一个 对应的 房间类型ID（roomClassId）= input.getRatePlanId(), 但是入参只支持一个房间类型 ID
+            /// 如果 input.getRoomNum() 入参的房间数 > 1 则表示多间房， 但是没有传递多个房间类型 ID 的参数，暂时只能使用同一个房间类型 ID
+            /// 如果需要支持多间房且不同房型，则需要扩展入参，目前先按同一房型处理
+            String roomDetailsJson = buildReservationRoomDetails(input, roomDetails);
+            reservationRequest.setRoomDetails(roomDetailsJson);
+
+
+            // 执行预定流程：预定接口 + 超时处理 + 订单详情轮询
+            XCreateOrderResponse orderResponse = executeBookingWithTimeoutAndPolling(reservationRequest, input);
+
+            return orderResponse;
+
+
+        } else {
+            logger.warn("[AsianOverlandAdapter.createOrder] QTECH返回非成功: message={}, info={}", searchResponse != null ? searchResponse.getMessage() : "null", searchResponse != null ? searchResponse.getMessageInfo() : "null");
+            throw new IllegalArgumentException("预订失败，无法获取预定酒店信息");
+        }
     }
 
     /**
-     * 取消订单桥接（占位实现）
+     * 取消订单桥接（取消预定）
+     * 
+     * 流程说明：
+     * 1. 先调用取消费用接口，获取取消费用和是否允许取消
+     * 2. 如果不允许取消，直接返回失败响应
+     * 3. 如果允许取消，调用取消预订接口
+     * 4. 根据取消费用和退款金额构建响应
      */
     public XCancelOrderResponse cancelOrder(XCancelOrderRequest input) {
-        logger.info("[AsianOverlandAdapter.cancelOrder] 占位实现, input={}", input);
-        return null;
+        logger.info("[AsianOverlandAdapter.cancelOrder] 开始取消订单流程, supplierOrderId={}", input.getSupplierOrderId());
+        
+        try {
+            // 1. 获取取消费用
+            QTechGetCancellationChargesRequest chargesRequest = new QTechGetCancellationChargesRequest();
+            chargesRequest.setBookingId(input.getSupplierOrderId());
+            
+            QTechCancellationChargesResponse chargesResponse = this.getCancellationCharges(chargesRequest)
+                    .timeout(Duration.ofSeconds(10))
+                    .doOnError(e -> logger.error("[AsianOverlandAdapter.cancelOrder] 获取取消费用失败", e))
+                    .onErrorReturn(null)
+                    .block();
+            
+            // 2. 检查取消费用响应
+            if (chargesResponse == null || !"success".equalsIgnoreCase(chargesResponse.getStatus())) {
+                logger.error("[AsianOverlandAdapter.cancelOrder] 获取取消费用失败，响应: {}", chargesResponse);
+                return buildCancelFailedResponse(input.getSupplierOrderId(), "获取取消费用失败");
+            }
+            
+            // 3. 检查是否允许取消
+            if (!"yes".equalsIgnoreCase(chargesResponse.getAllowCancel())) {
+                logger.warn("[AsianOverlandAdapter.cancelOrder] 订单不允许取消，allowCancel: {}, message: {}", 
+                           chargesResponse.getAllowCancel(), chargesResponse.getMessageInfo());
+                return buildCancelNotAllowedResponse(input.getSupplierOrderId(), chargesResponse.getMessageInfo());
+            }
+            
+            logger.info("[AsianOverlandAdapter.cancelOrder] 订单允许取消，取消费用: {} {}", 
+                       chargesResponse.getCancellationCharge(), chargesResponse.getDisplayCurrencyCode());
+            
+            // 4. 执行取消预订
+            QTechCancellationBookingRequest cancelRequest = new QTechCancellationBookingRequest();
+            cancelRequest.setBookingId(input.getSupplierOrderId());
+            
+            QTechCancellationResponse cancellationResponse = this.cancelBooking(cancelRequest)
+                    .timeout(Duration.ofSeconds(10))
+                    .doOnError(e -> logger.error("[AsianOverlandAdapter.cancelOrder] 取消预订失败", e))
+                    .onErrorReturn(null)
+                    .block();
+            
+            // 5. 检查取消响应
+            if (cancellationResponse == null || !"success".equalsIgnoreCase(cancellationResponse.getStatus())) {
+                logger.error("[AsianOverlandAdapter.cancelOrder] 取消预订失败，响应: {}", cancellationResponse);
+                return buildCancelFailedResponse(input.getSupplierOrderId(), "取消预订接口调用失败");
+            }
+            
+            // 6. 构建成功响应
+            return buildCancelSuccessResponse(input.getSupplierOrderId(), chargesResponse, cancellationResponse);
+            
+        } catch (Exception e) {
+            logger.error("[AsianOverlandAdapter.cancelOrder] 取消订单流程异常，supplierOrderId: " + input.getSupplierOrderId(), e);
+            return buildCancelFailedResponse(input.getSupplierOrderId(), "取消订单流程异常: " + e.getMessage());
+        }
     }
 
     /**
-     * 查询订单桥接（占位实现）
+     * 查询订单桥接（查询预定详情）
+     * 
+     * 流程说明：
+     * 1. 调用订单详情接口获取最新的订单状态和信息
+     * 2. 将QTECH状态映射为标准订单状态
+     * 3. 构建完整的查询订单响应
      */
     public XQueryOrderResponse queryOrder(String distributorOrderId, String supplierOrderId, String ext) {
-        logger.info("[AsianOverlandAdapter.queryOrder] 占位实现, distributorOrderId={}, supplierOrderId={}, ext={}", distributorOrderId, supplierOrderId, ext);
-        return null;
+        logger.info("[AsianOverlandAdapter.queryOrder] 开始查询订单详情, distributorOrderId={}, supplierOrderId={}, ext={}", 
+                   distributorOrderId, supplierOrderId, ext);
+
+        try {
+            // 1. 调用订单详情接口
+            QTechBookingDetailRequest detailRequest = new QTechBookingDetailRequest();
+            detailRequest.setBookingId(supplierOrderId);
+            
+            QTechBookingDetailResponse detailResponse = this.getBookingDetail(detailRequest)
+                    .timeout(Duration.ofSeconds(10))
+                    .doOnError(e -> logger.error("[AsianOverlandAdapter.queryOrder] 获取预订详情失败", e))
+                    .onErrorReturn(null)
+                    .block();
+
+            // 2. 检查响应
+            if (detailResponse == null || !"success".equalsIgnoreCase(detailResponse.getStatus())) {
+                logger.error("[AsianOverlandAdapter.queryOrder] 获取订单详情失败，响应: {}", detailResponse);
+                return buildQueryFailedResponse(distributorOrderId, supplierOrderId, "获取订单详情失败");
+            }
+
+            // 3. 构建查询响应
+            return buildQuerySuccessResponse(distributorOrderId, supplierOrderId, detailResponse);
+            
+        } catch (Exception e) {
+            logger.error("[AsianOverlandAdapter.queryOrder] 查询订单异常，supplierOrderId: " + supplierOrderId, e);
+            return buildQueryFailedResponse(distributorOrderId, supplierOrderId, "查询订单异常: " + e.getMessage());
+        }
     }
 
 
@@ -711,15 +890,22 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                         }
                     });
 
-            // 房间明细
-            req.setRoomDetails(HeyUtil.buildQTechRoomDetails(input.getOccupancy()));
+            // 房间明细与房间数
+            List<QTechSearchRequest.RoomDetail> details = HeyUtil.buildQTechRoomDetails(input.getOccupancy());
+            req.setRoomDetails(details);
+            req.setNumberOfRooms(details != null ? details.size() : 0);
+
+            // 可根据需要设置静态信息、limit、availableonly 等
+            req.setAvailableonly(1);
+            req.setStaticData(1);
+
 
             // 2. 调用 QTECH 搜索
             QTechSearchResponse response = this.searchHotels(req)
                     .doOnError(e -> logger.error("[AsianOverlandAdapter.getPrice] 酒店搜索失败", e))
                     .block();
 
-            if (response != null && response.getStatus() != null && response.getStatus().equals("Success")) {
+            if (response != null && response.getStatus() != null && response.getStatus().equalsIgnoreCase("Success")) {
                 logger.info("[AsianOverlandAdapter.getPriceOrig] 成功获取原始报价数据");
                 return response; // 返回原始响应对象
             } else {
@@ -790,7 +976,9 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             List<QTechSearchRequest.RoomDetail> details = HeyUtil.buildQTechRoomDetails(input.getOccupancy());
             req.setRoomDetails(details);
             req.setNumberOfRooms(details != null ? details.size() : 0);
-
+            if (details.size() != input.getRoomNum()) {
+                throw new IllegalArgumentException("房间数与入住信息不匹配");
+            }
             // 可根据需要设置静态信息、limit、availableonly 等
             req.setAvailableonly(1);
             req.setStaticData(1);
@@ -843,7 +1031,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             policyRequest.setHotelId(targetHotel.getHotelId());
             policyRequest.setUniqueId(searchUniqueId);
             policyRequest.setSectionUniqueId(input.getRoomId());
-            
+
             QTechCancellationPolicyResponse policyResponse = getCancellationPolicy(policyRequest)
                     .doOnError(e -> logger.error("[AsianOverlandAdapter.orderCheck] 获取酒店取消规则失败", e))
                     .block();
@@ -853,8 +1041,8 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                 throw new IllegalStateException("取消规则接口无响应");
             }
             if (!"success".equalsIgnoreCase(policyResponse.getMessage())) {
-                logger.warn("[AsianOverlandAdapter.orderCheck] 取消规则接口返回非成功: message={}, info={}", 
-                           policyResponse.getMessage(), policyResponse.getMessageInfo());
+                logger.warn("[AsianOverlandAdapter.orderCheck] 取消规则接口返回非成功: message={}, info={}",
+                        policyResponse.getMessage(), policyResponse.getMessageInfo());
                 throw new IllegalStateException("取消规则接口返回非成功: " + policyResponse.getMessage());
             }
 
@@ -874,10 +1062,10 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             // 6. 价格对比验证（必须相等）
             BigDecimal searchTotalPrice = targetHotel.getTotalCharges();
             BigDecimal policyTotalPrice = policyResponse.getTotalBookingAmount();
-            
+
             if (!validatePriceConsistency(searchTotalPrice, policyTotalPrice)) {
-                logger.warn("[AsianOverlandAdapter.orderCheck] 价格不一致 - 搜索价格: {}, 取消规则价格: {}", 
-                           searchTotalPrice, policyTotalPrice);
+                logger.warn("[AsianOverlandAdapter.orderCheck] 价格不一致 - 搜索价格: {}, 取消规则价格: {}",
+                        searchTotalPrice, policyTotalPrice);
                 throw new IllegalStateException("价格发生变化，搜索价格: " + searchTotalPrice + ", 最新价格: " + policyTotalPrice);
             }
 
@@ -890,12 +1078,12 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
             // 8. 生成createKey
             String createKey = HeyUtil.generateCreateKey(
-                getSafeSupplierName(),
-                input.getHotelId(),
-                input.getRoomId(),
-                input.getCheckInDate().toString(),
-                input.getCheckOutDate().toString(),
-                policyTotalPrice.toString()
+                    getSafeSupplierName(),
+                    input.getHotelId(),
+                    input.getRoomId(),
+                    input.getCheckInDate().toString(),
+                    input.getCheckOutDate().toString(),
+                    policyTotalPrice.toString()
             );
 
             // 9. 构建成功响应
@@ -903,9 +1091,10 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             response.setRoom(matchedRoom);
             response.setCreateKey(createKey);
             response.setTotalBasePrice(policyTotalPrice.toString());
-            
-            logger.info("[AsianOverlandAdapter.orderCheck] 订单校验成功 - 酒店: {}, 房型: {}, 价格: {}, createKey: {}", 
-                       input.getHotelId(), input.getRoomId(), policyTotalPrice, createKey);
+            response.setTotalPrice(policyTotalPrice.toString());
+
+            logger.info("[AsianOverlandAdapter.orderCheck] 订单校验成功 - 酒店: {}, 房型: {}, 价格: {}, createKey: {}",
+                    input.getHotelId(), input.getRoomId(), policyTotalPrice, createKey);
 
             return response;
 
@@ -925,7 +1114,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
         try {
             Map<String, Object> result = new HashMap<>();
-            
+
             // 1. 复用orderCheck的搜索逻辑 - 组装 QTechSearchRequest
             QTechSearchRequest req = new QTechSearchRequest();
 
@@ -940,7 +1129,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                 logger.warn("[AsianOverlandAdapter.orderCheckOrg] 输入缺少酒店ID，无法报价");
                 return result;
             }
-            
+
             // 币种，默认 USD
             req.setSelCurrency(StrUtil.isBlank(input.getCurrency()) ? "USD" : input.getCurrency());
 
@@ -958,7 +1147,9 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             List<QTechSearchRequest.RoomDetail> details = HeyUtil.buildQTechRoomDetails(input.getOccupancy());
             req.setRoomDetails(details);
             req.setNumberOfRooms(details != null ? details.size() : 0);
-
+            if (details.size() != input.getRoomNum()) {
+                throw new IllegalArgumentException("房间数与入住信息不匹配");
+            }
             // 可根据需要设置静态信息、limit、availableonly 等
             req.setAvailableonly(1);
             req.setStaticData(1);
@@ -972,24 +1163,24 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             if (searchResponse != null) {
                 result.put("searchResponse", searchResponse);
                 logger.info("[AsianOverlandAdapter.orderCheckOrg] 酒店搜索响应已获取: message={}", searchResponse.getMessage());
-                
+
                 // 4. 如果搜索响应成功并获得了searchUniqueId，继续调用取消规则接口
-                if ("success".equalsIgnoreCase(searchResponse.getMessage()) && 
-                    StrUtil.isNotBlank(searchResponse.getSearchUniqueId())) {
-                    
+                if ("success".equalsIgnoreCase(searchResponse.getMessage()) &&
+                        StrUtil.isNotBlank(searchResponse.getSearchUniqueId())) {
+
                     String searchUniqueId = searchResponse.getSearchUniqueId();
                     logger.info("[AsianOverlandAdapter.orderCheckOrg] 获取到searchUniqueId: {}, 继续调用取消规则接口", searchUniqueId);
-                    
+
                     // 调用取消规则接口
                     QTechCancellationPolicyRequest policyRequest = new QTechCancellationPolicyRequest();
                     policyRequest.setHotelId(input.getHotelId());
                     policyRequest.setUniqueId(searchUniqueId);
                     policyRequest.setSectionUniqueId(input.getRoomId());
-                    
+
                     QTechCancellationPolicyResponse policyResponse = getCancellationPolicy(policyRequest)
                             .doOnError(e -> logger.error("[AsianOverlandAdapter.orderCheckOrg] 获取取消规则失败", e))
                             .block();
-                    
+
                     // 5. 如果有取消规则响应，添加到结果中
                     if (policyResponse != null) {
                         result.put("policyResponse", policyResponse);
@@ -1104,29 +1295,543 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
     // ============================================ 工具方法 ==============================================
 
     /**
+     * 执行预定流程：预定接口 + 超时处理 + 订单详情轮询
+     * <p>
+     * 流程说明：
+     * 1. 提交预定请求，设置超时时间（3s~10s）
+     * 2. 如果预定接口超时或失败，异步调用订单详情接口
+     * 3. 使用agentRefNo轮询订单详情，每隔2秒调用一次，最多3次
+     * 4. 根据最终状态返回：预定中｜预定成功｜预定失败
+     *
+     * @param reservationRequest 预定请求
+     * @param input              创建订单请求
+     * @return 预定响应
+     */
+    private XCreateOrderResponse executeBookingWithTimeoutAndPolling(QTechReservationRequest reservationRequest, XCreateOrderRequest input) {
+        String agentRefNo = reservationRequest.getAgentRefNo(); // 订单唯一号 ，
+        logger.info("[AsianOverlandAdapter.executeBookingWithTimeoutAndPolling] 开始执行预定流程，订单号: {}", agentRefNo);
+
+        try {
+            // 1. 提交预定请求，设置超时时间为8秒
+            QTechReservationResponse reservationResponse = this.bookHotel(reservationRequest)
+                    .timeout(Duration.ofSeconds(10))
+                    .doOnError(e -> logger.error("[AsianOverlandAdapter.executeBookingWithTimeoutAndPolling] 预定接口调用失败", e))
+                    .onErrorReturn(null) // 预定失败时返回null，继续执行后续逻辑
+                    .block();
+
+            // 2. 检查预定响应
+            if (reservationResponse != null && isBookingSuccessful(reservationResponse)) {
+                logger.info("[AsianOverlandAdapter.executeBookingWithTimeoutAndPolling] 预定接口响应成功，订单号: {}", agentRefNo);
+                return buildSuccessfulOrderResponse(reservationResponse, input);
+            }
+
+            // 3. 预定接口超时或失败，开始轮询订单详情
+            logger.warn("[AsianOverlandAdapter.executeBookingWithTimeoutAndPolling] 预定接口超时或失败，开始轮询订单详情，订单号: {}", agentRefNo);
+
+            QTechBookingDetailResponse finalDetailResponse = pollBookingDetails(agentRefNo);
+
+            // 4. 根据订单详情响应构建最终结果
+            if (finalDetailResponse != null && isBookingDetailFinalStatus(finalDetailResponse)) {
+                String currentStatus = finalDetailResponse.getBookingDetail() != null ?
+                        finalDetailResponse.getBookingDetail().getCurrentStatus() : "unknown";
+                logger.info("[AsianOverlandAdapter.executeBookingWithTimeoutAndPolling] 通过订单详情获取到最终状态: {}, 订单号: {}",
+                        currentStatus, agentRefNo);
+                return buildOrderResponseFromDetail(finalDetailResponse);
+            } else {
+                // 轮询未获取到最终状态，根据最后一次响应判断
+                if (finalDetailResponse != null && finalDetailResponse.getBookingDetail() != null) {
+                    String currentStatus = finalDetailResponse.getBookingDetail().getCurrentStatus();
+                    logger.warn("[AsianOverlandAdapter.executeBookingWithTimeoutAndPolling] 订单详情轮询未完成，当前状态: {}, 订单号: {}",
+                            currentStatus, agentRefNo);
+
+                    // 如果是需要继续轮询的状态，返回处理中状态
+                    if (shouldContinuePolling(currentStatus)) {
+                        return buildPendingOrderResponse(agentRefNo);
+                    } else {
+                        // 如果是最终状态但之前判断有误，直接构建响应
+                        return buildOrderResponseFromDetail(finalDetailResponse);
+                    }
+                } else {
+                    logger.warn("[AsianOverlandAdapter.executeBookingWithTimeoutAndPolling] 订单详情轮询失败，返回预定中状态，订单号: {}", agentRefNo);
+                    return buildPendingOrderResponse(agentRefNo);
+                }
+            }
+
+        } catch (Exception e) {
+            logger.error("[AsianOverlandAdapter.executeBookingWithTimeoutAndPolling] 预定流程异常，订单号: " + agentRefNo, e);
+            return buildFailedOrderResponse(agentRefNo, "预定流程异常: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 轮询订单详情
+     * 每隔2秒调用一次，最多轮询3次
+     *
+     * @param agentRefNo 订单唯一号
+     * @return 订单详情响应
+     */
+    private QTechBookingDetailResponse pollBookingDetails(String agentRefNo) {
+        int maxRetries = 3;
+        int retryInterval = 2000; // 2秒
+
+        for (int i = 0; i < maxRetries; i++) {
+            try {
+                logger.info("[AsianOverlandAdapter.pollBookingDetails] 第{}次轮询订单详情，订单号: {}", i + 1, agentRefNo);
+
+                QTechBookingDetailRequest detailRequest = new QTechBookingDetailRequest();
+                detailRequest.setBookingId(agentRefNo);
+
+                QTechBookingDetailResponse detailResponse = this.getBookingDetail(detailRequest)
+                        .timeout(Duration.ofSeconds(5))
+                        .doOnError(e -> logger.error("[AsianOverlandAdapter.pollBookingDetails] 订单详情接口调用失败", e))
+                        .onErrorReturn(null)
+                        .block();
+
+                if (detailResponse != null && isBookingDetailFinalStatus(detailResponse)) {
+                    String currentStatus = detailResponse.getBookingDetail() != null ?
+                            detailResponse.getBookingDetail().getCurrentStatus() : "unknown";
+                    logger.info("[AsianOverlandAdapter.pollBookingDetails] 订单详情获取到最终状态: {}, 订单号: {}",
+                            currentStatus, agentRefNo);
+                    return detailResponse;
+                }
+
+                // 如果不是最后一次重试，等待2秒后继续
+                if (i < maxRetries - 1) {
+                    logger.info("[AsianOverlandAdapter.pollBookingDetails] 等待{}ms后进行下次轮询", retryInterval);
+                    Thread.sleep(retryInterval);
+                }
+
+            } catch (InterruptedException e) {
+                logger.error("[AsianOverlandAdapter.pollBookingDetails] 轮询被中断", e);
+                Thread.currentThread().interrupt();
+                break;
+            } catch (Exception e) {
+                logger.error("[AsianOverlandAdapter.pollBookingDetails] 轮询异常", e);
+            }
+        }
+
+        logger.warn("[AsianOverlandAdapter.pollBookingDetails] 订单详情轮询完成，未获取到有效响应，订单号: {}", agentRefNo);
+        return null;
+    }
+
+    /**
+     * 判断预定是否成功
+     */
+    private boolean isBookingSuccessful(QTechReservationResponse response) {
+        return response != null &&
+                "success".equalsIgnoreCase(response.getStatus()) &&
+                response.getBookingDetail() != null &&
+                response.getBookingDetail().getId() != null;
+    }
+
+    /**
+     * 将QTECH预订状态映射为标准订单状态
+     *
+     * @param qtechStatus QTECH原始状态
+     * @return 标准订单状态
+     */
+    private SupplierOrderStatusEnum mapQTechStatusToStandardStatus(String qtechStatus) {
+        QTechBookingStatusEnum qtechEnum = QTechBookingStatusEnum.fromCode(qtechStatus);
+
+        switch (qtechEnum) {
+            case VOUCHERED:
+                // 预订已确认
+                return SupplierOrderStatusEnum.CONFIRMED;
+
+            case ON_REQUEST:
+            case INPROCESS_BOOKING:
+                // 预订处理中，需要轮询
+                return SupplierOrderStatusEnum.PAID;
+
+            case REJECTED:
+                return SupplierOrderStatusEnum.REJECT;
+            case FAILED:
+                // 预订被拒绝或失败
+                return SupplierOrderStatusEnum.REJECT;
+
+            case INPROCESS_CANCEL:
+                // 取消处理中
+                return SupplierOrderStatusEnum.APPLY_CANCEL;
+
+            default:
+                logger.warn("[AsianOverlandAdapter.mapQTechStatusToStandardStatus] 未知的QTECH状态: {}", qtechStatus);
+                return SupplierOrderStatusEnum.UNKNOWN;
+        }
+    }
+
+    /**
+     * 判断QTECH状态是否需要继续轮询
+     *
+     * @param qtechStatus QTECH原始状态
+     * @return 是否需要继续轮询
+     */
+    private boolean shouldContinuePolling(String qtechStatus) {
+        QTechBookingStatusEnum qtechEnum = QTechBookingStatusEnum.fromCode(qtechStatus);
+        return qtechEnum.shouldContinuePolling();
+    }
+
+
+    /**
+     * 判断订单详情是否为最终状态（不需要继续轮询）
+     */
+    private boolean isBookingDetailFinalStatus(QTechBookingDetailResponse response) {
+        if (response == null || !"success".equalsIgnoreCase(response.getStatus()) || response.getBookingDetail() == null) {
+            return false;
+        }
+        String currentStatus = response.getBookingDetail().getCurrentStatus();
+        return !shouldContinuePolling(currentStatus);
+    }
+
+    /**
+     * 构建成功的订单响应（基于预定接口响应）
+     */
+    private XCreateOrderResponse buildSuccessfulOrderResponse(QTechReservationResponse reservationResponse, XCreateOrderRequest input) {
+        XCreateOrderResponse response = new XCreateOrderResponse();
+        response.setStatus(SupplierOrderStatusEnum.CONFIRMED);
+        response.setStatusDesc("预定成功");
+        response.setSupplierOrderId(reservationResponse.getBookingDetail() != null ?
+                reservationResponse.getBookingDetail().getId() : null);
+        response.setOrigStatus("SUCCESS");
+        response.setOrigStatusDesc("预定成功");
+
+        // 设置价格信息
+        if (reservationResponse.getBookingDetail() != null) {
+            BigDecimal totalPrice = reservationResponse.getBookingDetail().getTotalCharges();
+            if (totalPrice != null) {
+                response.setTotalPrice(totalPrice);
+                response.setTotalBasePrice(totalPrice); // 成本价暂时设为相同
+                response.setCurrency("USD"); // QTECH默认使用USD
+            }
+        }
+
+        String supplierOrderId = reservationResponse.getBookingDetail() != null ?
+                reservationResponse.getBookingDetail().getId() : null;
+        logger.info("[AsianOverlandAdapter.buildSuccessfulOrderResponse] 构建成功响应，供应商订单号: {}, 价格: {}",
+                supplierOrderId, response.getTotalPrice());
+        return response;
+    }
+
+    /**
+     * 构建订单响应（基于订单详情响应）
+     */
+    private XCreateOrderResponse buildOrderResponseFromDetail(QTechBookingDetailResponse detailResponse) {
+        XCreateOrderResponse response = new XCreateOrderResponse();
+
+        // 根据订单详情状态判断最终结果，使用完善的状态映射逻辑
+        String qtechStatus = "unknown";
+        QTechBookingStatusEnum qtechEnum = QTechBookingStatusEnum.UNKNOWN;
+
+        if ("success".equalsIgnoreCase(detailResponse.getStatus()) && detailResponse.getBookingDetail() != null) {
+            qtechStatus = detailResponse.getBookingDetail().getCurrentStatus();
+            if (qtechStatus != null) {
+                qtechEnum = QTechBookingStatusEnum.fromCode(qtechStatus);
+                // 使用状态映射方法
+                SupplierOrderStatusEnum mappedStatus = mapQTechStatusToStandardStatus(qtechStatus);
+                response.setStatus(mappedStatus);
+            } else {
+                response.setStatus(SupplierOrderStatusEnum.UNKNOWN);
+            }
+        } else {
+            response.setStatus(SupplierOrderStatusEnum.UNKNOWN);
+        }
+
+        // 设置状态描述，使用枚举的描述
+        response.setStatusDesc(qtechEnum.getDesc());
+        response.setOrigStatus(qtechStatus);
+        response.setOrigStatusDesc(qtechEnum.getDesc()); // 使用枚举的描述作为原始状态描述
+
+        // 设置订单号和价格信息
+        if (detailResponse.getBookingDetail() != null) {
+            response.setSupplierOrderId(detailResponse.getBookingDetail().getId());
+
+            // 设置价格信息
+            BigDecimal totalPrice = detailResponse.getBookingDetail().getTotalCharges();
+            if (totalPrice != null) {
+                response.setTotalPrice(totalPrice);
+                response.setTotalBasePrice(totalPrice); // 成本价暂时设为相同
+                response.setCurrency(detailResponse.getBookingDetail().getCurrencyCode() != null ?
+                        detailResponse.getBookingDetail().getCurrencyCode() : "USD");
+            }
+        }
+
+        logger.info("[AsianOverlandAdapter.buildOrderResponseFromDetail] 基于订单详情构建响应，QTECH状态: {}, 映射状态: {}",
+                qtechStatus, response.getStatus());
+        return response;
+    }
+
+    /**
+     * 构建预定中状态的订单响应
+     */
+    private XCreateOrderResponse buildPendingOrderResponse(String agentRefNo) {
+        XCreateOrderResponse response = new XCreateOrderResponse();
+        response.setStatus(SupplierOrderStatusEnum.PAID);
+        response.setStatusDesc("预定处理中");
+        response.setSupplierOrderId(agentRefNo);
+        response.setOrigStatus("PENDING");
+        response.setOrigStatusDesc("预定处理中，请稍后通过订单查询接口查询最终状态");
+
+        logger.info("[AsianOverlandAdapter.buildPendingOrderResponse] 构建预定中响应，订单号: {}", agentRefNo);
+        return response;
+    }
+
+    /**
+     * 构建失败的订单响应
+     */
+    private XCreateOrderResponse buildFailedOrderResponse(String agentRefNo, String errorMessage) {
+        XCreateOrderResponse response = new XCreateOrderResponse();
+        response.setStatus(SupplierOrderStatusEnum.REJECT);
+        response.setStatusDesc("预定失败");
+        response.setSupplierOrderId(agentRefNo);
+        response.setOrigStatus("FAILED");
+        response.setOrigStatusDesc(errorMessage);
+
+        logger.error("[AsianOverlandAdapter.buildFailedOrderResponse] 构建失败响应，订单号: {}, 错误: {}", agentRefNo, errorMessage);
+        return response;
+    }
+
+    /**
+     * 确定最终预定价格
+     * 实现价格判断和设置逻辑：
+     * 1、SalePrice渠道 100 < 供应商 101 = 亏 1 截断
+     * 2、SalePrice渠道 120 > 供应商 101 = 加价 19 不截断，用接口获取的最新预定价去提交预定
+     * 3、SalePrice渠道 100 = 供应商 100 = 不加价不截断 用接口获取的最新预定价去提交预定
+     *
+     * @param input          创建订单请求
+     * @param searchResponse 搜索响应
+     * @return 最终预定价格
+     */
+    private BigDecimal determineFinalBookingPrice(XCreateOrderRequest input, QTechSearchResponse searchResponse) {
+        try {
+            // 1. 获取供应商最新价格
+            BigDecimal supplierPrice = getSupplierPriceFromSearchResponse(input.getHotelId(), input.getRoomId(), searchResponse);
+            if (supplierPrice == null) {
+                logger.warn("[AsianOverlandAdapter.determineFinalBookingPrice] 无法获取供应商价格，使用订单总价");
+                throw new IllegalStateException("无法获取供应商价格");
+            }
+
+            // 2. 获取渠道销售价格
+            BigDecimal salePrice = input.getSalePrice();
+            if (salePrice == null) {
+                logger.info("[AsianOverlandAdapter.determineFinalBookingPrice] 无销售价格，使用供应商价格: {}", supplierPrice);
+                return supplierPrice;
+            }
+
+            // 3. 价格对比和决策逻辑
+            int comparison = salePrice.compareTo(supplierPrice);
+
+            if (comparison < 0) {
+                // 情况1: SalePrice < 供应商价格 = 亏损，截断订单
+                BigDecimal loss = supplierPrice.subtract(salePrice);
+                logger.warn("[AsianOverlandAdapter.determineFinalBookingPrice] 价格亏损截断 - 销售价: {}, 供应商价: {}, 亏损: {}",
+                        salePrice, supplierPrice, loss);
+                throw new IllegalStateException("价格亏损，无法预订 - 销售价: " + salePrice + ", 供应商价: " + supplierPrice + ", 亏损: " + loss);
+
+            } else if (comparison > 0) {
+                // 情况2: SalePrice > 供应商价格 = 加价，不截断，用供应商最新价格预定
+                BigDecimal markup = salePrice.subtract(supplierPrice);
+                logger.info("[AsianOverlandAdapter.determineFinalBookingPrice] 价格加价不截断 - 销售价: {}, 供应商价: {}, 加价: {}, 使用供应商价格预定",
+                        salePrice, supplierPrice, markup);
+                return supplierPrice;
+
+            } else {
+                // 情况3: SalePrice = 供应商价格 = 不加价不截断，用供应商最新价格预定
+                logger.info("[AsianOverlandAdapter.determineFinalBookingPrice] 价格相等不截断 - 销售价: {}, 供应商价: {}, 使用供应商价格预定",
+                        salePrice, supplierPrice);
+                return supplierPrice;
+            }
+
+        } catch (Exception e) {
+            logger.error("[AsianOverlandAdapter.determineFinalBookingPrice] 价格判断异常，使用订单总价", e);
+            throw new RuntimeException("订单价格判断异常");
+        }
+    }
+
+    /**
+     * 构建预订房间明细JSON字符串
+     * 根据input.getRoomNum()构建对应数量的房间明细，使用input.getRatePlanId()作为roomClassId
+     * 结合XCreateOrderRequest中的入住人信息转换为QTech预订接口需要的格式
+     *
+     * @param input       创建订单请求
+     * @param roomDetails 搜索时构建的房间明细
+     * @return 房间明细JSON字符串
+     */
+    private String buildReservationRoomDetails(XCreateOrderRequest input, List<QTechSearchRequest.RoomDetail> roomDetails) {
+        try {
+            List<QTechReservationRequest.RoomDetail> roomDetailsList = new ArrayList<>();
+
+            // 获取房间数量，优先使用input.getRoomNum()
+            int roomCount = input.getRoomNum() != null ? input.getRoomNum() : 1;
+            logger.info("[AsianOverlandAdapter.buildReservationRoomDetails] 构建房间明细，房间数量: {}", roomCount);
+
+            // 按房间分组入住人信息
+            Map<Integer, List<XCreateOrderRequest.CreateOrderCustomer>> roomGroups = new HashMap<>();
+            if (input.getCustomers() != null && !input.getCustomers().isEmpty()) {
+                for (XCreateOrderRequest.CreateOrderCustomer customer : input.getCustomers()) {
+                    Integer roomIndex = customer.getRoomIndex() != null ? customer.getRoomIndex() : 0;
+                    roomGroups.computeIfAbsent(roomIndex, k -> new ArrayList<>()).add(customer);
+                }
+            }
+
+            // 根据input.getRoomNum()构建对应数量的房间明细
+            for (int i = 0; i < roomCount; i++) {
+                QTechReservationRequest.RoomDetail reservationRoom = new QTechReservationRequest.RoomDetail();
+
+                // 使用搜索房间明细作为模板（如果有多个搜索房间明细，按索引取；如果只有一个，重复使用）
+                QTechSearchRequest.RoomDetail templateRoom = roomDetails.get(i < roomDetails.size() ? i : 0);
+
+                // 使用搜索房间明细的基础信息
+                reservationRoom.setNumberOfAdults(templateRoom.getNumberOfAdults());
+                reservationRoom.setNumberOfChilds(templateRoom.getNumberOfChild() != null ? templateRoom.getNumberOfChild().toString() : "0");
+
+                // 使用input.getRatePlanId()作为roomClassId
+                String roomClassId = input.getRatePlanId();
+                reservationRoom.setRoomClassId(roomClassId);
+
+                logger.debug("[AsianOverlandAdapter.buildReservationRoomDetails] 房间{}设置roomClassId: {}", i, roomClassId);
+
+                // 获取该房间的入住人信息
+                List<XCreateOrderRequest.CreateOrderCustomer> roomCustomers = roomGroups.get(i);
+                List<QTechReservationRequest.Passenger> passengers = new ArrayList<>();
+
+                if (roomCustomers != null && !roomCustomers.isEmpty()) {
+                    // 使用实际入住人信息
+                    for (XCreateOrderRequest.CreateOrderCustomer customer : roomCustomers) {
+                        QTechReservationRequest.Passenger passenger = new QTechReservationRequest.Passenger();
+
+                        // 判断是否为儿童（0 ～ 12岁儿童）
+                        boolean isChild = customer.getAge() != null && customer.getAge() < 12;
+
+                        passenger.setSalutation(isChild ? "Child" : "MR");
+                        passenger.setFirstName(customer.getName() != null ? customer.getName() : "Guest");
+                        passenger.setLastName(customer.getFamilyName() != null ? customer.getFamilyName() : "");
+
+                        if (isChild && customer.getAge() != null) {
+                            passenger.setAge(customer.getAge().toString());
+                        }
+
+                        passengers.add(passenger);
+                    }
+                } else {
+                    // 使用默认入住人信息（基于搜索房间明细模板）
+                    int adultCount = templateRoom.getNumberOfAdults();
+                    int childCount = templateRoom.getNumberOfChild() != null ? templateRoom.getNumberOfChild() : 0;
+
+                    // 添加成人
+                    for (int j = 0; j < adultCount; j++) {
+                        QTechReservationRequest.Passenger passenger = new QTechReservationRequest.Passenger();
+                        passenger.setSalutation("MR");
+                        passenger.setFirstName("Guest" + (j + 1));
+                        passenger.setLastName("");
+                        passengers.add(passenger);
+                    }
+
+                    // 添加儿童
+                    for (int j = 0; j < childCount; j++) {
+                        QTechReservationRequest.Passenger passenger = new QTechReservationRequest.Passenger();
+                        passenger.setSalutation("Child");
+                        passenger.setFirstName("Child" + (j + 1));
+                        passenger.setLastName("");
+                        passenger.setAge("8"); // 默认儿童年龄
+                        passengers.add(passenger);
+                    }
+                }
+
+                reservationRoom.setPassangers(passengers);
+                roomDetailsList.add(reservationRoom);
+            }
+
+            logger.info("[AsianOverlandAdapter.buildReservationRoomDetails] 成功构建{}间房的预订明细", roomDetailsList.size());
+
+            // 转换为JSON字符串
+            return JSONUtil.toJsonStr(roomDetailsList);
+
+        } catch (Exception e) {
+            logger.error("[AsianOverlandAdapter.buildReservationRoomDetails] 构建房间明细失败", e);
+            throw new RuntimeException("构建预定房间明细失败");
+        }
+    }
+
+
+    /**
+     * 从搜索响应中获取指定酒店和房型的供应商价格
+     *
+     * @param hotelId        酒店ID
+     * @param roomId         房型ID
+     * @param searchResponse 搜索响应
+     * @return 供应商价格
+     */
+    private BigDecimal getSupplierPriceFromSearchResponse(String hotelId, String roomId, QTechSearchResponse searchResponse) {
+        try {
+            if (searchResponse == null || searchResponse.getHotelList() == null) {
+                logger.warn("[AsianOverlandAdapter.getSupplierPriceFromSearchResponse] 搜索响应或酒店列表为空");
+                return null;
+            }
+
+            // 查找指定酒店
+            Optional<QTechSearchResponse.Hotel> targetHotelOpt = searchResponse.getHotelList().stream()
+                    .filter(hotel -> hotelId.equals(hotel.getHotelId()))
+                    .findFirst();
+
+            if (targetHotelOpt.isEmpty()) {
+                logger.warn("[AsianOverlandAdapter.getSupplierPriceFromSearchResponse] 未找到酒店: {}", hotelId);
+                return null;
+            }
+
+            QTechSearchResponse.Hotel targetHotel = targetHotelOpt.get();
+
+            // 优先使用酒店总价
+            if (targetHotel.getTotalCharges() != null) {
+                logger.debug("[AsianOverlandAdapter.getSupplierPriceFromSearchResponse] 使用酒店总价: {}", targetHotel.getTotalCharges());
+                return targetHotel.getTotalCharges();
+            }
+
+            // 如果没有总价，从房型属性中查找
+            if (targetHotel.getHotelProperty() != null) {
+                for (QTechSearchResponse.HotelProperty property : targetHotel.getHotelProperty()) {
+                    if ("Selection".equalsIgnoreCase(property.getType()) && roomId.equals(property.getSectionUniqueId())) {
+
+                        BigDecimal roomRate = property.getDisplayRoomRate();
+                        if (roomRate != null) {
+                            logger.debug("[AsianOverlandAdapter.getSupplierPriceFromSearchResponse] 使用房型价格: {}", roomRate);
+                            return roomRate;
+                        }
+                    }
+                }
+            }
+
+            logger.warn("[AsianOverlandAdapter.getSupplierPriceFromSearchResponse] 无法获取价格信息");
+            return null;
+
+        } catch (Exception e) {
+            logger.error("[AsianOverlandAdapter.getSupplierPriceFromSearchResponse] 获取供应商价格异常", e);
+            return null;
+        }
+    }
+
+    /**
      * 验证价格一致性
      * 对比搜索结果价格与取消规则接口价格，必须完全相等
-     * 
-     * @param searchPrice 搜索结果价格（BigDecimal格式）
-     * @param policyPrice 取消规则接口价格（BigDecimal格式）
+     *
+     * @param searchPrice  搜索结果价格（BigDecimal格式）
+     * @param bookingPrice 预定价格（BigDecimal格式）
      * @return true-价格一致，false-价格不一致
      */
-    private boolean validatePriceConsistency(BigDecimal searchPrice, BigDecimal policyPrice) {
+    private boolean validatePriceConsistency(BigDecimal searchPrice, BigDecimal bookingPrice) {
         try {
-            if (searchPrice == null || policyPrice == null) {
-                logger.warn("[AsianOverlandAdapter.validatePriceConsistency] 价格参数为空: searchPrice={}, policyPrice={}", 
-                           searchPrice, policyPrice);
+            if (searchPrice == null || bookingPrice == null) {
+                logger.warn("[AsianOverlandAdapter.validatePriceConsistency] 价格参数为空: searchPrice={}, policyPrice={}",
+                        searchPrice, bookingPrice);
                 return false;
             }
-            
+
             // 使用BigDecimal的compareTo方法进行精确比较（必须完全相等）
-            boolean isEqual = searchPrice.compareTo(policyPrice) == 0;
-            
-            logger.debug("[AsianOverlandAdapter.validatePriceConsistency] 价格对比结果: 搜索价格={}, 取消规则价格={}, 是否相等={}", 
-                        searchPrice, policyPrice, isEqual);
-            
+            boolean isEqual = searchPrice.compareTo(bookingPrice) == 0;
+
+            logger.debug("[AsianOverlandAdapter.validatePriceConsistency] 价格对比结果: 搜索价格={}, 取消规则价格={}, 是否相等={}",
+                    searchPrice, bookingPrice, isEqual);
+
             return isEqual;
-            
+
         } catch (Exception e) {
             logger.error("[AsianOverlandAdapter.validatePriceConsistency] 价格对比异常", e);
             return false;
@@ -1155,7 +1860,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             }
 
             Optional<QTechSearchResponse.HotelProperty> targetHotelProp = properties.stream()
-                    .filter(p -> p.getType().equals("Selection"))
+                    .filter(p -> p.getType().equalsIgnoreCase("Selection"))
                     .findFirst();
 
             if (targetHotelProp.isEmpty()) {
@@ -1344,5 +2049,144 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
         }
     }
 
+    /**
+     * 构建取消订单成功响应
+     */
+    private XCancelOrderResponse buildCancelSuccessResponse(String supplierOrderId, 
+                                                          QTechCancellationChargesResponse chargesResponse, 
+                                                          QTechCancellationResponse cancellationResponse) {
+        XCancelOrderResponse response = new XCancelOrderResponse();
+        // 使用现有的枚举值，取消成功可以用CANCELLED表示
+        response.setStatus(SupplierOrderStatusEnum.CANCELLED);
+        response.setStatusDesc("取消成功");
+        
+        // 记录退款和费用信息到日志中（因为XCancelOrderResponse可能没有这些字段）
+        if (cancellationResponse.getCancellationDetail() != null) {
+            QTechCancellationResponse.CancellationDetail detail = cancellationResponse.getCancellationDetail();
+            
+            logger.info("[AsianOverlandAdapter.buildCancelSuccessResponse] 取消详情 - 退款金额: {} {}, 取消费用: {} {}, 取消日期: {}", 
+                       detail.getRefundAmount(), detail.getCurrencyCode(),
+                       detail.getCancellationCharges(), detail.getCurrencyCode(),
+                       detail.getCancellationDate());
+        } else {
+            // 记录取消费用响应的信息
+            logger.info("[AsianOverlandAdapter.buildCancelSuccessResponse] 取消费用: {} {}", 
+                       chargesResponse.getCancellationCharge(), chargesResponse.getDisplayCurrencyCode());
+        }
+        
+        response.setOrigStatus("SUCCESS");
+        response.setOrigStatusDesc("取消成功");
+        
+        logger.info("[AsianOverlandAdapter.buildCancelSuccessResponse] 构建取消成功响应，订单号: {}", supplierOrderId);
+        return response;
+    }
+
+    /**
+     * 构建取消订单不允许响应
+     */
+    private XCancelOrderResponse buildCancelNotAllowedResponse(String supplierOrderId, String message) {
+        XCancelOrderResponse response = new XCancelOrderResponse();
+        // 使用REJECT表示不允许取消
+        response.setStatus(SupplierOrderStatusEnum.REJECT);
+        response.setStatusDesc("不允许取消");
+        response.setOrigStatus("NOT_ALLOWED");
+        response.setOrigStatusDesc(message != null ? message : "订单不允许取消");
+        
+        logger.warn("[AsianOverlandAdapter.buildCancelNotAllowedResponse] 构建不允许取消响应，订单号: {}, 原因: {}", 
+                   supplierOrderId, message);
+        return response;
+    }
+
+    /**
+     * 构建取消订单失败响应
+     */
+    private XCancelOrderResponse buildCancelFailedResponse(String supplierOrderId, String errorMessage) {
+        XCancelOrderResponse response = new XCancelOrderResponse();
+        // 使用REJECT表示取消失败
+        response.setStatus(SupplierOrderStatusEnum.REJECT);
+        response.setStatusDesc("取消失败");
+        response.setOrigStatus("FAILED");
+        response.setOrigStatusDesc(errorMessage);
+        
+        logger.error("[AsianOverlandAdapter.buildCancelFailedResponse] 构建取消失败响应，订单号: {}, 错误: {}", 
+                    supplierOrderId, errorMessage);
+        return response;
+    }
+
+    /**
+     * 构建查询预定订单成功响应
+     */
+    private XQueryOrderResponse buildQuerySuccessResponse(String distributorOrderId, String supplierOrderId, 
+                                                        QTechBookingDetailResponse detailResponse) {
+        XQueryOrderResponse response = new XQueryOrderResponse();
+        
+        // 设置基本信息
+        response.setDistributorOrderId(distributorOrderId);
+        response.setSupplierOrderId(supplierOrderId);
+        
+        // 获取并映射订单状态
+        String qtechStatus = "unknown";
+        QTechBookingStatusEnum qtechEnum = QTechBookingStatusEnum.UNKNOWN;
+        
+        if (detailResponse.getBookingDetail() != null) {
+            qtechStatus = detailResponse.getBookingDetail().getCurrentStatus();
+            if (qtechStatus != null) {
+                qtechEnum = QTechBookingStatusEnum.fromCode(qtechStatus);
+                // 使用状态映射方法
+                SupplierOrderStatusEnum mappedStatus = mapQTechStatusToStandardStatus(qtechStatus);
+                response.setStatus(mappedStatus);
+            } else {
+                response.setStatus(SupplierOrderStatusEnum.UNKNOWN);
+            }
+        } else {
+            response.setStatus(SupplierOrderStatusEnum.UNKNOWN);
+        }
+        
+        // 设置状态描述，使用枚举的描述
+        response.setStatusDesc(qtechEnum.getDesc());
+        response.setOrigStatus(qtechStatus);
+        response.setOrigStatusDesc(qtechEnum.getDesc());
+        
+        // 设置订单详细信息
+        if (detailResponse.getBookingDetail() != null) {
+            QTechBookingDetailResponse.BookingDetail detail = detailResponse.getBookingDetail();
+            
+            // 设置价格信息
+            if (detail.getTotalCharges() != null) {
+                response.setTotalPrice(detail.getTotalCharges());
+                response.setCurrency(detail.getCurrencyCode() != null ? detail.getCurrencyCode() : "USD");
+            }
+            
+            // 记录详细信息到日志（因为XQueryOrderResponse可能没有这些字段）
+            logger.info("[AsianOverlandAdapter.buildQuerySuccessResponse] 订单详情 - 状态: {}, 价格: {} {}, 预订号: {}, 凭证ID: {}, 预订日期: {}", 
+                       qtechStatus, detail.getTotalCharges(), detail.getCurrencyCode(), 
+                       detail.getBookingReference(), detail.getVoucherId(), detail.getBookingDate());
+        }
+        
+        logger.info("[AsianOverlandAdapter.buildQuerySuccessResponse] 构建查询成功响应，订单号: {}, 状态: {}", 
+                   supplierOrderId, response.getStatus());
+        return response;
+    }
+
+    /**
+     * 构建查询订单失败响应
+     */
+    private XQueryOrderResponse buildQueryFailedResponse(String distributorOrderId, String supplierOrderId, String errorMessage) {
+        XQueryOrderResponse response = new XQueryOrderResponse();
+        
+        // 设置基本信息
+        response.setDistributorOrderId(distributorOrderId);
+        response.setSupplierOrderId(supplierOrderId);
+        
+        // 设置失败状态
+        response.setStatus(SupplierOrderStatusEnum.UNKNOWN);
+        response.setStatusDesc("查询失败");
+        response.setOrigStatus("FAILED");
+        response.setOrigStatusDesc(errorMessage);
+        
+        logger.error("[AsianOverlandAdapter.buildQueryFailedResponse] 构建查询失败响应，订单号: {}, 错误: {}", 
+                    supplierOrderId, errorMessage);
+        return response;
+    }
 
 }

@@ -113,7 +113,7 @@ class AsianOverlandAdapterTest {
         result.subscribe(
             response -> {
                 responseHolder[0] = response;
-                if (response != null && "success".equals(response.getMessage())) {
+                if (response != null && "success".equalsIgnoreCase(response.getMessage())) {
                     logger.info("搜索成功！找到 {} 家酒店", 
                             response.getHotelList() != null ? response.getHotelList().size() : 0);
                     
@@ -179,7 +179,7 @@ class AsianOverlandAdapterTest {
         result.subscribe(
             response -> {
                 responseHolder[0] = response;
-                if (response != null && "success".equals(response.getMessage())) {
+                if (response != null && "success".equalsIgnoreCase(response.getMessage())) {
                     logger.info("酒店详情获取成功");
                     if (response.getHotelId() != null) {
                         logger.info("酒店Id: {}", response.getHotelId());
@@ -287,7 +287,7 @@ class AsianOverlandAdapterTest {
         
         asianOverlandAdapter.searchHotels(searchRequest)
             .flatMap(searchResponse -> {
-                if (searchResponse != null && "success".equals(searchResponse.getMessage()) 
+                if (searchResponse != null && "success".equalsIgnoreCase(searchResponse.getMessage())
                     && searchResponse.getHotelList() != null && !searchResponse.getHotelList().isEmpty()) {
                     
                     logger.info("搜索成功，找到 {} 家酒店", searchResponse.getHotelList().size());

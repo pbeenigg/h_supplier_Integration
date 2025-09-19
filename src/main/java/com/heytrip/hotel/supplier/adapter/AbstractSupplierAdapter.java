@@ -306,7 +306,7 @@ public abstract class AbstractSupplierAdapter implements SupplierAdapter {
         if (healthCheckService != null && supplierConfig != null) {
             return Mono.fromFuture(healthCheckService.performHealthCheck(supplierConfig))
                     .map(healthLog -> {
-                        boolean isHealthy = healthLog.getHealthStatus().equals("HEALTHY");
+                        boolean isHealthy = healthLog.getHealthStatus().equalsIgnoreCase("HEALTHY");
                         logger.info("执行健康检查并记录日志，供应商: {}，结果: {}", 
                                 getSupplierName(), healthLog.getHealthStatus());
                         return isHealthy;

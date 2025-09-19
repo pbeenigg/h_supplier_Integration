@@ -289,10 +289,10 @@ public class StaticDataSyncService {
             addr = value.trim();
         }
 
-        if ("ftp".equals(type)) {
+        if ("ftp".equalsIgnoreCase(type)) {
             return ftpClientService.downloadWithRetry(ftp.getHost(), ftp.getPort(), ftp.getUsername(), ftp.getPassword(), addr);
         }
-        if ("local".equals(type) || "locad".equals(type)) { // 容错 locad
+        if ("local".equalsIgnoreCase(type) || "locad".equalsIgnoreCase(type)) { // 容错 locad
             return openLocalResolved(addr);
         }
         // 未知类型，按默认策略
