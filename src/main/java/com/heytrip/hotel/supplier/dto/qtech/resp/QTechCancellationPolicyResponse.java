@@ -29,6 +29,8 @@ public class QTechCancellationPolicyResponse  extends QTechBaseResponse{
     
     /**
      * 合同备注
+     * 如果该酒店有任何特殊规则、政策或附加费用，将在本属性中提及。它可能包括预订说明或重要信息。
+     *
      */
     @JsonProperty("ContractComment")
     private String contractComment;

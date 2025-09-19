@@ -1,7 +1,9 @@
 package com.heytrip.hotel.supplier.adapter.capability;
 
+import com.heytrip.common.request.XSupplierCheckRequest;
 import com.heytrip.common.request.XSupplierPriceRequest;
 import com.heytrip.common.response.base.XRoom;
+import com.heytrip.common.response.other.XOrderCheckResponse;
 import com.heytrip.common.response.other.XPriceCacheIncrementResponse;
 import com.heytrip.common.result.Result;
 
@@ -60,9 +62,8 @@ public interface PricingBridge {
      * @param input 校验请求参数
      * @return 校验结果（房型列表，包含最新价格和可售状态）
      */
-    default List<XRoom> orderCheck(XSupplierPriceRequest input) {
-        // 默认实现：复用报价接口
-        return getPrice(input);
+    default XOrderCheckResponse orderCheck(XSupplierCheckRequest input) {
+        throw new UnsupportedOperationException("[PricingBridge.orderCheck] 订单前置校验（标准格式）,方法未实现");
     }
     
     /**
@@ -71,8 +72,7 @@ public interface PricingBridge {
      * @param input 校验请求参数
      * @return 供应商原始校验数据
      */
-    default Object orderCheckOrg(XSupplierPriceRequest input) {
-        // 默认实现：复用原始报价接口
-        return getPriceOrig(input);
+    default Object orderCheckOrg(XSupplierCheckRequest input) {
+        throw new UnsupportedOperationException("[PricingBridge.orderCheckOrg] 订单前置校验（供应商原始格式）,方法未实现");
     }
 }

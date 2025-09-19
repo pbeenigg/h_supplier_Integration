@@ -272,4 +272,28 @@ public class HeyUtil {
         // 兜底
         return nextFriday(date);
     }
+
+
+    /**
+     * 生成唯一的订单创建请求 Key
+     * @param supplierCode
+     * @param hotelId
+     * @param roomId
+     * @param checkIn
+     * @param checkOut
+     * @param totalPrice
+     * @return
+     */
+    public  static  String  generateCreateKey( String supplierCode, String hotelId, String roomId, String checkIn, String checkOut, String totalPrice){
+        String keySource = String.join("|",
+                supplierCode == null ? "" : supplierCode,
+                hotelId == null ? "" : hotelId,
+                roomId == null ? "" : roomId,
+                checkIn == null ? "" : checkIn,
+                checkOut == null ? "" : checkOut,
+                totalPrice == null ? "" : totalPrice,
+                System.currentTimeMillis() + ""
+        );
+        return sha256Hex(keySource);
+    }
 }

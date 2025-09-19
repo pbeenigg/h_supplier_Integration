@@ -271,7 +271,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
                 ps.add(cb.equal(root.get("hotelCode"), hotelCode));
             }
             if (roomCode != null && !roomCode.isEmpty()) {
-                ps.add(cb.like(root.get("roomCode"), "%" + roomCode + "%"));
+                ps.add(cb.like(root.get("roomCodeMd5"), "%" + roomCode + "%"));
             }
 
             return cb.and(ps.toArray(new Predicate[0]));
@@ -314,7 +314,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
                 ps.add(cb.equal(root.get("roomCode"), roomCode));
             }
             if (ratePlanCode != null && !ratePlanCode.isEmpty()) {
-                ps.add(cb.like(root.get("ratePlanCode"), "%" + ratePlanCode + "%"));
+                ps.add(cb.like(root.get("ratePlanCodeMd5"), "%" + ratePlanCode + "%"));
             }
 
             return cb.and(ps.toArray(new Predicate[0]));
@@ -409,7 +409,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
             ps.add(cb.equal(root.get("supplierId"), supplierId));
             ps.add(cb.equal(root.get("supplierCode"), supplierCode));
             if (hotelCode != null && !hotelCode.isEmpty()) {
-                ps.add(cb.like(root.get("hotelCode"), "%" + hotelCode + "%"));
+                ps.add(cb.like(root.get("hotelCodeMd5"), "%" + hotelCode + "%"));
             }
             if (cityCode != null && !cityCode.isEmpty()) {
                 ps.add(cb.equal(root.get("cityCode"), cityCode));
@@ -434,7 +434,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
                 ps.add(cb.equal(root.get("hotelCode"), hotelCode));
             }
             if (roomCode != null && !roomCode.isEmpty()) {
-                ps.add(cb.like(root.get("roomCode"), "%" + roomCode + "%"));
+                ps.add(cb.like(root.get("roomCodeMd5"), "%" + roomCode + "%"));
             }
 
             return cb.and(ps.toArray(new Predicate[0]));
@@ -461,7 +461,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
                 ps.add(cb.equal(root.get("roomCode"), roomCode));
             }
             if (ratePlanCode != null && !ratePlanCode.isEmpty()) {
-                ps.add(cb.like(root.get("ratePlanCode"), "%" + ratePlanCode + "%"));
+                ps.add(cb.like(root.get("ratePlanCodeMd5"), "%" + ratePlanCode + "%"));
             }
 
             return cb.and(ps.toArray(new Predicate[0]));
@@ -528,7 +528,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
         Specification<Hotel> spec = (root, q, cb) -> cb.and(
                 cb.equal(root.get("supplierId"), supplierId),
                 cb.equal(root.get("supplierCode"), supplierCode),
-                cb.equal(root.get("hotelCode"), hotelCode)
+                cb.equal(root.get("hotelCodeMd5"), hotelCode)
         );
         return hotelRepo.findAll(spec, PageRequest.of(0, 1)).get().findFirst().map(this::toXHotel);
     }

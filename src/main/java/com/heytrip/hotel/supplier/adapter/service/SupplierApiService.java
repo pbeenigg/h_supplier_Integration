@@ -304,7 +304,7 @@ public class SupplierApiService implements ISupplierApiService {
                     }
                     pageSize = Math.min(Integer.parseInt(pageSizeStr), 1000);
                 } catch (Exception e) {
-                    logger.warn("[getHotelIncrement] 解析pageSize参数失败，使用默认值50");
+                    logger.warn("[getHotelIncrement] 解析pageSize参数失败，使用默认值1000");
                 }
             }
             
@@ -371,17 +371,17 @@ public class SupplierApiService implements ISupplierApiService {
             Long supplierId = adapter.getSupplierId();
             String supplierCode = adapter.getSupplierName(); // 按约定：supplierName 等于 supplierType
             
-            // 默认每页大小为50，可以通过query参数调整
-            int pageSize = 50;
+            // 默认每页大小为1000，可以通过query参数调整
+            int pageSize = 1000;
             if (query != null && query.contains("pageSize=")) {
                 try {
                     String pageSizeStr = query.substring(query.indexOf("pageSize=") + 9);
                     if (pageSizeStr.contains("&")) {
                         pageSizeStr = pageSizeStr.substring(0, pageSizeStr.indexOf("&"));
                     }
-                    pageSize = Math.min(Integer.parseInt(pageSizeStr), 100);
+                    pageSize = Math.min(Integer.parseInt(pageSizeStr), 1000);
                 } catch (Exception e) {
-                    logger.warn("[getRoomIncrement] 解析pageSize参数失败，使用默认值50");
+                    logger.warn("[getRoomIncrement] 解析pageSize参数失败，使用默认值1000");
                 }
             }
             
@@ -458,8 +458,7 @@ public class SupplierApiService implements ISupplierApiService {
     @Override
     public Result<List<XRoom>> getPrice(XSupplierPriceRequest input) {
         logger.info("[getPrice] input={}", input);
-        String supplierType = input.getSupplierType();
-        return adapterManager.getPrice(supplierType, input);
+        return adapterManager.getPrice(input);
     }
 
 
@@ -472,18 +471,12 @@ public class SupplierApiService implements ISupplierApiService {
     @Override
     public Result<Map<String, List<XRoom>>> getPrices(XSupplierPriceRequest input) {
         logger.info("[getPrices] input={}", input);
-        // 多酒店报价委派（后续在适配器补齐具体实现）；暂返回单酒店结构的兼容实现
-        Result<List<XRoom>> single = getPrice(input);
-        Map<String, List<XRoom>> map = new HashMap<>();
-        if (single != null && single.getData() != null) {
-            map.put(input.getHotelIds(), single.getData());
-        }
-        return Result.ok(map);
+        return adapterManager.getPrices(input);
     }
 
 
     /**
-     * 获取价格增量信息
+     *  获取价格缓存变价增量(一般国内供应商需要使用)
      *
      * @param supplierType      供应商类型
      * @param maxId             上次请求的最大增量编号
@@ -508,8 +501,7 @@ public class SupplierApiService implements ISupplierApiService {
     @Override
     public Result<XOrderCheckResponse> orderCheck(XSupplierCheckRequest input) {
         logger.info("[orderCheck] input={}", input);
-        // 占位：可在适配器内结合取消政策或库存校验实现，当前返回空
-        return Result.ok(null);
+        return adapterManager.orderCheck(input);
     }
 
 
@@ -522,12 +514,7 @@ public class SupplierApiService implements ISupplierApiService {
     @Override
     public Object getPriceOrig(XSupplierPriceRequest input) {
         logger.info("[getPriceOrig] input={}", input);
-        try {
-            return adapterManager.getPriceOrig(input);
-        } catch (Exception e) {
-            logger.error("[getPriceOrig] 获取原始报价失败", e);
-            return Collections.emptyMap();
-        }
+        return adapterManager.getPriceOrig(input);
     }
 
     /**
@@ -539,12 +526,7 @@ public class SupplierApiService implements ISupplierApiService {
     @Override
     public Object getPricesOrg(XSupplierPriceRequest input) {
         logger.info("[getPricesOrg] input={}", input);
-        try {
-            return adapterManager.getPricesOrg(input);
-        } catch (Exception e) {
-            logger.error("[getPricesOrg] 获取多酒店原始报价失败", e);
-            return Collections.emptyMap();
-        }
+        return adapterManager.getPricesOrg(input);
     }
 
     /**
@@ -556,14 +538,7 @@ public class SupplierApiService implements ISupplierApiService {
     @Override
     public Object orderCheckOrg(XSupplierCheckRequest input) {
         logger.info("[orderCheckOrg] input={}", input);
-        try {
-            // 将 XSupplierCheckRequest 转换为 XSupplierPriceRequest
-            XSupplierPriceRequest priceRequest = convertCheckRequestToPriceRequest(input);
-            return adapterManager.orderCheckOrg(priceRequest);
-        } catch (Exception e) {
-            logger.error("[orderCheckOrg] 验单原文失败", e);
-            return Collections.emptyMap();
-        }
+        return adapterManager.orderCheckOrg(input);
     }
 
 

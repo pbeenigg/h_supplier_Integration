@@ -51,6 +51,7 @@ public class QTechBaseResponse {
     
     /**
      * 本次请求会话ID
+     * 每个搜索唯一ID只能用于一次预订，并且从搜索时间起20分钟内有效
      */
     @JsonProperty("SearchUniqueId")
     private String searchUniqueId;

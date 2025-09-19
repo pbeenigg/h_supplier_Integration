@@ -1,6 +1,8 @@
 package com.heytrip.hotel.supplier.adapter;
 
-import com.heytrip.common.response.other.XPriceCacheIncrementResponse;
+import com.heytrip.common.request.XSupplierCheckRequest;
+import com.heytrip.common.response.other.*;
+import com.heytrip.hotel.supplier.adapter.capability.StaticBridge;
 import jakarta.annotation.PostConstruct;
 import lombok.Data;
 import org.slf4j.Logger;
@@ -22,9 +24,6 @@ import com.heytrip.common.request.XSupplierPriceRequest;
 import com.heytrip.common.request.XCreateOrderRequest;
 import com.heytrip.common.request.XCancelOrderRequest;
 import com.heytrip.common.response.base.XRoom;
-import com.heytrip.common.response.other.XCreateOrderResponse;
-import com.heytrip.common.response.other.XCancelOrderResponse;
-import com.heytrip.common.response.other.XQueryOrderResponse;
 import com.heytrip.common.result.Result;
 import com.heytrip.hotel.supplier.adapter.capability.PricingBridge;
 import com.heytrip.hotel.supplier.adapter.capability.OrderBridge;
@@ -105,13 +104,34 @@ public class SupplierAdapterManager {
         return adapter;
     }
 
-    // ==============================================  报价与订单委派 ==============================================
+    // ==============================================  酒店｜报价｜订单 - 方法桥接委派 ==============================================
 
 
+    /**
+     * 获取供应商酒店房型基础信息(原文)
+     * @param supplierType
+     * @param hotelId
+     * @param language
+     * @param ext
+     * @return
+     */
     public Object getHotelRoomOrigContent(String supplierType, String hotelId, String language, String ext){
+        SupplierAdapter adapter = getAdapterByName(supplierType);
+        if (adapter == null) {
+            logger.warn("[getHotelRoomOrigContent] 未找到供应商适配器: {}", supplierType);
+            return Result.fail("未找到供应商适配器");
+        }
 
-
-        return null;
+        try {
+            if (adapter instanceof StaticBridge bridge) {
+                Object object = bridge.getHotelRoomOrigContent(supplierType, hotelId, language, ext);
+                return object;
+            }
+            return Result.fail("适配器还未不支持 StaticBridge");
+        } catch (Exception ex) {
+            logger.error("[getHotelRoomOrigContent] 委派执行失败, supplierName={}", supplierType, ex);
+            return Result.fail("获取供应商酒店房型基础信息失败");
+        }
     }
 
 
@@ -120,10 +140,11 @@ public class SupplierAdapterManager {
     /**
      * 单酒店报价
      */
-    public Result<List<XRoom>> getPrice(String supplierName, XSupplierPriceRequest input) {
-        SupplierAdapter adapter = getAdapterByName(supplierName);
+    public Result<List<XRoom>> getPrice(XSupplierPriceRequest input) {
+        SupplierAdapter adapter = getAdapterByName(input.getSupplierType());
         if (adapter == null) {
-            return Result.ok(Collections.emptyList());
+            logger.warn("[getPrice] 未找到供应商适配器: {}", input.getSupplierType());
+            return Result.fail("未找到供应商适配器");
         }
 
         try {
@@ -131,10 +152,31 @@ public class SupplierAdapterManager {
                 List<XRoom> rooms = bridge.getPrice(input);
                 return Result.ok(rooms != null ? rooms : Collections.emptyList());
             }
-            return Result.ok(Collections.emptyList());
+            return Result.fail("适配器还未不支持 PricingBridge");
         } catch (Exception ex) {
-            logger.error("[getPrice] 委派执行失败, supplierName={}", supplierName, ex);
-            return Result.ok(Collections.emptyList());
+            logger.error("[getPrice] 委派执行失败, supplierName={}", input.getSupplierType(), ex);
+            return Result.fail("单酒店报价接口执行失败");
+        }
+    }
+
+    /**
+     * 多酒店报价
+     */
+    public Result<Map<String, List<XRoom>>> getPrices(XSupplierPriceRequest input){
+        SupplierAdapter adapter = getAdapterByName(input.getSupplierType());
+        if (adapter == null) {
+            logger.warn("[getPrices] 未找到供应商适配器: {}", input.getSupplierType());
+            return Result.fail("未找到供应商适配器");
+        }
+        try {
+            if (adapter instanceof PricingBridge bridge) {
+                Map<String, List<XRoom>>  result = bridge.getPrices(input);
+                return Result.ok(result != null ? result : Collections.emptyMap());
+            }
+            return Result.fail("适配器还未不支持 PricingBridge");
+        } catch (Exception ex) {
+            logger.error("[getPrices] 委派执行失败, supplierName={}", input.getSupplierType(), ex);
+            return Result.fail("多酒店报价接口执行失败");
         }
     }
 
@@ -146,7 +188,7 @@ public class SupplierAdapterManager {
         SupplierAdapter adapter = getAdapterByName(supplierName);
         if (adapter == null) {
             logger.warn("[getPriceOrig] 未找到供应商适配器: {}", supplierName);
-            return Collections.emptyMap();
+            return Result.fail("未找到供应商适配器");
         }
 
         try {
@@ -154,10 +196,10 @@ public class SupplierAdapterManager {
                 return bridge.getPriceOrig(input);
             }
             logger.warn("[getPriceOrig] 适配器不支持 PricingBridge: {}", supplierName);
-            return Collections.emptyMap();
+            return Result.fail("适配器还未不支持 PricingBridge");
         } catch (Exception ex) {
             logger.error("[getPriceOrig] 委派执行失败, supplierName={}", supplierName, ex);
-            return Collections.emptyMap();
+            return Result.fail("获取原始单酒店报价接口执行失败");
         }
     }
 
@@ -169,7 +211,7 @@ public class SupplierAdapterManager {
         SupplierAdapter adapter = getAdapterByName(supplierName);
         if (adapter == null) {
             logger.warn("[getPricesOrg] 未找到供应商适配器: {}", supplierName);
-            return Collections.emptyMap();
+            return Result.fail("未找到供应商适配器");
         }
 
         try {
@@ -177,10 +219,10 @@ public class SupplierAdapterManager {
                 return bridge.getPricesOrg(input);
             }
             logger.warn("[getPricesOrg] 适配器不支持 PricingBridge: {}", supplierName);
-            return Collections.emptyMap();
+            return Result.fail("适配器还未不支持 PricingBridge");
         } catch (Exception ex) {
             logger.error("[getPricesOrg] 委派执行失败, supplierName={}", supplierName, ex);
-            return Collections.emptyMap();
+            return Result.fail("获取原始多酒店报价接口执行失败");
         }
     }
 
@@ -188,31 +230,30 @@ public class SupplierAdapterManager {
     /**
      * 订单前置校验（标准格式）
      */
-    public List<XRoom> orderCheck(XSupplierPriceRequest input) {
+    public Result<XOrderCheckResponse> orderCheck(XSupplierCheckRequest input) {
         String supplierName = input.getSupplierType();
         SupplierAdapter adapter = getAdapterByName(supplierName);
         if (adapter == null) {
             logger.warn("[orderCheck] 未找到供应商适配器: {}", supplierName);
-            return Collections.emptyList();
+            return Result.fail("未找到供应商适配器");
         }
-
         try {
             if (adapter instanceof PricingBridge bridge) {
-                List<XRoom> rooms = bridge.orderCheck(input);
-                return rooms != null ? rooms : Collections.emptyList();
+                XOrderCheckResponse result = bridge.orderCheck(input);
+                return Result.ok(result != null ? result : null);
             }
             logger.warn("[orderCheck] 适配器不支持 PricingBridge: {}", supplierName);
-            return Collections.emptyList();
+            return Result.fail("适配器还未不支持 PricingBridge");
         } catch (Exception ex) {
             logger.error("[orderCheck] 委派执行失败, supplierName={}", supplierName, ex);
-            return Collections.emptyList();
+            return Result.fail("订单前置校验接口执行失败");
         }
     }
 
     /**
      * 订单前置校验（供应商原始格式）
      */
-    public Object orderCheckOrg(XSupplierPriceRequest input) {
+    public Object orderCheckOrg(XSupplierCheckRequest input) {
         String supplierName = input.getSupplierType();
         SupplierAdapter adapter = getAdapterByName(supplierName);
         if (adapter == null) {
