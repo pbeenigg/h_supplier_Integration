@@ -562,7 +562,7 @@ public class MonitoringController implements HealthIndicator {
     @GetMapping("/gen-auth")
     public ResponseEntity<Map<String, Object>> generateAuthHeaders(@RequestParam(required = false) String customTimestamp) {
         ///  生产环境禁用此接口   dev:开发环境可用  prod：生产环境禁用
-        if (HeyUtil.isDebugEnvironment()) {
+        if (!HeyUtil.isDebugEnvironment()) {
             Map<String, Object> errorResponse = Map.of(
                     "error", "此接口仅在开发环境中可用",
                     "timestamp", LocalDateTime.now()
@@ -650,7 +650,7 @@ public class MonitoringController implements HealthIndicator {
     @GetMapping("/validate-auth")
     public ResponseEntity<Map<String, Object>> validateAuthHeaders(@RequestParam("appId") String appIdParam, @RequestParam("timestamp") String timestampParam, @RequestParam("signature") String signatureParam) {
         ///  生产环境禁用此接口   dev:开发环境可用  prod：生产环境禁用
-        if (HeyUtil.isDebugEnvironment()) {
+        if (!HeyUtil.isDebugEnvironment()) {
             Map<String, Object> errorResponse = Map.of(
                     "error", "此接口仅在开发环境中可用",
                     "timestamp", LocalDateTime.now()
