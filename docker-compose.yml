@@ -8,9 +8,9 @@ services:
     container_name: heytrip-supplier-integration
     environment:
       # Database Configuration
-      DB_URL: jdbc:mysql://mysql:3306/supplier_pax?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-      DB_USERNAME: pax
-      DB_PASSWORD: pax_password
+      DB_URL: jdbc:p6spy:mysql://pc-j6c1oer259zv98w65.rwlb.rds.aliyuncs.com:3306/supplier_pax?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
+      DB_USERNAME: xwd_pax_0389516
+      DB_PASSWORD: lJfGo#Kgj$6H29y!1q&0SpDf4G*oi
 
 
       # Application Configuration
@@ -24,7 +24,7 @@ services:
       ENCRYPTION_KEY: 427ae41e4649b934ca495991b7852b855
       
       # JVM Options
-      JAVA_OPTS: -Xmx1g -Xms512m -XX:+UseG1GC
+      JAVA_OPTS: -Xmx2g -Xms1g -XX:+UseG1GC
     ports:
       - "8080:8080"
     networks:

@@ -296,4 +296,33 @@ public class HeyUtil {
         );
         return sha256Hex(keySource);
     }
+
+
+    /**
+     * 自动检测是否为调试环境
+     * 检测规则：本地开发环境或包含debug标识
+     */
+    public static boolean isDebugEnvironment() {
+        // 检测JVM参数
+        String debugFlag = System.getProperty("debug.mode");
+        if ("true".equalsIgnoreCase(debugFlag)) {
+            return true;
+        }
+
+        // 检测Spring Profile
+        String profiles = System.getProperty("spring.profiles.active");
+        if (profiles != null && (profiles.contains("dev") || profiles.contains("debug"))) {
+            return true;
+        }
+
+        // 检测本地开发环境（用户目录包含常见开发标识）
+        String userHome = System.getProperty("user.home");
+        if (userHome != null && (userHome.contains("dev") || userHome.contains("Dev") ||
+                userHome.contains("developer") || userHome.contains("pbeenig"))) {
+            return true;
+        }
+
+        // 默认为生产环境
+        return false;
+    }
 }

@@ -11,6 +11,7 @@ import com.heytrip.hotel.supplier.repository.SupplierConfigRepository;
 import com.heytrip.hotel.supplier.repository.SupplierHealthLogRepository;
 import com.heytrip.hotel.supplier.repository.SystemConfigRepository;
 import com.heytrip.hotel.supplier.service.SystemConfigService;
+import com.heytrip.hotel.supplier.utils.HeyUtil;
 import com.heytrip.hotel.supplier.utils.SignUtil;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
@@ -560,6 +561,15 @@ public class MonitoringController implements HealthIndicator {
      */
     @GetMapping("/gen-auth")
     public ResponseEntity<Map<String, Object>> generateAuthHeaders(@RequestParam(required = false) String customTimestamp) {
+        ///  生产环境禁用此接口   dev:开发环境可用  prod：生产环境禁用
+        if (HeyUtil.isDebugEnvironment()) {
+            Map<String, Object> errorResponse = Map.of(
+                    "error", "此接口仅在开发环境中可用",
+                    "timestamp", LocalDateTime.now()
+            );
+            return ResponseEntity.status(403).body(errorResponse);
+        }
+
         try {
             // 使用当前时间戳或自定义时间戳
             String timestamp = StrUtil.isNotBlank(customTimestamp) ?
@@ -639,6 +649,14 @@ public class MonitoringController implements HealthIndicator {
      */
     @GetMapping("/validate-auth")
     public ResponseEntity<Map<String, Object>> validateAuthHeaders(@RequestParam("appId") String appIdParam, @RequestParam("timestamp") String timestampParam, @RequestParam("signature") String signatureParam) {
+        ///  生产环境禁用此接口   dev:开发环境可用  prod：生产环境禁用
+        if (HeyUtil.isDebugEnvironment()) {
+            Map<String, Object> errorResponse = Map.of(
+                    "error", "此接口仅在开发环境中可用",
+                    "timestamp", LocalDateTime.now()
+            );
+            return ResponseEntity.status(403).body(errorResponse);
+        }
         try {
             Map<String, Object> response = new HashMap<>();
             Map<String, Object> validation = new HashMap<>();

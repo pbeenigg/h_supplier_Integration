@@ -4,6 +4,8 @@ server:
     context-path: ${SERVER_PATH:/}
 
 spring:
+  profiles:
+    active:  ${SPRING_PROFILES_ACTIVE:dev} # 设置默认环境为dev
   application:
     name: ${SERVER_NAME:heytrip-supplier-integration}
   # 数据源配置
