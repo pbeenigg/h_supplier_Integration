@@ -560,17 +560,12 @@ GET /ws/index.php?action=hotel_reservation
 [
   {
     "numberOfChilds": "1",
-    "roomClassId": "0_0_73179_9840781",
+    "roomClassId": "0_0_73179_9840781", 
     "passangers": [
       {
         "salutation": "MR",
         "first_name": "Himanshu",
         "last_name": "Test"
-      },
-      {
-        "salutation": "MR",
-        "first_name": "Prachi",
-        "last_name": "shenoy"
       },
       {
         "salutation": "Child",
@@ -582,6 +577,33 @@ GET /ws/index.php?action=hotel_reservation
   }
 ]
 ```
+```java
+private List<XCreateOrderRequest.CreateOrderCustomer> customers;   // 房间入住人列表
+/**
+ * roomIndex
+ * 安排入住房间分组，如果有值就可以根据此数字分组填入，大多数是没有的;没有的就按顺序当作每间房的入住人姓名
+ */
+private Integer roomIndex;
+/**
+ * name
+ */
+private String name;
+/**
+ * 姓氏，国际
+ */
+private String familyName;
+/**
+ * 住客是否想要入住吸烟房，国际
+ */
+private Boolean smoking;
+/**
+ * age有值可以用，一般渠道调用方不会赋值的（因为没有提供这个），具体儿童年龄以occupancy为准
+ */
+private Integer age;
+```
+
+
+
 
 - roomDetails 示例 （总共：2 房，1 房 1 成人，1 房 2 成人 1 儿童，儿童 2 岁）
 ```json
@@ -1018,12 +1040,17 @@ GET /ws/index.php?action=cancel_the_booking
 - 获取单个价格 （getPrice），完成情况：已完成
 - 获取批量价格 （getPrices），完成情况：已完成
 - 获取价格缓存增量数据 （getPriceCacheIncrement），完成情况：不用做
-- 订单检查 （orderCheck），完成情况： 今天完成
+- 订单检查 （orderCheck），完成情况： 已完成
 - 获取原始价格 （getPriceOrig），完成情况：已完成
 - 获取批量原始价格 （getPricesOrg），完成情况：已完成
-- 原始订单检查 （orderCheckOrg），完成情况： 今天完成
+- 原始订单检查 （orderCheckOrg），完成情况： 已完成
 ### 订单类接口
-- 创建订单 （createOrder），完成情况： 
-- 取消订单 （cancelOrder），完成情况：
-- 查询订单 （queryOrder），完成情况：
+- 创建订单 （createOrder），完成情况：  已完成
+- 取消订单 （cancelOrder），完成情况：已完成
+- 查询订单 （queryOrder），完成情况： 已完成
 - 修改订单 （modifyOrder），完成情况：不用做
+
+### 其他任务
+- 房型 ID 和 价格计划 ID 问题已经和 Qtech 确认，需要我们自己自主按规则生成唯一ID，然后再重新落库存储，目前用的是他们接口返回的动态唯一ID（随时会变）
+- 所有交付的渠道接口，异常码定义和处理方式优化，根据标准化包（supplier-data-standard）进行调整
+- 创建数据库脚本，打包部署到服务器 ，与渠道联调和问题修复
