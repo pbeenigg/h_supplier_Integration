@@ -13,11 +13,6 @@ import lombok.Data;
 @Data
 public class QTechBaseResponse {
 
-    /**
-     * 状态
-     */
-    @JsonProperty("Status")
-    private String status;
     
     /**
      * 返回数据数量（成功时为实际数量，失败时通常为0）

@@ -225,7 +225,7 @@ public class TestAdapter extends AbstractSupplierAdapter {
                         return executeReservation(request, policy);
                     })
                     .doOnSuccess(result -> logger.info("QTECH预订完成，状态: {}",
-                            result != null ? result.getStatus() : "未知"))
+                            result != null ? result.getMessage() : "未知"))
                     .doOnError(error -> logger.error("QTECH预订失败", error));
 
         } catch (Exception e) {
@@ -311,7 +311,7 @@ public class TestAdapter extends AbstractSupplierAdapter {
             // 1. 先获得取消费用
             return getCancellationCharges(chargesRequest)
                     .flatMap(chargesResult -> {
-                        if (chargesResult == null || !"success".equalsIgnoreCase(chargesResult.getStatus())) {
+                        if (chargesResult == null || !"success".equalsIgnoreCase(chargesResult.getMessage())) {
                             return Mono.error(new RuntimeException("获取取消费用失败"));
                         }
 
@@ -319,7 +319,7 @@ public class TestAdapter extends AbstractSupplierAdapter {
                         return executeCancellation(request);
                     })
                     .doOnSuccess(result -> logger.info("QTECH取消完成，状态: {}",
-                            result != null ? result.getStatus() : "未知"))
+                            result != null ? result.getMessage() : "未知"))
                     .doOnError(error -> logger.error("QTECH取消失败", error));
 
         } catch (Exception e) {

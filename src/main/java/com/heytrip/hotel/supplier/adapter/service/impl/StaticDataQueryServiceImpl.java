@@ -5,7 +5,6 @@ import com.heytrip.common.response.base.XRatePlan;
 import com.heytrip.common.response.base.XRoom;
 import com.heytrip.common.response.other.XCityResponse;
 import com.heytrip.common.response.other.XCountryResponse;
-import com.heytrip.common.response.other.XRoomIncrement;
 import com.heytrip.hotel.supplier.adapter.service.StaticDataQueryService;
 import com.heytrip.hotel.supplier.constant.StaticCacheNames;
 import com.heytrip.hotel.supplier.dto.basic.XHotelGiata;
@@ -278,8 +277,10 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
         };
         // 进行数据库分页查询
         Page<Room> pageData = roomRepo.findAll(spec, pageable);
+        // 转换为XRatePlan列表
+        List<XRoom> content = pageData.getContent().stream().map(this::toXRoom).collect(Collectors.toList());
         // 暂返回空列表（DTO 字段需确认），但返回正确 total 与分页信息
-        return new PageImpl<>(Collections.emptyList(), pageable, pageData.getTotalElements());
+        return new PageImpl<>(content, pageable, pageData.getTotalElements());
     }
 
     @Override

@@ -13,9 +13,14 @@ import java.math.BigDecimal;
  */
 @Data
 public class QTechCancellationChargesResponse extends QTechBaseResponse {
-    
 
-    
+
+    /**
+     * 状态
+     */
+    @JsonProperty("Status")
+    private String status;
+
     /**
      * 是否允许取消（yes/no）
      */

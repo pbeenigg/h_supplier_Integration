@@ -1,7 +1,17 @@
 package com.heytrip.hotel.supplier.adapter;
 
+import com.heytrip.common.request.XCancelOrderRequest;
+import com.heytrip.common.request.XCreateOrderRequest;
 import com.heytrip.common.request.XSupplierCheckRequest;
-import com.heytrip.common.response.other.*;
+import com.heytrip.common.request.XSupplierPriceRequest;
+import com.heytrip.common.response.base.XRoom;
+import com.heytrip.common.response.other.XCancelOrderResponse;
+import com.heytrip.common.response.other.XCreateOrderResponse;
+import com.heytrip.common.response.other.XOrderCheckResponse;
+import com.heytrip.common.response.other.XQueryOrderResponse;
+import com.heytrip.common.result.Result;
+import com.heytrip.hotel.supplier.adapter.capability.OrderBridge;
+import com.heytrip.hotel.supplier.adapter.capability.PricingBridge;
 import com.heytrip.hotel.supplier.adapter.capability.StaticBridge;
 import jakarta.annotation.PostConstruct;
 import lombok.Data;
@@ -13,20 +23,8 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
-import java.util.HashMap;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
-import java.util.Collections;
-
-import com.heytrip.common.request.XSupplierPriceRequest;
-import com.heytrip.common.request.XCreateOrderRequest;
-import com.heytrip.common.request.XCancelOrderRequest;
-import com.heytrip.common.response.base.XRoom;
-import com.heytrip.common.result.Result;
-import com.heytrip.hotel.supplier.adapter.capability.PricingBridge;
-import com.heytrip.hotel.supplier.adapter.capability.OrderBridge;
 
 /**
  * 供应商适配器管理器
@@ -130,7 +128,7 @@ public class SupplierAdapterManager {
             return Result.fail("适配器还未不支持 StaticBridge");
         } catch (Exception ex) {
             logger.error("[getHotelRoomOrigContent] 委派执行失败, supplierName={}", supplierType, ex);
-            return Result.fail("获取供应商酒店房型基础信息失败");
+            return Result.fail(ex.getMessage());
         }
     }
 
@@ -155,7 +153,7 @@ public class SupplierAdapterManager {
             return Result.fail("适配器还未不支持 PricingBridge");
         } catch (Exception ex) {
             logger.error("[getPrice] 委派执行失败, supplierName={}", input.getSupplierType(), ex);
-            return Result.fail("单酒店报价接口执行失败");
+            return Result.fail(ex.getMessage());
         }
     }
 
@@ -176,7 +174,7 @@ public class SupplierAdapterManager {
             return Result.fail("适配器还未不支持 PricingBridge");
         } catch (Exception ex) {
             logger.error("[getPrices] 委派执行失败, supplierName={}", input.getSupplierType(), ex);
-            return Result.fail("多酒店报价接口执行失败");
+            return Result.fail(ex.getMessage());
         }
     }
 
@@ -199,7 +197,7 @@ public class SupplierAdapterManager {
             return Result.fail("适配器还未不支持 PricingBridge");
         } catch (Exception ex) {
             logger.error("[getPriceOrig] 委派执行失败, supplierName={}", supplierName, ex);
-            return Result.fail("获取原始单酒店报价接口执行失败");
+            return Result.fail(ex.getMessage());
         }
     }
 
@@ -222,7 +220,7 @@ public class SupplierAdapterManager {
             return Result.fail("适配器还未不支持 PricingBridge");
         } catch (Exception ex) {
             logger.error("[getPricesOrg] 委派执行失败, supplierName={}", supplierName, ex);
-            return Result.fail("获取原始多酒店报价接口执行失败");
+            return Result.fail(ex.getMessage());
         }
     }
 
@@ -246,7 +244,7 @@ public class SupplierAdapterManager {
             return Result.fail("适配器还未不支持 PricingBridge");
         } catch (Exception ex) {
             logger.error("[orderCheck] 委派执行失败, supplierName={}", supplierName, ex);
-            return Result.fail("订单前置校验接口执行失败");
+            return Result.fail(ex.getMessage());
         }
     }
 
@@ -269,7 +267,7 @@ public class SupplierAdapterManager {
             return Collections.emptyMap();
         } catch (Exception ex) {
             logger.error("[orderCheckOrg] 委派执行失败, supplierName={}", supplierName, ex);
-            return Collections.emptyMap();
+            return ex.getMessage();
         }
     }
 
@@ -279,17 +277,18 @@ public class SupplierAdapterManager {
     public Result<XCreateOrderResponse> createOrder(String supplierName, XCreateOrderRequest input) {
         SupplierAdapter adapter = getAdapterByName(supplierName);
         if (adapter == null) {
-            return Result.ok(null);
+           return Result.fail("未找到供应商适配器");
         }
         try {
             if (adapter instanceof OrderBridge bridge) {
                 XCreateOrderResponse resp = bridge.createOrder(input);
                 return Result.ok(resp);
             }
-            return Result.ok(null);
+            logger.warn("[createOrder] 适配器不支持 OrderBridge: {}", supplierName);
+            return Result.fail("适配器还未不支持 OrderBridge");
         } catch (Exception ex) {
             logger.error("[createOrder] 委派执行失败, supplierName={}", supplierName, ex);
-            return Result.ok(null);
+            return Result.fail(ex.getMessage());
         }
     }
 
@@ -299,17 +298,18 @@ public class SupplierAdapterManager {
     public Result<XCancelOrderResponse> cancelOrder(String supplierName, XCancelOrderRequest input) {
         SupplierAdapter adapter = getAdapterByName(supplierName);
         if (adapter == null) {
-            return Result.ok(null);
+            return Result.fail("未找到供应商适配器");
         }
         try {
             if (adapter instanceof OrderBridge bridge) {
                 XCancelOrderResponse resp = bridge.cancelOrder(input);
                 return Result.ok(resp);
             }
-            return Result.ok(null);
+           logger.warn("[cancelOrder] 适配器不支持 OrderBridge: {}", supplierName);
+            return Result.fail("适配器还未不支持 OrderBridge");
         } catch (Exception ex) {
             logger.error("[cancelOrder] 委派执行失败, supplierName={}", supplierName, ex);
-            return Result.ok(null);
+            return Result.fail(ex.getMessage());
         }
     }
 
@@ -319,17 +319,18 @@ public class SupplierAdapterManager {
     public Result<XQueryOrderResponse> queryOrder(String supplierName, String distributorOrderId, String supplierOrderId, String ext) {
         SupplierAdapter adapter = getAdapterByName(supplierName);
         if (adapter == null) {
-            return Result.ok(null);
+            return Result.fail("未找到供应商适配器");
         }
         try {
             if (adapter instanceof OrderBridge bridge) {
                 XQueryOrderResponse resp = bridge.queryOrder(distributorOrderId, supplierOrderId, ext);
                 return Result.ok(resp);
             }
-            return Result.ok(null);
+            logger.warn("[queryOrder] 适配器不支持 OrderBridge: {}", supplierName);
+            return Result.fail("适配器还未不支持 OrderBridge");
         } catch (Exception ex) {
             logger.error("[queryOrder] 委派执行失败, supplierName={}", supplierName, ex);
-            return Result.ok(null);
+            return Result.fail(ex.getMessage());
         }
     }
 

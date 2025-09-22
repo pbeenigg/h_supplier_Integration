@@ -24,6 +24,7 @@ public class HeyUtil {
     private static final Logger logger = LoggerFactory.getLogger(HeyUtil.class);
     // 日期格式化器
     public static final DateTimeFormatter DATE_FORMATTER_DDMMYYYY = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+    public static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
 
 

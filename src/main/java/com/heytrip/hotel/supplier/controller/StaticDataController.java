@@ -119,7 +119,7 @@ public class StaticDataController {
      *
      */
     @GetMapping("/getRooms")
-    public Object getRooms(
+    public  Result<List<XRoom>> getRooms(
             @RequestParam(value = "supplierType") String supplierType,
             @RequestParam("hotelId") String hotelId,
             @RequestParam(value = "language", required = false) String language,
