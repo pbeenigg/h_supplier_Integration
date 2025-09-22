@@ -2,10 +2,31 @@ package com.heytrip.hotel.supplier.adapter.tasks.impl;
 
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.collection.ListUtil;
-import cn.hutool.core.date.DateUtil;
-import cn.hutool.core.stream.StreamUtil;
 import cn.hutool.core.util.StrUtil;
-import cn.hutool.crypto.digest.DigestUtil;
+import com.heytrip.common.enums.XEnumNoSmoking;
+import com.heytrip.common.response.base.XHotel;
+import com.heytrip.hotel.supplier.adapter.impl.AsianOverlandAdapter;
+import com.heytrip.hotel.supplier.adapter.parser.StaticDataParser;
+import com.heytrip.hotel.supplier.adapter.service.StaticDataQueryService;
+import com.heytrip.hotel.supplier.config.CacheEvictor;
+import com.heytrip.hotel.supplier.dto.qtech.req.QTechSearchRequest;
+import com.heytrip.hotel.supplier.dto.qtech.resp.QTechSearchResponse;
+import com.heytrip.hotel.supplier.entity.*;
+import com.heytrip.hotel.supplier.repository.*;
+import com.heytrip.hotel.supplier.utils.HeyUtil;
+import com.heytrip.hotel.supplier.utils.MD5Util;
+import jakarta.annotation.Resource;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import lombok.Data;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -17,57 +38,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import static java.util.stream.Collectors.toList;
-import static java.util.stream.Collectors.toMap;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.heytrip.common.enums.XEnumCurrency;
-import com.heytrip.common.enums.XEnumNoSmoking;
-import com.heytrip.common.response.base.XHotel;
-import com.heytrip.common.response.base.XRatePlan;
-import com.heytrip.common.response.base.XRatePlanDaily;
-import com.heytrip.common.response.base.XRoom;
-import com.heytrip.hotel.supplier.adapter.SupplierAdapterManager;
-import com.heytrip.hotel.supplier.adapter.impl.AsianOverlandAdapter;
-import com.heytrip.hotel.supplier.adapter.parser.StaticDataParser;
-import com.heytrip.hotel.supplier.adapter.service.StaticDataQueryService;
-import com.heytrip.hotel.supplier.client.FtpClientService;
-import com.heytrip.hotel.supplier.config.CacheEvictor;
-import com.heytrip.hotel.supplier.config.FtpClientConfig;
-import com.heytrip.hotel.supplier.dto.qtech.req.QTechSearchRequest;
-import com.heytrip.hotel.supplier.dto.qtech.resp.QTechSearchResponse;
-import com.heytrip.hotel.supplier.entity.*;
-import com.heytrip.hotel.supplier.repository.*;
-
-import java.util.concurrent.CompletableFuture;
-import com.heytrip.hotel.supplier.utils.HeyUtil;
-import jakarta.annotation.Resource;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
-import lombok.Data;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.TransactionDefinition;
-import org.springframework.transaction.TransactionStatus;
-import org.springframework.transaction.support.DefaultTransactionDefinition;
-import org.springframework.transaction.support.TransactionTemplate;
-
-import static com.heytrip.hotel.supplier.constant.SyncBusinessTypeNames.*;
-import static java.util.stream.Collectors.groupingBy;
-import static java.util.stream.Collectors.toList;
-
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.*;
-import java.util.function.Supplier;
-import java.util.stream.Collectors;
+import static com.heytrip.hotel.supplier.constant.SyncBusinessTypeNames.HOTEL_BOOKABLE;
+import static java.util.stream.Collectors.*;
 
 /**
  * 酒店相关信息同步服务
@@ -187,7 +159,6 @@ public class HotelSyncSyncService {
         
         // 统计信息
         AtomicLong totalHotels = new AtomicLong(0);
-        AtomicLong processedHotels = new AtomicLong(0);
         AtomicLong availableHotels = new AtomicLong(0);
         AtomicInteger totalBatches = new AtomicInteger(0);
         AtomicInteger processedBatches = new AtomicInteger(0);
@@ -474,8 +445,16 @@ public class HotelSyncSyncService {
                     Long hotelEntityId = entry.getValue();
                     
                     List<QTechSearchResponse.RoomRate> roomRates = hotelRoomMap.get(hotelCode);
-                    if (roomRates != null) {
-                        for (QTechSearchResponse.RoomRate roomRate : roomRates) {
+
+                    // 过滤有效的房型
+                    List<QTechSearchResponse.RoomRate> filterRoomRates =  roomRates.stream()
+                            .filter(rr -> StrUtil.isNotBlank(rr.getRoomCategory()) && StrUtil.isNotBlank(rr.getRoomType()))
+                            .filter(rr -> rr.getRoomRate() != null && rr.getRoomRate().compareTo(BigDecimal.ZERO) > 0)
+                            .filter(rr -> rr.getAvailable() != null && rr.getAvailable() == 1)
+                            .collect(toList());
+
+                    if (filterRoomRates != null) {
+                        for (QTechSearchResponse.RoomRate roomRate : filterRoomRates) {
                             Room roomEntity = buildRoomEntity(roomRate, hotelCode, supplierId, supplierCode, hotelEntityId);
                             if (roomEntity != null) {
                                 batchRoomsToSave.add(roomEntity);
@@ -512,8 +491,13 @@ public class HotelSyncSyncService {
         HotelBookable bookable = new HotelBookable();
         bookable.setSupplierId(supplierId);
         bookable.setSupplierCode(supplierCode);
+
+        // 当供应商酒店ID超过64字符，使用原始ID的SHA-256（64位十六进制）作为 hotelCodeMd5；否则直接使用原始ID
+        String hotelCodeMd5 = hotel.getHotelId().length() > 64 ? MD5Util.string2MD5(hotel.getHotelId()) : hotel.getHotelId();
         bookable.setHotelCode(hotel.getHotelId());
-        bookable.setHotelCodeMd5(DigestUtil.md5Hex(hotel.getHotelId()));
+        bookable.setHotelCodeMd5(hotelCodeMd5);
+
+
         bookable.setHotelId(hotelId);  // 设置酒店表主键ID
         bookable.setName(hotel.getHotelName());
         bookable.setIsBookable(true);
@@ -632,7 +616,7 @@ public class HotelSyncSyncService {
         String hotelCode = hotel.getHotelId();
         hotelEntity.setHotelCode(hotelCode);
         // 当供应商酒店ID超过64字符，使用原始ID的SHA-256（64位十六进制）作为 hotelCodeMd5；否则直接使用原始ID
-        String hotelCodeMd5 = hotelCode.length() > 64 ? HeyUtil.sha256Hex(hotelCode) : hotelCode;
+        String hotelCodeMd5 = hotelCode.length() > 64 ? MD5Util.string2MD5(hotelCode) : hotelCode;
         hotelEntity.setHotelCodeMd5(hotelCodeMd5);
 
         hotelEntity.setHotelName(hotel.getHotelName());
@@ -647,11 +631,11 @@ public class HotelSyncSyncService {
         BigDecimal totalCharges = hotel.getTotalCharges();
         if (totalCharges != null && totalCharges.compareTo(BigDecimal.ZERO) > 0) {
             hotelEntity.setMinPrice(totalCharges);
+
+            // 设置为可预订（有价格即可预订）
+            hotelEntity.setIsBookable(true);
         }
 
-        // 设置为可预订（有价格即可预订）
-        hotelEntity.setIsBookable(true);
-        
         // 设置同步时间（用于7天内有价酒店的判断）
         hotelEntity.setSyncAt(LocalDateTime.now());
 
@@ -669,14 +653,28 @@ public class HotelSyncSyncService {
         roomEntity.setHotelCode(hotelId);
         roomEntity.setHotelId(hotelEntityId); // 直接使用传入的Hotel实体ID
 
-        String roomCode = roomRate.getClassUniqueId();
-        roomEntity.setRoomCode(roomCode);
-        // 当供应商ID超过64字符，使用原始ID的SHA-256（64位十六进制）作为 roomCodeMd5；否则直接使用原始ID
-        String roomCodeMd5 = roomCode.length() > 64 ? HeyUtil.sha256Hex(roomCode) : roomCode;
-        roomEntity.setRoomCodeMd5(roomCodeMd5);
 
-        roomEntity.setRoomName(roomRate.getRoomCategory());
-        roomEntity.setRoomNameEn(roomRate.getRoomCategory());
+        //房型编码 ：通过酒店ID+ 房型名称   例如：  OT000005002+SUPERIOR, KING BED, BALCONY   （处理掉特殊字符，用_连接）
+        String roomName = roomRate.getRoomCategory();
+        if(StrUtil.isBlank(roomName)){
+            roomName = roomRate.getRoomType();
+        }
+
+        // 生成房型编码： 房型名称，处理特殊字符用下划线连接
+        String roomCodeRaw = roomName;
+        // 处理特殊字符：保留字母、数字、中文，其他字符替换为下划线，连续的下划线合并为一个
+        String roomCode = roomCodeRaw.replaceAll("[^a-zA-Z0-9\\u4e00-\\u9fa5]+", "_")
+                                    .replaceAll("_+", "_")  // 合并连续的下划线
+                                    .replaceAll("^_|_$", ""); // 去掉首尾的下划线
+        
+        // 如果处理后的编码超过64字符，使用MD5
+        String finalRoomCode = roomCode.length() > 64 ? MD5Util.string2MD5(roomCode) : roomCode;
+        String roomCodeMd5 = finalRoomCode.length() > 64 ? MD5Util.string2MD5(finalRoomCode) : finalRoomCode;
+        
+        roomEntity.setRoomCode(finalRoomCode);
+        roomEntity.setRoomCodeMd5(roomCodeMd5);
+        roomEntity.setRoomName(roomName);
+        roomEntity.setRoomNameEn(roomName);
         roomEntity.setDescription(roomRate.getRoomType());
         roomEntity.setBedTypeDesc(roomRate.getRoomCategory());
         roomEntity.setBedTypeDescEn(roomRate.getRoomCategory());
@@ -742,8 +740,8 @@ public class HotelSyncSyncService {
 
     /**
      * Upsert房型数据（批量优化版本，增强防重复机制）
-     * 性能优化：1次批量查询 + 1次批量保存，而不是N次单独查询
-     * 约束：(supplier_id, supplier_code, room_code) 唯一
+     * 性能优化：按酒店分组批量查询 + 批量保存，确保房型编码在酒店维度的唯一性
+     * 约束：(supplier_id, supplier_code, hotel_code, room_code) 唯一
      */
     private long upsertRooms(List<Room> rooms, Long supplierId, String supplierCode) {
         if (CollUtil.isEmpty(rooms)) {
@@ -753,92 +751,108 @@ public class HotelSyncSyncService {
         long saved = 0;
         
         try {
-            // 0. 输入数据去重（防止同一批次中有重复的roomCode）
-            Map<String, Room> uniqueRooms = new LinkedHashMap<>();
-            for (Room room : rooms) {
-                String roomCode = room.getRoomCode();
-                if (uniqueRooms.containsKey(roomCode)) {
-                    logger.warn("[HotelSyncSyncService.upsertRooms] 发现重复的roomCode，保留最后一个: {}", roomCode);
+            // 0. 按酒店编码分组处理房型数据
+            Map<String, List<Room>> roomsByHotel = rooms.stream()
+                .collect(groupingBy(Room::getHotelCode));
+            
+            logger.debug("[HotelSyncSyncService.upsertRooms] 原始房型数: {}, 涉及酒店数: {}", 
+                rooms.size(), roomsByHotel.size());
+            
+            // 1. 按酒店分组处理，确保房型编码在酒店维度的唯一性
+            for (Map.Entry<String, List<Room>> entry : roomsByHotel.entrySet()) {
+                String hotelCode = entry.getKey();
+                List<Room> hotelRooms = entry.getValue();
+                
+                // 1.1 酒店内房型去重（防止同一批次中有重复的roomCode）
+                Map<String, Room> uniqueRooms = new LinkedHashMap<>();
+                for (Room room : hotelRooms) {
+                    String roomCode = room.getRoomCode();
+                    if (uniqueRooms.containsKey(roomCode)) {
+                        logger.warn("[HotelSyncSyncService.upsertRooms] 酒店{}发现重复的roomCode，保留最后一个: {}", 
+                            hotelCode, roomCode);
+                    }
+                    uniqueRooms.put(roomCode, room);
                 }
-                uniqueRooms.put(roomCode, room);
-            }
-            
-            List<Room> deduplicatedRooms = new ArrayList<>(uniqueRooms.values());
-            logger.debug("[HotelSyncSyncService.upsertRooms] 原始房型数: {}, 去重后: {}", 
-                rooms.size(), deduplicatedRooms.size());
-            
-            // 1. 批量查询现有数据（1次数据库查询）
-            List<String> roomCodes = deduplicatedRooms.stream()
-                .map(Room::getRoomCode)
-                .collect(toList());
-            
-            List<Room> existingRooms = roomRepo.findBySupplierIdAndSupplierCodeAndRoomCodeIn(
-                supplierId, supplierCode, roomCodes);
-            
-            logger.debug("[HotelSyncSyncService.upsertRooms] 批量查询结果: 查询{}个roomCode，找到{}个现有记录", 
-                roomCodes.size(), existingRooms.size());
-            
-            // 2. 构建现有数据映射表
-            Map<String, Room> existingRoomMap = existingRooms.stream()
-                .collect(toMap(Room::getRoomCode, r -> r));
-            
-            // 3. 分离新增和更新数据
-            List<Room> toInsert = new ArrayList<>();
-            List<Room> toUpdate = new ArrayList<>();
-            
-            for (Room room : deduplicatedRooms) {
-                Room existing = existingRoomMap.get(room.getRoomCode());
-                if (existing != null) {
-                    // 更新现有记录
-                    updateRoomFields(existing, room);
-                    toUpdate.add(existing);
-                } else {
-                    // 新增记录
-                    toInsert.add(room);
-                }
-            }
-            
-            // 4. 批量保存（分两阶段：先处理更新，再处理新增）
-            List<Room> additionalInserts = new ArrayList<>();
-            
-            // 第一阶段：处理更新实体
-            if (!toUpdate.isEmpty()) {
-                List<Room> validUpdates = new ArrayList<>();
-                for (Room room : toUpdate) {
-                    if (room.getId() == null) {
-                        logger.error("[HotelSyncSyncService.upsertRooms] 更新房型实体ID为null: roomCode={}", 
-                            room.getRoomCode());
-                        // 将ID为null的实体转为新增
-                        room.setId(null);
-                        additionalInserts.add(room);
+                
+                List<Room> deduplicatedRooms = new ArrayList<>(uniqueRooms.values());
+                logger.debug("[HotelSyncSyncService.upsertRooms] 酒店{}: 原始房型数{}, 去重后{}", 
+                    hotelCode, hotelRooms.size(), deduplicatedRooms.size());
+                
+                // 1.2 批量查询该酒店的现有房型数据
+                List<String> roomCodes = deduplicatedRooms.stream()
+                    .map(Room::getRoomCode)
+                    .collect(toList());
+                
+                List<Room> existingRooms = roomRepo.findBySupplierIdAndSupplierCodeAndHotelCodeAndRoomCodeIn(
+                    supplierId, supplierCode, hotelCode, roomCodes);
+                
+                logger.debug("[HotelSyncSyncService.upsertRooms] 酒店{} 批量查询结果: 查询{}个roomCode，找到{}个现有记录", 
+                    hotelCode, roomCodes.size(), existingRooms.size());
+                
+                // 1.3 构建现有数据映射表
+                Map<String, Room> existingRoomMap = existingRooms.stream()
+                    .collect(toMap(Room::getRoomCode, r -> r));
+                
+                // 1.4 分离新增和更新数据
+                List<Room> toInsert = new ArrayList<>();
+                List<Room> toUpdate = new ArrayList<>();
+                
+                for (Room room : deduplicatedRooms) {
+                    Room existing = existingRoomMap.get(room.getRoomCode());
+                    if (existing != null) {
+                        // 更新现有记录
+                        updateRoomFields(existing, room);
+                        toUpdate.add(existing);
                     } else {
-                        validUpdates.add(room);
+                        // 新增记录
+                        toInsert.add(room);
                     }
                 }
                 
-                if (!validUpdates.isEmpty()) {
-                    List<Room> updatedRooms = roomRepo.saveAll(validUpdates);
-                    saved += updatedRooms.size();
-                    logger.debug("[HotelSyncSyncService.upsertRooms] 批量更新房型: {}个", updatedRooms.size());
-                }
-            }
-            
-            // 第二阶段：处理所有新增实体（包括原始新增 + 从更新转换的）
-            List<Room> allInserts = new ArrayList<>(toInsert);
-            allInserts.addAll(additionalInserts);
-            
-            if (!allInserts.isEmpty()) {
-                // 验证新增实体的ID应该为null
-                for (Room room : allInserts) {
-                    if (room.getId() != null) {
-                        logger.warn("[HotelSyncSyncService.upsertRooms] 新增房型实体ID不为null: roomCode={}, id={}", 
-                            room.getRoomCode(), room.getId());
-                        room.setId(null); // 强制设置为null，让数据库自动生成
+                // 1.5 批量保存该酒店的房型数据（分两阶段：先处理更新，再处理新增）
+                List<Room> additionalInserts = new ArrayList<>();
+                
+                // 第一阶段：处理更新实体
+                if (!toUpdate.isEmpty()) {
+                    List<Room> validUpdates = new ArrayList<>();
+                    for (Room room : toUpdate) {
+                        if (room.getId() == null) {
+                            logger.error("[HotelSyncSyncService.upsertRooms] 酒店{}更新房型实体ID为null: roomCode={}", 
+                                hotelCode, room.getRoomCode());
+                            // 将ID为null的实体转为新增
+                            room.setId(null);
+                            additionalInserts.add(room);
+                        } else {
+                            validUpdates.add(room);
+                        }
+                    }
+                    
+                    if (!validUpdates.isEmpty()) {
+                        List<Room> updatedRooms = roomRepo.saveAll(validUpdates);
+                        saved += updatedRooms.size();
+                        logger.debug("[HotelSyncSyncService.upsertRooms] 酒店{} 批量更新房型: {}个", 
+                            hotelCode, updatedRooms.size());
                     }
                 }
-                List<Room> insertedRooms = roomRepo.saveAll(allInserts);
-                saved += insertedRooms.size();
-                logger.debug("[HotelSyncSyncService.upsertRooms] 批量新增房型: {}个", insertedRooms.size());
+                
+                // 第二阶段：处理所有新增实体（包括原始新增 + 从更新转换的）
+                List<Room> allInserts = new ArrayList<>(toInsert);
+                allInserts.addAll(additionalInserts);
+                
+                if (!allInserts.isEmpty()) {
+                    // 验证新增实体的ID应该为null
+                    for (Room room : allInserts) {
+                        if (room.getId() != null) {
+                            logger.warn("[HotelSyncSyncService.upsertRooms] 酒店{}新增房型实体ID不为null: roomCode={}, id={}", 
+                                hotelCode, room.getRoomCode(), room.getId());
+                            room.setId(null); // 强制设置为null，让数据库自动生成
+                        }
+                    }
+                    List<Room> insertedRooms = roomRepo.saveAll(allInserts);
+                    saved += insertedRooms.size();
+                    logger.debug("[HotelSyncSyncService.upsertRooms] 酒店{} 批量新增房型: {}个", 
+                        hotelCode, insertedRooms.size());
+                }
             }
             
         } catch (Exception e) {
@@ -866,34 +880,46 @@ public class HotelSyncSyncService {
         
         logger.info("[HotelSyncSyncService.upsertRoomsWithConstraintHandling] 开始智能处理{}个房型的唯一约束冲突", rooms.size());
         
-        // 对每个房型进行单独的upsert处理，跳过重复记录
-        for (Room room : rooms) {
-            try {
-                Optional<Room> existingRoom = roomRepo.findBySupplierIdAndSupplierCodeAndRoomCode(
-                    supplierId, supplierCode, room.getRoomCode());
-                
-                if (existingRoom.isPresent()) {
-                    // 更新现有记录
-                    Room existing = existingRoom.get();
-                    updateRoomFields(existing, room);
-                    roomRepo.save(existing);
-                    saved++;
-                    logger.debug("[HotelSyncSyncService.upsertRoomsWithConstraintHandling] 更新房型: {}", room.getRoomCode());
-                } else {
-                    // 新增记录
-                    room.setId(null); // 确保ID为null
-                    roomRepo.save(room);
-                    saved++;
-                    logger.debug("[HotelSyncSyncService.upsertRoomsWithConstraintHandling] 新增房型: {}", room.getRoomCode());
-                }
-            } catch (Exception e) {
-                // 如果仍然有唯一约束冲突，说明可能是并发问题，跳过这条记录
-                if (e.getMessage() != null && e.getMessage().contains("Duplicate entry")) {
-                    logger.warn("[HotelSyncSyncService.upsertRoomsWithConstraintHandling] 跳过重复房型: roomCode={}, 错误: {}", 
-                        room.getRoomCode(), e.getMessage());
-                } else {
-                    logger.error("[HotelSyncSyncService.upsertRoomsWithConstraintHandling] 保存房型失败: roomCode={}", 
-                        room.getRoomCode(), e);
+        // 按酒店分组处理房型数据
+        Map<String, List<Room>> roomsByHotel = rooms.stream()
+            .collect(groupingBy(Room::getHotelCode));
+        
+        // 对每个酒店的房型进行单独的upsert处理，跳过重复记录
+        for (Map.Entry<String, List<Room>> entry : roomsByHotel.entrySet()) {
+            String hotelCode = entry.getKey();
+            List<Room> hotelRooms = entry.getValue();
+            
+            for (Room room : hotelRooms) {
+                try {
+                    // 查询现有记录（使用包含酒店编码的查询）
+                    List<Room> existingRooms = roomRepo.findBySupplierIdAndSupplierCodeAndHotelCodeAndRoomCodeIn(
+                        supplierId, supplierCode, hotelCode, Arrays.asList(room.getRoomCode()));
+                    
+                    if (!existingRooms.isEmpty()) {
+                        // 更新现有记录
+                        Room existing = existingRooms.get(0);
+                        updateRoomFields(existing, room);
+                        roomRepo.save(existing);
+                        saved++;
+                        logger.debug("[HotelSyncSyncService.upsertRoomsWithConstraintHandling] 酒店{} 更新房型: {}", 
+                            hotelCode, room.getRoomCode());
+                    } else {
+                        // 新增记录
+                        room.setId(null); // 确保ID为null
+                        roomRepo.save(room);
+                        saved++;
+                        logger.debug("[HotelSyncSyncService.upsertRoomsWithConstraintHandling] 酒店{} 新增房型: {}", 
+                            hotelCode, room.getRoomCode());
+                    }
+                } catch (Exception e) {
+                    // 如果仍然有唯一约束冲突，说明可能是并发问题，跳过这条记录
+                    if (e.getMessage() != null && e.getMessage().contains("Duplicate entry")) {
+                        logger.warn("[HotelSyncSyncService.upsertRoomsWithConstraintHandling] 酒店{} 跳过重复房型: roomCode={}, 错误: {}", 
+                            hotelCode, room.getRoomCode(), e.getMessage());
+                    } else {
+                        logger.error("[HotelSyncSyncService.upsertRoomsWithConstraintHandling] 酒店{} 保存房型失败: roomCode={}", 
+                            hotelCode, room.getRoomCode(), e);
+                    }
                 }
             }
         }
@@ -903,26 +929,42 @@ public class HotelSyncSyncService {
     }
     
     /**
-     * 降级方案：逐个保存房型（当批量保存失败时使用）
+     * 降级方案：逐个保存房型（当批量保存失败时使用，支持酒店维度查询）
      */
     private long upsertRoomsOneByOne(List<Room> rooms, Long supplierId, String supplierCode) {
         long saved = 0;
         
-        for (Room room : rooms) {
-            try {
-                Optional<Room> existingRoom = roomRepo.findBySupplierIdAndSupplierCodeAndRoomCode(
-                    supplierId, supplierCode, room.getRoomCode());
-                
-                if (existingRoom.isPresent()) {
-                    Room existing = existingRoom.get();
-                    updateRoomFields(existing, room);
-                    roomRepo.save(existing);
-                } else {
-                    roomRepo.save(room);
+        // 按酒店分组处理房型数据
+        Map<String, List<Room>> roomsByHotel = rooms.stream()
+            .collect(groupingBy(Room::getHotelCode));
+        
+        for (Map.Entry<String, List<Room>> entry : roomsByHotel.entrySet()) {
+            String hotelCode = entry.getKey();
+            List<Room> hotelRooms = entry.getValue();
+            
+            for (Room room : hotelRooms) {
+                try {
+                    // 查询现有记录（使用包含酒店编码的查询）
+                    List<Room> existingRooms = roomRepo.findBySupplierIdAndSupplierCodeAndHotelCodeAndRoomCodeIn(
+                        supplierId, supplierCode, hotelCode, Arrays.asList(room.getRoomCode()));
+                    
+                    if (!existingRooms.isEmpty()) {
+                        Room existing = existingRooms.get(0);
+                        updateRoomFields(existing, room);
+                        roomRepo.save(existing);
+                        logger.debug("[HotelSyncSyncService.upsertRoomsOneByOne] 酒店{} 更新房型: {}", 
+                            hotelCode, room.getRoomCode());
+                    } else {
+                        room.setId(null); // 确保ID为null
+                        roomRepo.save(room);
+                        logger.debug("[HotelSyncSyncService.upsertRoomsOneByOne] 酒店{} 新增房型: {}", 
+                            hotelCode, room.getRoomCode());
+                    }
+                    saved++;
+                } catch (Exception e) {
+                    logger.error("[HotelSyncSyncService.upsertRoomsOneByOne] 酒店{} 保存房型失败: roomCode={}", 
+                        hotelCode, room.getRoomCode(), e);
                 }
-                saved++;
-            } catch (Exception e) {
-                logger.error("[HotelSyncSyncService.upsertRoomsOneByOne] 保存房型失败: roomCode={}", room.getRoomCode(), e);
             }
         }
         
@@ -1039,8 +1081,8 @@ public class HotelSyncSyncService {
     private void clearBookableHotels(Long supplierId, String supplierCode, List<String> hotelCodes) {
         transactionTemplate.execute(status -> {
             try {
-                int deletedCount = hotelBookableRepository.deleteBySupplierIdAndSupplierCodeAndHotelCodeIn(
-                    supplierId, supplierCode, hotelCodes);
+                // 执行删除操作  根据(supplier_id, supplier_code, hotel_code) 删除
+                int deletedCount = hotelBookableRepository.deleteBySupplierIdAndSupplierCodeAndHotelCodeIn(supplierId, supplierCode, hotelCodes);
                 logger.debug("[HotelSyncSyncService.clearBookableHotels] 删除可售酒店数据 {} 条", deletedCount);
                 return deletedCount;
             } catch (Exception ex) {

@@ -26,6 +26,8 @@ public class HeyUtil {
     public static final DateTimeFormatter DATE_FORMATTER_DDMMYYYY = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
 
+
+
     /**
      * 构造房间明细列表
      */
@@ -86,32 +88,27 @@ public class HeyUtil {
 
     /**
      * 计算字符串的 SHA-256 十六进制（64位小写）
+     * 默认长度64
      */
-    public static String sha256Hex(String input) {
+    public static String sha256Hex(String input,int length) {
         try {
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-            byte[] digest = md.digest(input.getBytes(StandardCharsets.UTF_8));
-            return toHex(digest);
+            // 获取一个 SHA-256 的消息摘要实例
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            // 计算哈希值
+            byte[] hash = digest.digest(input.getBytes(StandardCharsets.UTF_8));
+            // 将字节数组转换为十六进制字符串
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) hexString.append('0');
+                hexString.append(hex);
+            }
+            return hexString.toString();
         } catch (Exception e) {
-            // 兜底：异常时直接截断或返回原字符串的前64位
-            String s = input == null ? "" : input;
-            return s.length() <= 64 ? s : s.substring(0, 64);
+            throw new RuntimeException(e);
         }
     }
 
-    /**
-     * 字节数组转十六进制小写字符串
-     */
-    public static String toHex(byte[] bytes) {
-        char[] hexArray = "0123456789abcdef".toCharArray();
-        char[] hexChars = new char[bytes.length * 2];
-        for (int j = 0; j < bytes.length; j++) {
-            int v = bytes[j] & 0xFF;
-            hexChars[j * 2] = hexArray[v >>> 4];
-            hexChars[j * 2 + 1] = hexArray[v & 0x0F];
-        }
-        return new String(hexChars);
-    }
 
 
     /**
@@ -294,7 +291,7 @@ public class HeyUtil {
                 totalPrice == null ? "" : totalPrice,
                 System.currentTimeMillis() + ""
         );
-        return sha256Hex(keySource);
+        return MD5Util.string2MD5(keySource);
     }
 
 

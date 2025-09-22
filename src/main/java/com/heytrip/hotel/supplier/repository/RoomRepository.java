@@ -20,8 +20,11 @@ import java.util.Optional;
 public interface RoomRepository extends JpaRepository<Room, Long>, JpaSpecificationExecutor<Room> {
     Optional<Room> findBySupplierIdAndSupplierCodeAndRoomCode(Long supplierId, String supplierCode, String roomCode);
     
+    List<Room> findBySupplierIdAndSupplierCodeAndHotelCodeAndRoomCodeIn(Long supplierId, String supplierCode, String hotelCode, List<String> roomCodes);
+
     List<Room> findBySupplierIdAndSupplierCodeAndRoomCodeIn(Long supplierId, String supplierCode, List<String> roomCodes);
-    
+
+
     /**
      * 基于自增ID的房型增量查询
      * 查询ID大于指定maxId的房型记录，支持分页
