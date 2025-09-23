@@ -106,7 +106,7 @@ prepare_environment() {
     log_info "准备部署环境..."
     
     # 创建必要目录
-    mkdir -p logs
+    mkdir -p logs/app
     mkdir -p logs/nginx
     
     # 设置JAR文件路径环境变量供Docker使用
@@ -224,33 +224,54 @@ check_service_status() {
     
     log_success "容器已成功启动"
     
-    # 检查应用健康状态（更宽松的检查）
+    # 检查应用健康状态（更智能的检查）
     log_info "等待应用启动完成..."
+    local health_check_passed=false
+    
     for i in {1..60}; do
-        # 先检查端口是否可访问
-        if nc -z localhost "$port" 2>/dev/null; then
-            log_info "端口 $port 已可访问"
-            # 再检查健康检查端点
-            if curl -f "http://localhost:$port/actuator/health" &> /dev/null; then
-                log_success "应用健康检查通过"
-                break
-            elif [ $i -gt 30 ]; then
-                # 30次后如果端口可访问但健康检查失败，仍然认为启动成功
-                log_warning "健康检查端点不可用，但应用端口已启动"
-                break
-            fi
-        fi
-        
-        if [ $i -eq 60 ]; then
-            log_error "应用启动超时，查看日志:"
-            docker compose -f docker-compose.yml logs --tail=50 heytrip-supplier
+        # 首先检查容器是否还在运行
+        if ! docker ps --filter "name=heytrip-supplier" --filter "status=running" --format "{{.Names}}" | grep -q "heytrip-supplier"; then
+            log_error "容器已停止运行，查看日志:"
+            docker logs heytrip-supplier --tail=20 2>/dev/null || docker compose -f docker-compose.yml logs --tail=20 heytrip-supplier
             exit 1
         fi
         
-        echo -n "."
+        # 检查端口是否可访问
+        if nc -z localhost "$port" 2>/dev/null; then
+            log_info "端口 $port 已可访问"
+            
+            # 检查健康检查端点
+            local health_response=$(curl -s -w "%{http_code}" "http://localhost:$port/actuator/health" -o /dev/null 2>/dev/null)
+            if [ "$health_response" = "200" ]; then
+                log_success "应用健康检查通过"
+                health_check_passed=true
+                break
+            elif [ $i -gt 30 ]; then
+                # 30次后如果端口可访问但健康检查失败，检查基本连通性
+                local basic_response=$(curl -s -w "%{http_code}" "http://localhost:$port/" -o /dev/null 2>/dev/null)
+                if [ "$basic_response" != "000" ]; then
+                    log_warning "健康检查端点不可用(HTTP $health_response)，但应用端口已启动(HTTP $basic_response)"
+                    health_check_passed=true
+                    break
+                fi
+            fi
+        fi
+        
+        # 显示进度
+        if [ $((i % 5)) -eq 0 ]; then
+            echo -n " [$i/60] "
+        else
+            echo -n "."
+        fi
         sleep 2
     done
     echo ""
+    
+    if [ "$health_check_passed" = false ]; then
+        log_error "应用启动超时，查看最近日志:"
+        docker compose -f docker-compose.yml logs --tail=50 heytrip-supplier
+        exit 1
+    fi
 }
 
 # 显示部署信息

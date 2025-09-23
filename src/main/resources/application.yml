@@ -63,7 +63,7 @@ logging:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
   file:
-    name: logs/heytrip-supplier-integration.log
+    name: logs/heytrip-supplier.log
 
 
 # SpringDoc配置

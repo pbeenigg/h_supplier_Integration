@@ -43,12 +43,13 @@ services:
       MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS: always
       
       # JVM配置
-      JAVA_OPTS: -Xmx1g -Xms512m -XX:+UseG1GC -XX:+UseContainerSupport -XX:MaxRAMPercentage=80
+      JAVA_OPTS: -Xmx4g -Xms1g -XX:+UseG1GC -XX:+UseContainerSupport -XX:MaxRAMPercentage=80 -XX:G1HeapRegionSize=16m -XX:MaxGCPauseMillis=200
       
     ports:
       - "9090:9090"
     volumes:
-      - ./logs:/app/logs
+      - ./logs/app:/app/logs
+      - ./csv:/app/csv
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9090/actuator/health"]
       interval: 30s
