@@ -51,11 +51,11 @@ public class StaticDataSyncScheduler {
         ses.schedule(() -> {
             try {
                 logger.info("[初始] 开始执行 AsianOverland 静态数据同步（延迟10分钟）");
-                //runForAOQ();
+                runForAOQ();
             } catch (Exception e) {
                 logger.warn("[初始] 静态数据同步失败: {}", e.getMessage());
             }
-        }, 10, TimeUnit.SECONDS);
+        }, 5, TimeUnit.MINUTES);
     }
 
     /**
