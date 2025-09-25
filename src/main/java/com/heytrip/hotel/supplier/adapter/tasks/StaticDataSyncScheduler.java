@@ -55,7 +55,7 @@ public class StaticDataSyncScheduler {
             } catch (Exception e) {
                 logger.warn("[初始] 静态数据同步失败: {}", e.getMessage());
             }
-        }, 5, TimeUnit.MINUTES);
+        }, 10, TimeUnit.SECONDS);
     }
 
     /**
@@ -87,6 +87,11 @@ public class StaticDataSyncScheduler {
             logger.info("AOQ 供应商未启用，跳过静态同步");
             return;
         }
+        if (Boolean.FALSE.equals(sc.getIsSyncStatic())) {
+            logger.info("AOQ 供应商静态数据同步未启用，跳过静态数据同步");
+            return;
+        }
+        // 执行同步
         syncService.syncAllForSupplier(sc.getId(), sc.getSupplierCode());
     }
 }

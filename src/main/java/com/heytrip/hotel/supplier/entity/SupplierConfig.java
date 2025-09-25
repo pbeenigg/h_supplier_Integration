@@ -112,6 +112,22 @@ public class SupplierConfig {
     @Comment("是否启用：1-启用，0-禁用")
     private Boolean isActive = true;
 
+
+    /**
+     * 是否同步静态数据：1-启用，0-禁用
+     */
+    @Column(name = "is_sync_static", nullable = false)
+    @Comment("是否同步静态数据：1-启用，0-禁用")
+    private Boolean isSyncStatic = true;
+
+
+    /**
+     * 是否同步酒店数据：1-启用，0-禁用
+     */
+    @Column(name = "is_sync_hotel", nullable = false)
+    @Comment("是否同步酒店数据：1-启用，0-禁用")
+    private Boolean isSyncHotel = true;
+
     /**
      * 优先级，数值越小优先级越高
      */

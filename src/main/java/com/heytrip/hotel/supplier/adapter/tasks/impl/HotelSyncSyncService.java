@@ -385,7 +385,7 @@ public class HotelSyncSyncService {
                     // 同步酒店静态数据
                     Hotel hotelEntity = buildHotelEntity(hotel, supplierId, supplierCode, checkIn, checkOut);
                     batchHotelsToSave.add(hotelEntity);
-                    
+
                     // 存储酒店数据，用于后续构建可售酒店数据（需要hotel_id）
                     hotelDataMap.put(hotelId, hotel);
 

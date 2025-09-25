@@ -6,6 +6,7 @@ import com.heytrip.hotel.supplier.entity.ApiCallLog;
 import com.heytrip.hotel.supplier.exception.HttpClientException;
 import com.heytrip.hotel.supplier.repository.ApiCallLogRepository;
 import com.heytrip.hotel.supplier.utils.UrlUtil;
+import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,7 +14,6 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.ExchangeFilterFunction;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Mono;
@@ -27,7 +27,6 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 /**
@@ -48,6 +47,22 @@ public class HttpClientService {
     private WebClient.Builder webClientBuilder;
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
+    
+    // 预配置的WebClient实例，避免每次请求都重新创建
+    private WebClient webClient;
+    
+
+    /**
+     * 初始化WebClient实例
+     * 在类构造完成后执行，避免每次请求都重新创建WebClient
+     */
+    @PostConstruct
+    private void initWebClient() {
+        logger.info("初始化HttpClientService的WebClient实例");
+        this.webClient = webClientBuilder
+                .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(16 * 1024 * 1024))
+                .build();
+    }
 
     /**
      * 执行GET请求
@@ -134,27 +149,15 @@ public class HttpClientService {
                                       Long supplierId) {
 
         logger.warn("ExecuteRequest to {}{}",baseUrl,endpoint);
-        // 捕获请求/响应头用于日志
-        AtomicReference<String> capturedRequestHeaders = new AtomicReference<>(null);
-        AtomicReference<String> capturedResponseHeaders = new AtomicReference<>(null);
-        WebClient webClient = webClientBuilder
-                .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(16 * 1024 * 1024))
-                .filter(ExchangeFilterFunction.ofRequestProcessor(req -> {
-                    try { capturedRequestHeaders.set(toJson(req.headers())); } catch (Exception ignored) {}
-                    return Mono.just(req);
-                }))
-                .filter(ExchangeFilterFunction.ofResponseProcessor(resp -> {
-                    try { capturedResponseHeaders.set(toJson(resp.headers().asHttpHeaders())); } catch (Exception ignored) {}
-                    return Mono.just(resp);
-                }))
-                .build();
-
+        
         long startTime = System.currentTimeMillis();
         String requestData = requestBody != null ? requestBody.toString() : "";
 
         String finalUrl = UrlUtil.buildFinalUrl(baseUrl, endpoint);
         logResolvedUri("Final Request URI", finalUrl);
-        WebClient.RequestBodySpec requestSpec = webClient.method(method).uri(URI.create(finalUrl));
+        
+        // 使用预创建的WebClient实例，避免重复创建和添加filter
+        WebClient.RequestBodySpec requestSpec = this.webClient.method(method).uri(URI.create(finalUrl));
 
 
         // 添加请求体（如果有）
@@ -171,31 +174,39 @@ public class HttpClientService {
         }
 
         AtomicLong retryCounter = new AtomicLong(0);
+        
+        // 方案1：使用retrieve().toEntity()获取完整响应（包含头信息）
         return headersSpec
                 .retrieve()
-                .bodyToMono(responseType)
-                .doOnSuccess(response -> {
+                .toEntity(responseType)
+                .map(responseEntity -> {
+                    // 直接从ResponseEntity获取响应头和响应体
                     long responseTime = System.currentTimeMillis() - startTime;
-                    String responseBody = response != null ? JSONUtil.toJsonStr(response) : "";
+                    String responseBody = responseEntity.getBody() != null ? JSONUtil.toJsonStr(responseEntity.getBody()) : "";
+                    String responseHeadersJson = toJson(responseEntity.getHeaders());
                     String requestParamsJson = parseQueryParamsToJson(endpoint);
+                    
+                    // 记录API调用日志（包含完整的响应头信息）
                     logApiCall(supplierId, endpoint, method.name(), requestData,
-                              responseBody,
-                              HttpStatus.OK.value(), responseTime, null,
-                              capturedRequestHeaders.get(), capturedResponseHeaders.get(), requestParamsJson,
-                              retryCounter.get(),
+                              responseBody, responseEntity.getStatusCode().value(), 
+                              responseTime, null, 
+                              null, // 请求头信息（WebClient限制无法直接获取）
+                              responseHeadersJson, // 完整的响应头信息
+                              requestParamsJson, retryCounter.get(),
                               sizeInBytes(requestData), sizeInBytes(responseBody));
+                    
+                    return responseEntity.getBody(); // 返回响应体
                 })
                 .doOnError(error -> {
+                    // 错误处理
                     long responseTime = System.currentTimeMillis() - startTime;
                     int statusCode = extractStatusCode(error);
                     String errorMessage = error.getMessage();
                     String requestParamsJson = parseQueryParamsToJson(endpoint);
-                    String errorCode = error.getClass().getSimpleName();
                     logApiCall(supplierId, endpoint, method.name(), requestData, "",
                               statusCode, responseTime, errorMessage,
-                              capturedRequestHeaders.get(), capturedResponseHeaders.get(), requestParamsJson,
-                              retryCounter.get(),
-                              sizeInBytes(requestData), 0L);
+                              null, null, requestParamsJson,
+                              retryCounter.get(), sizeInBytes(requestData), 0L);
                 })
                 .retryWhen(Retry.backoff(3, Duration.ofSeconds(1))
                         .maxBackoff(Duration.ofSeconds(10))

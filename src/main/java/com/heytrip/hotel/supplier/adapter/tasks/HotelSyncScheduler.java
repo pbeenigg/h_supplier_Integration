@@ -57,7 +57,7 @@ public class HotelSyncScheduler {
             } catch (Exception e) {
                 logger.warn("[初始] 静态数据同步失败: {}", e.getMessage());
             }
-        }, 20, TimeUnit.MINUTES);
+        }, 30, TimeUnit.SECONDS);
     }
 
 
@@ -87,6 +87,10 @@ public class HotelSyncScheduler {
         SupplierConfig sc = opt.get();
         if (Boolean.FALSE.equals(sc.getIsActive())) {
             logger.info("AOQ 供应商未启用，跳过静态同步");
+            return;
+        }
+        if (Boolean.FALSE.equals(sc.getIsSyncHotel())) {
+            logger.info("AOQ 供应商酒店数据同步未启用，跳过酒店数据同步");
             return;
         }
         hotelSyncSyncService.syncAllForSupplier(sc.getId(), sc.getSupplierCode());

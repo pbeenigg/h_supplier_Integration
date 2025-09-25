@@ -418,7 +418,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
         }
 
         /**
-         * TODO
          *  1、为预订步骤保持180秒的超时时间。
          *  2、如果在180秒内没有收到响应，请立即使用booking_detail API（在预订详情API请求中传递agent_ref_no）检查此预订的状态，
          *  3、然而如果您仍然无法收到响应或跟踪预订状态，立即检查此预订。
