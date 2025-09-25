@@ -62,7 +62,7 @@ public class HttpClientService {
     private WebClient webClient;
     
     // 并发控制：限制最大并发请求数为50
-    private final Semaphore requestSemaphore = new Semaphore(10);
+    private final Semaphore requestSemaphore = new Semaphore(15);
     
     // 自定义调度器：支持高并发场景
     private final Scheduler customScheduler = Schedulers.newBoundedElastic(

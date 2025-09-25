@@ -56,8 +56,18 @@ public class HotelSyncSyncService {
     private static final int BATCH_SIZE = 100; // 每批次处理100个酒店
     private static final int MAX_THREADS = 10; // 最大线程数
     
+    // 并发间隔控制配置
+    private static final long DEFAULT_BATCH_INTERVAL_MS = 500; // 默认批次间隔500毫秒
+    private static final long MIN_BATCH_INTERVAL_MS = 100;     // 最小批次间隔100毫秒
+    private static final long MAX_BATCH_INTERVAL_MS = 5000;    // 最大批次间隔5秒
+    private static final int ADAPTIVE_THRESHOLD = 3;           // 连续失败阈值，超过后增加间隔
+    
     // 线程池（懒加载）
     private volatile ExecutorService threadPool;
+    
+    // 并发间隔控制状态
+    private volatile long currentBatchInterval = DEFAULT_BATCH_INTERVAL_MS;
+    private volatile int consecutiveFailures = 0;
 
     @Resource
     private SupplierConfigRepository supplierConfigRepo;
@@ -157,6 +167,9 @@ public class HotelSyncSyncService {
     private SyncStats syncHotels(Long supplierId, String supplierCode) {
         logger.info("[HotelSyncSyncService.syncHotels] 开始同步酒店详情数据，supplierId={}, supplierCode={}", supplierId, supplierCode);
         
+        // 重置间隔控制状态，开始新的同步任务
+        resetIntervalControl();
+        
         // 统计信息
         AtomicLong totalHotels = new AtomicLong(0);
         AtomicLong availableHotels = new AtomicLong(0);
@@ -217,16 +230,32 @@ public class HotelSyncSyncService {
                 List<List<XHotel>> batches = ListUtil.partition(hotelPage.getContent(), BATCH_SIZE);
                 totalBatches.addAndGet(batches.size());
                 
-                // 为每个批次创建异步任务
+                // 为每个批次创建异步任务，增加间隔控制
                 for (List<XHotel> batch : batches) {
                     int currentBatchIndex = processedBatches.incrementAndGet();
                     
-                    CompletableFuture<BatchProcessResult> batchFuture = CompletableFuture.supplyAsync(() ->
-                            processBatch(batch, currentBatchIndex, totalBatches.get(),
-                                       supplierId, supplierCode, datePairs), threadPool).exceptionally(ex -> {
+                    CompletableFuture<BatchProcessResult> batchFuture = CompletableFuture.supplyAsync(() -> {
+                        // 执行批次间隔控制，防止API过载
+                        executeBatchInterval(currentBatchIndex, totalBatches.get());
+                        
+                        // 处理批次并记录结果用于自适应调整
+                        try {
+                            BatchProcessResult result = processBatch(batch, currentBatchIndex, totalBatches.get(),
+                                                                   supplierId, supplierCode, datePairs);
+                            // 记录批次成功，用于自适应间隔调整
+                            recordBatchResult(result.getErrorCount() == 0);
+                            return result;
+                        } catch (Exception ex) {
+                            // 记录批次失败，用于自适应间隔调整
+                            recordBatchResult(false);
+                            throw ex;
+                        }
+                    }, threadPool).exceptionally(ex -> {
                         logger.error("[HotelSyncSyncService.syncHotels] 批次 {}/{} 处理异常", 
                             currentBatchIndex, totalBatches.get(), ex);
                         totalErrors.incrementAndGet();
+                        // 记录批次失败
+                        recordBatchResult(false);
                         return new BatchProcessResult(0, 0, 0, 1, "批次处理异常: " + ex.getMessage());
                     });
                     
@@ -260,6 +289,7 @@ public class HotelSyncSyncService {
             // 返回统计结果
             logger.info("[HotelSyncSyncService.syncHotels] 同步完成：总酒店{}个，有价酒店{}个，保存酒店{}个，保存房型{}个，错误{}个", 
                 totalHotels.get(), availableHotels.get(), savedHotels.get(), savedRooms.get(), totalErrors.get());
+            logger.info("[HotelSyncSyncService.syncHotels] 间隔控制状态：{}", getIntervalControlStatus());
 
             return new SyncStats(
                 totalHotels.get(),
@@ -1091,6 +1121,82 @@ public class HotelSyncSyncService {
                 throw ex;
             }
         });
+    }
+
+    /**
+     * 执行批次间隔控制
+     * 在启动新批次前等待指定时间，防止API过载
+     * 
+     * @param batchIndex 当前批次索引
+     * @param totalBatches 总批次数
+     */
+    private void executeBatchInterval(int batchIndex, int totalBatches) {
+        if (batchIndex > 1) { // 第一个批次不需要等待
+            try {
+                long intervalMs = getCurrentBatchInterval();
+                logger.debug("[HotelSyncSyncService.executeBatchInterval] 批次 {}/{} 等待 {}ms 后启动", 
+                           batchIndex, totalBatches, intervalMs);
+                Thread.sleep(intervalMs);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                logger.warn("[HotelSyncSyncService.executeBatchInterval] 批次间隔等待被中断", e);
+            }
+        }
+    }
+
+    /**
+     * 获取当前批次间隔时间
+     * 支持自适应调整：连续失败时增加间隔，成功时逐渐恢复
+     */
+    private synchronized long getCurrentBatchInterval() {
+        return currentBatchInterval;
+    }
+
+    /**
+     * 记录批次处理结果，用于自适应调整间隔
+     * 
+     * @param success 批次是否成功
+     */
+    private synchronized void recordBatchResult(boolean success) {
+        if (success) {
+            // 成功时重置连续失败计数，并逐渐减少间隔
+            consecutiveFailures = 0;
+            if (currentBatchInterval > MIN_BATCH_INTERVAL_MS) {
+                currentBatchInterval = Math.max(MIN_BATCH_INTERVAL_MS, 
+                                              (long) (currentBatchInterval * 0.9));
+                logger.debug("[HotelSyncSyncService.recordBatchResult] 批次成功，间隔调整为 {}ms", 
+                           currentBatchInterval);
+            }
+        } else {
+            // 失败时增加连续失败计数
+            consecutiveFailures++;
+            if (consecutiveFailures >= ADAPTIVE_THRESHOLD) {
+                // 连续失败超过阈值，增加间隔
+                currentBatchInterval = Math.min(MAX_BATCH_INTERVAL_MS, 
+                                              (long) (currentBatchInterval * 1.5));
+                logger.warn("[HotelSyncSyncService.recordBatchResult] 连续失败 {} 次，间隔调整为 {}ms", 
+                          consecutiveFailures, currentBatchInterval);
+            }
+        }
+    }
+
+    /**
+     * 重置间隔控制状态
+     * 在开始新的同步任务时调用
+     */
+    private synchronized void resetIntervalControl() {
+        currentBatchInterval = DEFAULT_BATCH_INTERVAL_MS;
+        consecutiveFailures = 0;
+        logger.info("[HotelSyncSyncService.resetIntervalControl] 重置间隔控制，当前间隔: {}ms", 
+                   currentBatchInterval);
+    }
+
+    /**
+     * 获取间隔控制状态信息
+     */
+    public String getIntervalControlStatus() {
+        return String.format("当前批次间隔: %dms, 连续失败次数: %d", 
+                           currentBatchInterval, consecutiveFailures);
     }
 
 }
