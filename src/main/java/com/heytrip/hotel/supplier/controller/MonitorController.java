@@ -2,6 +2,7 @@ package com.heytrip.hotel.supplier.controller;
 
 import cn.hutool.core.util.StrUtil;
 import com.heytrip.hotel.supplier.adapter.SupplierAdapterManager;
+import com.heytrip.hotel.supplier.client.HttpClientService;
 import com.heytrip.hotel.supplier.config.Config;
 import com.heytrip.hotel.supplier.entity.ApiCallLog;
 import com.heytrip.hotel.supplier.entity.SupplierConfig;
@@ -39,9 +40,9 @@ import java.util.stream.Collectors;
  */
 @RestController
 @RequestMapping("/monitor")
-public class MonitoringController implements HealthIndicator {
+public class MonitorController implements HealthIndicator {
     
-    private static final Logger logger = LoggerFactory.getLogger(MonitoringController.class);
+    private static final Logger logger = LoggerFactory.getLogger(MonitorController.class);
     
     @Autowired
     private SupplierAdapterManager supplierAdapterManager;
@@ -60,6 +61,11 @@ public class MonitoringController implements HealthIndicator {
     
     @Autowired
     private SystemConfigService systemConfigService;
+
+    @Autowired
+    private HttpClientService httpClientService;
+
+
 
     @Resource
     private Config config;
@@ -740,7 +746,54 @@ public class MonitoringController implements HealthIndicator {
             return ResponseEntity.status(500).body(errorResponse);
         }
     }
-    
 
+
+
+
+    /**
+     * 获取HTTP客户端监控指标
+     */
+    @GetMapping("/httpClient/metrics")
+    public Map<String, Object> httpClientMetrics() {
+        Map<String, Object> result = new HashMap<>();
+        result.put("status", "success");
+        result.put("message", "HTTP客户端监控指标");
+        result.put("data", httpClientService.getMetrics());
+        result.put("availablePermits", httpClientService.getAvailablePermits());
+        result.put("healthy", httpClientService.isHealthy());
+        result.put("timestamp", System.currentTimeMillis());
+        return result;
+    }
+
+    /**
+     * HTTP客户端重置监控指标
+     */
+    @PostMapping("/httpClient/reset")
+    public Map<String, Object> httpClientResetMetrics() {
+        httpClientService.resetMetrics();
+        Map<String, Object> result = new HashMap<>();
+        result.put("status", "success");
+        result.put("message", "监控指标已重置");
+        result.put("timestamp", System.currentTimeMillis());
+        return result;
+    }
+
+    /**
+     * HTTP客户端健康检查
+     */
+    @GetMapping("/httpClient/health")
+    public Map<String, Object> httpClientHealthCheck() {
+        boolean healthy = httpClientService.isHealthy();
+        int availablePermits = httpClientService.getAvailablePermits();
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("status", healthy ? "healthy" : "unhealthy");
+        result.put("message", healthy ? "HTTP客户端运行正常" : "HTTP客户端可能存在问题");
+        result.put("availablePermits", availablePermits);
+        result.put("maxPermits", 50);
+        result.put("utilizationRate", String.format("%.2f%%", (50 - availablePermits) / 50.0 * 100));
+        result.put("timestamp", System.currentTimeMillis());
+        return result;
+    }
 
 }

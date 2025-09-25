@@ -6,6 +6,9 @@ import com.heytrip.hotel.supplier.entity.ApiCallLog;
 import com.heytrip.hotel.supplier.exception.HttpClientException;
 import com.heytrip.hotel.supplier.repository.ApiCallLogRepository;
 import com.heytrip.hotel.supplier.utils.UrlUtil;
+import io.netty.channel.ChannelOption;
+import io.netty.handler.timeout.ReadTimeoutHandler;
+import io.netty.handler.timeout.WriteTimeoutHandler;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,12 +16,18 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Scheduler;
+import reactor.core.scheduler.Schedulers;
+import reactor.netty.http.client.HttpClient;
+import reactor.netty.resources.ConnectionProvider;
 import reactor.util.retry.Retry;
 
+import java.net.ConnectException;
 import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
@@ -26,6 +35,7 @@ import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
@@ -51,17 +61,56 @@ public class HttpClientService {
     // 预配置的WebClient实例，避免每次请求都重新创建
     private WebClient webClient;
     
+    // 并发控制：限制最大并发请求数为50
+    private final Semaphore requestSemaphore = new Semaphore(10);
+    
+    // 自定义调度器：支持高并发场景
+    private final Scheduler customScheduler = Schedulers.newBoundedElastic(
+        15,                     // 最大线程数
+        100000,                 // 最大队列大小  
+        "http-client-scheduler" // 线程名前缀
+    );
+    
+    // 监控指标
+    private final AtomicLong totalRequests = new AtomicLong(0);
+    private final AtomicLong successfulRequests = new AtomicLong(0);
+    private final AtomicLong failedRequests = new AtomicLong(0);
+    private final AtomicLong connectionErrors = new AtomicLong(0);
+    
 
     /**
      * 初始化WebClient实例
-     * 在类构造完成后执行，避免每次请求都重新创建WebClient
+     * 配置连接池优化、超时设置和自定义调度器
      */
     @PostConstruct
     private void initWebClient() {
-        logger.info("初始化HttpClientService的WebClient实例");
+        logger.info("初始化HttpClientService - 配置连接池和调度器优化");
+        
+        // 配置连接池：针对第三方API调用优化
+        ConnectionProvider connectionProvider = ConnectionProvider.builder("http-client-pool")
+                .maxConnections(15)                                    // 最大连接数15
+                .maxIdleTime(Duration.ofSeconds(30))                   // 连接空闲时间30秒
+                .maxLifeTime(Duration.ofSeconds(60))                   // 连接最大生命周期60秒
+                .pendingAcquireTimeout(Duration.ofSeconds(30))         // 获取连接超时30秒
+                .evictInBackground(Duration.ofSeconds(30))             // 后台清理间隔30秒
+                .build();
+        
+        // 配置HttpClient：设置超时和连接参数
+        HttpClient httpClient = HttpClient.create(connectionProvider)
+                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 30000)   // 连接超时10秒
+                .responseTimeout(Duration.ofSeconds(30))               // 响应超时10秒
+                .doOnConnected(conn -> 
+                    conn.addHandlerLast(new ReadTimeoutHandler(30))    // 读取超时10秒
+                        .addHandlerLast(new WriteTimeoutHandler(30))   // 写入超时10秒
+                );
+        
+        // 构建优化的WebClient实例
         this.webClient = webClientBuilder
+                .clientConnector(new ReactorClientHttpConnector(httpClient))
                 .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(16 * 1024 * 1024))
                 .build();
+                
+        logger.info("HttpClientService初始化完成 - 连接池大小:20, 超时:10秒, 并发限制:50");
     }
 
     /**
@@ -175,11 +224,29 @@ public class HttpClientService {
 
         AtomicLong retryCounter = new AtomicLong(0);
         
-        // 方案1：使用retrieve().toEntity()获取完整响应（包含头信息）
-        return headersSpec
+        // 增加总请求计数
+        totalRequests.incrementAndGet();
+        
+        // 使用信号量限流：获取许可证
+        return Mono.fromCallable(() -> {
+            try {
+                requestSemaphore.acquire(); // 获取许可证，如果没有可用许可证则阻塞
+                return true;
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException("获取请求许可证被中断", e);
+            }
+        })
+        .subscribeOn(customScheduler) // 使用自定义调度器
+        .flatMap(ignored -> 
+            // 执行实际的HTTP请求
+            headersSpec
                 .retrieve()
                 .toEntity(responseType)
                 .map(responseEntity -> {
+                    // 成功请求计数
+                    successfulRequests.incrementAndGet();
+                    
                     // 直接从ResponseEntity获取响应头和响应体
                     long responseTime = System.currentTimeMillis() - startTime;
                     String responseBody = responseEntity.getBody() != null ? JSONUtil.toJsonStr(responseEntity.getBody()) : "";
@@ -198,6 +265,12 @@ public class HttpClientService {
                     return responseEntity.getBody(); // 返回响应体
                 })
                 .doOnError(error -> {
+                    // 失败请求计数和错误分类
+                    failedRequests.incrementAndGet();
+                    if (isConnectionError(error)) {
+                        connectionErrors.incrementAndGet();
+                    }
+                    
                     // 错误处理
                     long responseTime = System.currentTimeMillis() - startTime;
                     int statusCode = extractStatusCode(error);
@@ -208,13 +281,19 @@ public class HttpClientService {
                               null, null, requestParamsJson,
                               retryCounter.get(), sizeInBytes(requestData), 0L);
                 })
+        )
+        .doFinally(signalType -> {
+            // 无论成功还是失败，都要释放许可证
+            requestSemaphore.release();
+        })
                 .retryWhen(Retry.backoff(3, Duration.ofSeconds(1))
                         .maxBackoff(Duration.ofSeconds(10))
                         .filter(this::isRetryableError)
                         .doBeforeRetry(retrySignal -> {
                             long attempt = retrySignal.totalRetries() + 1;
                             retryCounter.set(attempt);
-                            logger.warn("Retrying request to {} {}, attempt: {}", method, endpoint, attempt);
+                            logger.warn("Retrying request to {} {}, attempt: {} (连接错误: {})", 
+                                      method, endpoint, attempt, connectionErrors.get());
                         }))
                 .timeout(Duration.ofSeconds(180))
                 .onErrorResume(error -> {
@@ -568,6 +647,71 @@ public class HttpClientService {
         }
     }
     
+    /**
+     * 判断是否为连接相关错误
+     */
+    private boolean isConnectionError(Throwable error) {
+        return error instanceof ConnectException ||
+               error instanceof java.net.SocketTimeoutException ||
+               error instanceof java.nio.channels.ClosedChannelException ||
+               (error instanceof WebClientResponseException && 
+                error.getMessage() != null && 
+                (error.getMessage().contains("Connection prematurely closed") ||
+                 error.getMessage().contains("executor not accepting a task")));
+    }
 
+    /**
+     * 获取监控指标信息
+     */
+    public String getMetrics() {
+        long total = totalRequests.get();
+        long success = successfulRequests.get();
+        long failed = failedRequests.get();
+        long connErrors = connectionErrors.get();
+        
+        double successRate = total > 0 ? (double) success / total * 100 : 0;
+        int availablePermits = requestSemaphore.availablePermits();
+        
+        return String.format(
+            "HTTP客户端监控指标 - 总请求:%d, 成功:%d, 失败:%d, 连接错误:%d, 成功率:%.2f%%, 可用许可证:%d/50",
+            total, success, failed, connErrors, successRate, availablePermits
+        );
+    }
+
+    /**
+     * 重置监控指标（用于测试或定期重置）
+     */
+    public void resetMetrics() {
+        totalRequests.set(0);
+        successfulRequests.set(0);
+        failedRequests.set(0);
+        connectionErrors.set(0);
+        logger.info("HTTP客户端监控指标已重置");
+    }
+
+    /**
+     * 获取当前可用的并发许可证数量
+     */
+    public int getAvailablePermits() {
+        return requestSemaphore.availablePermits();
+    }
+
+    /**
+     * 检查连接池和调度器健康状态
+     */
+    public boolean isHealthy() {
+        // 检查是否有可用的许可证
+        boolean hasPermits = requestSemaphore.availablePermits() > 0;
+        
+        // 检查成功率是否在合理范围内（如果有请求的话）
+        long total = totalRequests.get();
+        boolean goodSuccessRate = true;
+        if (total > 10) { // 至少有10个请求才计算成功率
+            double successRate = (double) successfulRequests.get() / total;
+            goodSuccessRate = successRate > 0.5; // 成功率大于50%
+        }
+        
+        return hasPermits && goodSuccessRate;
+    }
 
 }

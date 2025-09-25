@@ -9,6 +9,10 @@ services:
       dockerfile: deploy/Dockerfile
       args:
         JAR_FILE_PATH: ${JAR_FILE_PATH}
+      tags:
+        - "heytrip/supplier:${IMAGE_TAG:-latest}"
+        - "heytrip/supplier:${PROJECT_VERSION:-1.0.0-SNAPSHOT}"
+    image: "heytrip/supplier:${IMAGE_TAG:-latest}"
     container_name: heytrip-supplier
     environment:
       # Spring Boot 基础配置

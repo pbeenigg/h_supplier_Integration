@@ -2,7 +2,7 @@
 
 ## 概述
 
-本文档提供了 HeyTrip 酒店供应商集成服务的 JAR包直接部署方案，无需复杂的环境变量配置和额外的服务依赖，适合快速部署到服务器。
+本文档提供了 HeyTrip 酒店供应商集成服务的 JAR包直接部署方案，包含Docker镜像版本管理功能，无需复杂的环境变量配置和额外的服务依赖，适合快速部署到服务器。
 
 ## 系统要求
 
@@ -32,26 +32,30 @@ ls target/*.jar
 ```
 部署文件清单:
 ├── deploy-jar.sh                 # 一键部署脚本
-├── docker-compose.yml            #Docker Compose配置
-├── Dockerfile                    #JAR包专用Dockerfile
-├── nginx/simple.conf             # 简化版Nginx配置
-└── your-app.jar                  #应用JAR包
+├── version-manager.sh             # Docker镜像版本管理脚本
+├── docker-compose.yml            # Docker Compose配置
+├── Dockerfile                    # JAR包专用Dockerfile
+├── nginx/nginx.conf              # Nginx配置
+└── your-app.jar                  # 应用JAR包
 ```
 
 ### 3. 一键部署
 
 ```bash
-# 基础部署（仅应用服务）
+# 基础部署（使用自动生成的版本标签）
 ./deploy-jar.sh target/heytrip-supplier-1.0.0-SNAPSHOT.jar
 
+# 指定版本标签部署
+./deploy-jar.sh target/heytrip-supplier-1.0.0-SNAPSHOT.jar --tag v1.0.0
+
 # 带Nginx反向代理部署
-./deploy-jar.sh your-app.jar --with-nginx
+./deploy-jar.sh your-app.jar --with-nginx --tag production
 
 # 指定端口部署
-./deploy-jar.sh your-app.jar --port 9090
+./deploy-jar.sh your-app.jar --port 8080 --tag dev
 
 # 清理旧部署后重新部署
-./deploy-jar.sh your-app.jar --clean
+./deploy-jar.sh your-app.jar --clean --tag latest
 ```
 
 ### 4. 验证部署
@@ -71,31 +75,104 @@ ls target/*.jar
 |------|------|------|
 | `jar文件路径` | 要部署的JAR包路径（必需） | `app.jar` |
 | `--with-nginx` | 同时启动Nginx反向代理 | `--with-nginx` |
-| `--port PORT` | 指定应用端口（默认9090） | `--port 9090` |
+| `--port PORT` | 指定应用端口（默认9090） | `--port 8080` |
+| `--tag TAG` | 指定Docker镜像标签（默认自动生成） | `--tag v1.0.0` |
 | `--clean` | 清理旧的容器和镜像 | `--clean` |
 | `--help` | 显示帮助信息 | `--help` |
 
 ### 部署示例
 
 ```bash
-# 示例1: 基础部署
+# 示例1: 基础部署（自动生成版本标签）
 ./deploy-jar.sh target/heytrip-supplier-1.0.0-SNAPSHOT.jar
 
-# 示例2: 带Nginx的生产部署
-./deploy-jar.sh app.jar --with-nginx --clean
+# 示例2: 开发环境部署
+./deploy-jar.sh app.jar --tag dev --clean
 
-# 示例3: 自定义端口部署
-./deploy-jar.sh app.jar --port 9090
+# 示例3: 测试环境部署
+./deploy-jar.sh app.jar --tag test-20250924 --port 8080
 
-# 示例4: 完整生产部署
-./deploy-jar.sh production-app.jar --with-nginx --port 9090 --clean
+# 示例4: 生产环境部署
+./deploy-jar.sh production-app.jar --tag v1.0.0 --with-nginx --clean
+
+# 示例5: 热修复版本部署
+./deploy-jar.sh hotfix-app.jar --tag v1.0.1-hotfix
+```
+
+## Docker镜像版本管理
+
+### 1. 镜像命名规范
+
+部署脚本会自动生成规范的镜像名称和标签：
+
+- **镜像名称**: `heytrip/supplier-integration`
+- **自动标签**: `{版本号}-{时间戳}` (例如: `1.0.0-SNAPSHOT-20250924-104500`)
+- **自定义标签**: 通过 `--tag` 参数指定
+
+### 2. 版本管理工具
+
+使用 `version-manager.sh` 脚本管理镜像版本：
+
+```bash
+# 列出所有镜像版本
+./version-manager.sh list
+
+# 为现有镜像添加新标签
+./version-manager.sh tag 1.0.0-SNAPSHOT-20250924-104500 v1.0.0
+
+# 清理旧版本（保留最新3个）
+./version-manager.sh clean
+
+# 清理旧版本（保留最新5个）
+./version-manager.sh clean --keep 5
+
+# 显示镜像详细信息
+./version-manager.sh info latest
+
+# 显示构建历史
+./version-manager.sh history
+
+# 清理悬空镜像
+./version-manager.sh prune
+```
+
+### 3. 版本管理最佳实践
+
+#### 开发环境
+```bash
+# 使用开发标签
+./deploy-jar.sh app.jar --tag dev --clean
+```
+
+#### 测试环境
+```bash
+# 使用测试标签
+./deploy-jar.sh app.jar --tag test-$(date +%Y%m%d)
+```
+
+#### 生产环境
+```bash
+# 使用语义化版本号
+./deploy-jar.sh app.jar --tag v1.2.3
+./version-manager.sh tag v1.2.3 latest
+```
+
+#### 版本回滚
+```bash
+# 查看历史版本
+./version-manager.sh history
+
+# 回滚到指定版本
+docker compose -f docker-compose.yml down
+export IMAGE_TAG=v1.2.2
+docker compose -f docker-compose.yml up -d
 ```
 
 ## 配置说明
 
 ### 应用配置
 
-应用使用以下默认配置（在 `docker-compose.simple.yml` 中）：
+应用使用以下默认配置（在 `docker-compose.yml` 中）：
 
 ```yaml
 environment:
@@ -104,9 +181,9 @@ environment:
   SERVER_PORT: 9090
   
   # 数据库配置（使用外部数据库）
-  SPRING_DATASOURCE_URL: jdbc:p6spy:mysql://...
-  SPRING_DATASOURCE_USERNAME: xwd_pax_0389516
-  SPRING_DATASOURCE_PASSWORD: lJfGo#Kgj$6H29y!1q&0SpDf4G*oi
+  DB_URL: jdbc:p6spy:mysql://...
+  DB_USERNAME: xwd_pax_0389516
+  DB_PASSWORD: lJfGo#Kgj$6H29y!1q&0SpDf4G*oi
   
   # 应用配置
   APP_ID: heytrip_supplier_integration_pax
@@ -134,25 +211,28 @@ vim docker-compose.yml
 
 ```bash
 # 查看服务状态
-docker-compose -f docker-compose.yml ps
+docker compose -f docker-compose.yml ps
 
 # 查看日志
-docker-compose -f docker-compose.yml logs -f
+docker compose -f docker-compose.yml logs -f
 
 # 查看应用日志
-docker-compose -f docker-compose.yml logs -f heytrip-supplier
+docker compose -f docker-compose.yml logs -f heytrip-supplier
+
+# 查看镜像信息
+./version-manager.sh list
 
 # 停止服务
-docker-compose -f docker-compose.yml stop
+docker compose -f docker-compose.yml stop
 
 # 启动服务
-docker-compose -f docker-compose.yml start
+docker compose -f docker-compose.yml start
 
 # 重启服务
-docker-compose -f docker-compose.yml restart
+docker compose -f docker-compose.yml restart
 
 # 停止并删除容器
-docker-compose -f docker-compose.yml down
+docker compose -f docker-compose.yml down
 ```
 
 ### 服务监控
@@ -162,10 +242,13 @@ docker-compose -f docker-compose.yml down
 docker stats
 
 # 进入容器
-docker-compose -f docker-compose.yml exec heytrip-supplier bash
+docker compose -f docker-compose.yml exec heytrip-supplier bash
 
 # 查看应用进程
-docker-compose -f docker-compose.yml exec heytrip-supplier ps aux
+docker compose -f docker-compose.yml exec heytrip-supplier ps aux
+
+# 查看镜像大小和统计
+./version-manager.sh list
 ```
 
 ## 故障排查
@@ -175,10 +258,13 @@ docker-compose -f docker-compose.yml exec heytrip-supplier ps aux
 1. **JAR包启动失败**
    ```bash
    # 查看详细日志
-   docker-compose -f docker-compose.yml logs heytrip-supplier
+   docker compose -f docker-compose.yml logs heytrip-supplier
    
    # 检查JAR包是否完整
    ls -la app.jar
+   
+   # 检查镜像构建状态
+   ./version-manager.sh info latest
    ```
 
 2. **端口冲突**
@@ -205,14 +291,14 @@ docker-compose -f docker-compose.yml exec heytrip-supplier ps aux
    telnet db-host 3306
    
    # 查看数据库相关日志
-   docker-compose -f docker-compose.yml logs | grep -i database
+   docker compose -f docker-compose.yml logs | grep -i database
    ```
 
 ### 性能调优
 
 1. **JVM调优**
    ```yaml
-   # 在docker-compose.simple.yml中调整
+   # 在docker-compose.yml中调整
    JAVA_OPTS: -Xmx2g -Xms1g -XX:+UseG1GC -XX:MaxGCPauseMillis=200
    ```
 
@@ -279,29 +365,38 @@ docker-compose -f docker-compose.yml exec heytrip-supplier ps aux
 ### 应用升级流程
 
 ```bash
-# 1. 备份当前版本
-cp app.jar backup/app-old.jar
+# 1. 查看当前版本
+./version-manager.sh list
 
-# 2. 停止服务
-docker-compose -f docker-compose.yml stop
+# 2. 部署新版本（保留旧版本）
+./deploy-jar.sh new-version.jar --tag v1.1.0
 
-# 3. 替换JAR包
-cp new-version.jar app.jar
-
-# 4. 重新部署
-./deploy-jar.sh app.jar --clean
-
-# 5. 验证新版本
+# 3. 验证新版本
 curl -f http://localhost:9090/actuator/health
+
+# 4. 标记为最新版本（可选）
+./version-manager.sh tag v1.1.0 latest
+
+# 5. 清理旧版本（保留最新3个）
+./version-manager.sh clean --keep 3
 ```
 
 ### 回滚方案
 
 ```bash
-# 如果新版本有问题，快速回滚
-docker-compose -f docker-compose.yml stop
-cp backup/app-old.jar app.jar
-./deploy-jar.sh app.jar
+# 1. 查看可用版本
+./version-manager.sh history
+
+# 2. 快速回滚到上一个版本
+docker compose -f docker-compose.yml down
+export IMAGE_TAG=v1.0.9  # 指定要回滚的版本
+docker compose -f docker-compose.yml up -d
+
+# 3. 验证回滚结果
+curl -f http://localhost:9090/actuator/health
+
+# 4. 更新latest标签（可选）
+./version-manager.sh tag v1.0.9 latest
 ```
 
 ## 优势特点

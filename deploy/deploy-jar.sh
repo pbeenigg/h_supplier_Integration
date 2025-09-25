@@ -44,13 +44,14 @@ show_help() {
     echo "选项:"
     echo "  --with-nginx   同时启动Nginx反向代理"
     echo "  --port PORT    指定应用端口 (默认: 9090)"
+    echo "  --tag TAG      指定Docker镜像标签 (默认: 自动生成)"
     echo "  --clean        清理旧的容器和镜像"
     echo "  --help         显示此帮助信息"
     echo ""
     echo "示例:"
     echo "  $0 target/heytrip-supplier-1.0.0-SNAPSHOT.jar"
     echo "  $0 app.jar --with-nginx --port 9090"
-    echo "  $0 app.jar --clean"
+    echo "  $0 app.jar --tag v1.0.0 --clean"
 }
 
 # 检查依赖
@@ -73,6 +74,35 @@ check_dependencies() {
     fi
     
     log_success "系统依赖检查通过"
+}
+
+# 从JAR文件名提取版本号
+extract_version_from_jar() {
+    local jar_file="$1"
+    local jar_name=$(basename "$jar_file" .jar)
+    
+    # 尝试从文件名提取版本号 (例如: heytrip-supplier-1.0.0-SNAPSHOT.jar)
+    if [[ "$jar_name" =~ -([0-9]+\.[0-9]+\.[0-9]+.*) ]]; then
+        echo "${BASH_REMATCH[1]}"
+    else
+        # 从pom.xml提取版本号
+        local pom_version=$(grep -o '<version>[^<]*</version>' ../pom.xml | head -1 | sed 's/<version>\|<\/version>//g')
+        echo "${pom_version:-1.0.0-SNAPSHOT}"
+    fi
+}
+
+# 生成镜像标签
+generate_image_tag() {
+    local jar_file="$1"
+    local custom_tag="$2"
+    
+    if [ -n "$custom_tag" ]; then
+        echo "$custom_tag"
+    else
+        local version=$(extract_version_from_jar "$jar_file")
+        local timestamp=$(date +"%Y%m%d-%H%M%S")
+        echo "${version}-${timestamp}"
+    fi
 }
 
 # 检查JAR文件
@@ -122,8 +152,11 @@ clean_old_deployment() {
     # 停止并删除容器
     docker compose -f docker-compose.yml down --remove-orphans 2>/dev/null || true
     
-    # 删除旧镜像
-    docker rmi heytrip-supplier 2>/dev/null || true
+    # 删除旧镜像（包括所有相关标签）
+    docker images --format "table {{.Repository}}:{{.Tag}}" | grep "heytrip/supplier-integration" | awk '{print $1}' | xargs -r docker rmi 2>/dev/null || true
+    
+    # 清理悬空镜像
+    docker image prune -f 2>/dev/null || true
     
     log_success "清理完成"
 }
@@ -133,6 +166,7 @@ deploy_service() {
     local with_nginx="$1"
     local port="$2"
     local jar_file="$3"
+    local image_tag="$4"
     
     log_info "构建应用镜像..."
     
@@ -154,11 +188,18 @@ deploy_service() {
         relative_jar_path="app.jar"
     fi
     
+    # 提取项目版本号
+    local project_version=$(extract_version_from_jar "$jar_file")
+    
     log_info "使用JAR文件路径: $relative_jar_path"
+    log_info "项目版本: $project_version"
+    log_info "镜像标签: $image_tag"
     
     # 设置环境变量
     export HOST_PORT="$port"
     export JAR_FILE_PATH="$relative_jar_path"
+    export IMAGE_TAG="$image_tag"
+    export PROJECT_VERSION="$project_version"
     
     # 构建镜像
     docker compose -f docker-compose.yml build --no-cache heytrip-supplier
@@ -278,12 +319,14 @@ check_service_status() {
 show_deployment_info() {
     local with_nginx="$1"
     local port="$2"
+    local image_tag="$3"
     
     log_info "部署信息:"
     echo "=================================="
     echo "应用服务: http://localhost:$port"
     echo "健康检查: http://localhost:$port/actuator/health"
     echo "API文档: http://localhost:$port/swagger-ui.html"
+    echo "镜像信息: heytrip/supplier-integration:$image_tag"
     
     if [ "$with_nginx" = true ]; then
         echo "Nginx代理: http://localhost:80"
@@ -291,6 +334,10 @@ show_deployment_info() {
     
     echo "=================================="
     
+    log_info "Docker镜像列表:"
+    docker images --filter "reference=heytrip/supplier-integration*" --format "table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.CreatedSince}}\t{{.Size}}"
+    
+    echo ""
     log_info "管理命令:"
     echo "docker compose -f docker-compose.yml logs -f    # 查看日志"
     echo "docker compose -f docker-compose.yml stop       # 停止服务"
@@ -309,6 +356,7 @@ main() {
     WITH_NGINX=false
     PORT=9090
     CLEAN=false
+    IMAGE_TAG=""
     
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -318,6 +366,10 @@ main() {
                 ;;
             --port)
                 PORT="$2"
+                shift 2
+                ;;
+            --tag)
+                IMAGE_TAG="$2"
                 shift 2
                 ;;
             --clean)
@@ -353,6 +405,11 @@ main() {
         exit 1
     fi
     
+    # 生成镜像标签
+    if [ -z "$IMAGE_TAG" ]; then
+        IMAGE_TAG=$(generate_image_tag "$JAR_FILE" "")
+    fi
+    
     # 执行部署步骤
     check_dependencies
     check_jar_file "$JAR_FILE"
@@ -362,11 +419,11 @@ main() {
     fi
     
     prepare_environment "$JAR_FILE"
-    deploy_service "$WITH_NGINX" "$PORT" "$JAR_FILE"
+    deploy_service "$WITH_NGINX" "$PORT" "$JAR_FILE" "$IMAGE_TAG"
     check_service_status "$PORT"
-    show_deployment_info "$WITH_NGINX" "$PORT"
+    show_deployment_info "$WITH_NGINX" "$PORT" "$IMAGE_TAG"
     
-    log_success "JAR包部署完成！"
+    log_success "JAR包部署完成！镜像标签: $IMAGE_TAG"
 }
 
 # 错误处理
