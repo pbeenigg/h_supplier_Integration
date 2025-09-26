@@ -64,20 +64,20 @@ list_images() {
     echo "================================================================"
     
     # 检查是否存在镜像
-    if ! docker images --filter "reference=heytrip/supplier-integration*" --format "table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.CreatedSince}}\t{{.Size}}" | grep -q "heytrip/supplier-integration"; then
-        log_warning "未找到任何 heytrip/supplier-integration 镜像"
+    if ! docker images --filter "reference=heytrip/supplier*" --format "table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.CreatedSince}}\t{{.Size}}" | grep -q "heytrip/supplier"; then
+        log_warning "未找到任何 heytrip/supplier 镜像"
         return 0
     fi
     
     # 显示镜像列表
-    docker images --filter "reference=heytrip/supplier-integration*" --format "table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.CreatedSince}}\t{{.Size}}"
+    docker images --filter "reference=heytrip/supplier*" --format "table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.CreatedSince}}\t{{.Size}}"
     
     echo ""
     log_info "镜像统计:"
-    local count=$(docker images --filter "reference=heytrip/supplier-integration*" --format "{{.ID}}" | wc -l)
+    local count=$(docker images --filter "reference=heytrip/supplier*" --format "{{.ID}}" | wc -l)
     echo "总计: $count 个镜像"
     
-    local total_size=$(docker images --filter "reference=heytrip/supplier-integration*" --format "{{.Size}}" | sed 's/MB//g' | sed 's/GB//g' | awk '{sum += $1} END {print sum}')
+    local total_size=$(docker images --filter "reference=heytrip/supplier*" --format "{{.Size}}" | sed 's/MB//g' | sed 's/GB//g' | awk '{sum += $1} END {print sum}')
     echo "总大小: 约 ${total_size}MB"
 }
 
@@ -92,8 +92,8 @@ tag_image() {
         exit 1
     fi
     
-    local source_image="heytrip/supplier-integration:$source_tag"
-    local target_image="heytrip/supplier-integration:$target_tag"
+    local source_image="heytrip/supplier:$source_tag"
+    local target_image="heytrip/supplier:$target_tag"
     
     # 检查源镜像是否存在
     if ! docker image inspect "$source_image" &>/dev/null; then
@@ -113,7 +113,7 @@ tag_image() {
     # 显示结果
     echo ""
     log_info "更新后的镜像列表:"
-    docker images --filter "reference=heytrip/supplier-integration*" --format "table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.CreatedSince}}\t{{.Size}}"
+    docker images --filter "reference=heytrip/supplier*" --format "table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.CreatedSince}}\t{{.Size}}"
 }
 
 # 清理旧版本镜像
@@ -124,7 +124,7 @@ clean_old_images() {
     log_info "清理旧版本镜像（保留最新 $keep_count 个版本）..."
     
     # 获取所有镜像，按创建时间排序
-    local images=$(docker images --filter "reference=heytrip/supplier-integration*" --format "{{.Repository}}:{{.Tag}}\t{{.CreatedAt}}" | sort -k2 -r)
+    local images=$(docker images --filter "reference=heytrip/supplier*" --format "{{.Repository}}:{{.Tag}}\t{{.CreatedAt}}" | sort -k2 -r)
     
     if [ -z "$images" ]; then
         log_warning "未找到任何镜像"
@@ -211,7 +211,7 @@ show_image_info() {
         exit 1
     fi
     
-    local image="heytrip/supplier-integration:$tag"
+    local image="heytrip/supplier:$tag"
     
     # 检查镜像是否存在
     if ! docker image inspect "$image" &>/dev/null; then
@@ -254,7 +254,7 @@ show_history() {
     echo "================================================================"
     
     # 获取所有镜像并按时间排序
-    docker images --filter "reference=heytrip/supplier-integration*" \
+    docker images --filter "reference=heytrip/supplier*" \
         --format "table {{.Tag}}\t{{.ID}}\t{{.CreatedSince}}\t{{.CreatedAt}}\t{{.Size}}" \
         | sort -k4
 }
