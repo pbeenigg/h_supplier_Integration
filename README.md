@@ -19,6 +19,12 @@ HeyTrip 酒店供应商集成系统是一个基于 Spring Boot 3.2.0 的微服�
 - **监控**: Spring Boot Actuator
 - **SQL监控**: P6Spy
 - **FTP支持**: Apache Commons Net
+- **定位**：为 HeyTrip 平台提供统一、标准化的酒店供应商对接能力，涵盖静态数据同步、报价检索、订单履约、配置管理以及健康监控。
+- **核心价值**：
+    - 通过 `SupplierAdapter` 插件式架构，实现多供应商并行接入与能力路由。
+    - 提供标准化 API，屏蔽各供应商差异，简化上游调用逻辑。
+    - 内建缓存、重试、异步与调度能力，增强性能与稳定性。
+    - 完整的部署脚手架（Dockerfile、Docker Compose、Shell 脚本）确保上线效率。
 
 ### 1.3 项目结构
 ```
@@ -103,6 +109,40 @@ heytrip-supplier-integration/
 
 ## 2. 架构设计
 
+```
+┌────────────────────────────┐
+│        API 接入层 (REST)   │
+│  • controller/*            │
+└──────────────┬─────────────┘
+               │
+┌──────────────▼─────────────┐
+│   领域服务层                │
+│  • adapter/service/*        │
+│  • service/*                │
+└──────────────┬─────────────┘
+               │
+┌──────────────▼─────────────┐
+│  供应商适配管理 (Adapter)  │
+│  • SupplierAdapterManager   │
+│  • adapter/impl/*           │
+│  • capability/{Pricing,...} │
+└──────────────┬─────────────┘
+               │
+┌──────────────▼─────────────┐
+│       数据访问层            │
+│  • repository/*             │
+│  • entity/*                 │
+│  • resources/sql/*          │
+└──────────────┬─────────────┘
+               │
+┌──────────────▼─────────────┐
+│  基础设施                   │
+│  • config/*                 │
+│  • filter/* (MD5 签名)      │
+│  • utils/*                  │
+└────────────────────────────┘
+```
+
 ### 2.1 整体架构
 系统采用分层架构设计，从上到下分为：
 - **接口层 (Controller)**: 提供REST API接口
@@ -125,6 +165,14 @@ heytrip-supplier-integration/
 4. **数据转换**: 将供应商数据转换为标准格式
 5. **结果返回**: 返回标准化的响应数据
 
+### 2.4 关键设计点
+1. **适配器路由**：`SupplierAdapterManager` 在启动时扫描 `SupplierAdapter` 实现，基于 `supplierName` 构建映射并按照 `priority` 排序，实现多供应商优先级调度与健康检查。
+2. **能力隔离**：`adapter/capability` 细分 Static/Pricing/Order 三类桥接接口，保证供应商按需实现并保持接口收敛。
+3. **响应式健康检查**：健康检查接口基于 Reactor `Mono/Flux` 实现，支持异步超时控制与错误退避。
+4. **配置中心**：`ConfigController` 提供系统配置 CRUD、统计分析及 JSON 配置读写 API，配置实体 `SystemConfig` 支持类型和加密标记。
+5. **安全链路**：`SecurityFilter` 执行基于 header 的 MD5 签名认证，结合 `Config.security` 动态白名单 + 认证路径列表，实现灵活的访问控制。
+
+
 ---
 
 
@@ -146,28 +194,6 @@ heytrip-supplier-integration/
 - `OrderBridge`: 订单处理能力接口
 - `StaticBridge`: 静态数据获取能力接口
 
-#### 3.1.2 适配器实现示例
-```java
-@Component
-public class AsianOverlandAdapter extends AbstractSupplierAdapter 
-    implements PricingBridge, OrderBridge, StaticBridge {
-    
-    // 实现价格查询
-    @Override
-    public SearchResponse search(SearchRequest request) {
-        // 1. 转换请求参数
-        // 2. 调用供应商API
-        // 3. 解析响应数据
-        // 4. 转换为标准格式
-    }
-    
-    // 实现订单处理
-    @Override
-    public BookingResponse booking(BookingRequest request) {
-        // 订单处理逻辑
-    }
-}
-```
 
 ### 3.2 静态数据管理模块
 
@@ -178,6 +204,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter
 - **City**: 城市信息
 - **Country**: 国家信息
 - **HotelGiata**: 酒店Giata ID映射
+- **HotelBookable**: 酒店可售列表
 
 #### 3.2.2 数据同步
 - **StaticDataSyncScheduler**: 静态数据同步调度器
@@ -210,48 +237,29 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter
 - 缓存过期时间可配置
 - 支持缓存预热和失效
 
-### 3.4 订单处理模块
 
-#### 3.4.1 订单生命周期
-1. **预订 (Booking)**: 创建预订订单
-2. **确认 (Confirmation)**: 确认订单状态
-3. **修改 (Modification)**: 修改订单信息
-4. **取消 (Cancellation)**: 取消订单
-5. **查询 (Inquiry)**: 查询订单详情
+### 3.4 配置管理模块
 
-#### 3.4.2 状态管理
-使用枚举类管理订单状态：
-```java
-public enum QTechBookingStatusEnum {
-    PENDING("Pending", "待处理"),
-    CONFIRMED("Confirmed", "已确认"),
-    CANCELLED("Cancelled", "已取消"),
-    FAILED("Failed", "失败");
-}
-```
-
-### 3.5 配置管理模块
-
-#### 3.5.1 配置类型
+#### 3.4.1 配置类型
 - **SupplierConfig**: 供应商配置（认证信息、API地址等）
 - **SystemConfig**: 系统配置（超时时间、重试次数等）
 - **CacheConfig**: 缓存配置
 
-#### 3.5.2 动态配置
+#### 3.4.2 动态配置
 支持运行时动态修改配置，无需重启服务：
 - 通过REST API修改配置
 - 配置变更实时生效
 - 配置历史记录和回滚
 
-### 3.6 监控告警模块
+### 3.5 监控告警模块
 
-#### 3.6.1 健康检查
+#### 3.5.1 健康检查
 - **SupplierHealthCheckService**: 供应商健康检查服务
 - 定期检查供应商API可用性
 - 记录健康检查日志
 - 支持告警通知
 
-#### 3.6.2 API调用监控
+#### 3.5.2 API调用监控
 - **ApiCallLog**: API调用日志记录
 - 记录请求响应时间
 - 统计成功率和错误率
@@ -296,6 +304,124 @@ public enum QTechBookingStatusEnum {
 - **SecurityConfig**: 安全配置
 - 支持API Key认证
 - 请求签名验证
+
+
+## 6. 安全与认证
+
+- **认证模型**：基于自定义 MD5 签名的无状态认证。
+- **HTTP 头要求**：
+    - `X-App-Id`：调用方身份，需与 `app.authorization.app-id` 匹配。
+    - `X-Timestamp`：Unix 时间戳（秒级），允许最大 ±5 分钟偏差。
+    - `X-Signature`：`MD5(appId + timestamp + secretKey)`，`secretKey` 来自配置。
+- **白名单路径**：由 `Config.security.permitAllPatterns` 管理，默认放行健康检查、监控、文档与 `/suppliers/**` 等接口。
+- **强制认证路径**：`Config.security.authenticatedPatterns`，默认覆盖 `/pax/**`、`/common/**`、`/config/**`。
+- **实现细节**：
+    - `SecurityFilter` 校验头部并在成功时写入 `SecurityContext`。
+    - `AuthHelper` 提供认证信息读取工具，在服务或适配器中判断授权状态。
+    - `SecurityConfig` 统一装配 Spring Security 过滤链，并关闭 Session 与 CSRF。
+
+## 7. 配置与环境变量
+默认配置位于 `src/main/resources/application.yml`。常用环境变量如下（均支持通过 JVM `-D` 或系统环境覆盖）：
+
+| 变量 | 默认值 | 说明 |
+| :-- | :-- | :-- |
+| `SERVER_PORT` | `9090` | Spring Boot 端口 |
+| `SERVER_PATH` | `/` | Servlet context path |
+| `SPRING_PROFILES_ACTIVE` | `dev` | Spring 配置 Profile |
+| `DB_URL` | `jdbc:p6spy:mysql://127.0.0.1:3306/supplier_pax` | 数据库连接（默认走 P6Spy 代理） |
+| `DB_USERNAME` / `DB_PASSWORD` | `root` / `Root@123456` | 数据库凭据 |
+| `DB_DRIVER` | `com.p6spy.engine.spy.P6SpyDriver` | JDBC Driver，可改为 `com.mysql.cj.jdbc.Driver` |
+| `APP_ID` / `APP_SECRET` | `heytrip_supplier_integration_pax` / `HeyTrip@Pax#SupplierIntegration!2025` | 签名认证信息 |
+| `ENCRYPTION_KEY` | `427ae41e4649b934ca495991b7852b855` | 自定义加密密钥 |
+| `SWAGGER_UI` / `API_DOCS` | `true` | 是否开启 SpringDoc(API 文档默认路径 `/swagger-ui.html`) |
+
+> 如需对接生产环境，请在启动命令或容器环境中覆写敏感配置，避免使用默认凭据。
+
+## 8. 开发环境准备与运行
+
+### 先决条件
+
+- JDK 17+
+- Maven 3.9+
+- 本地 MySQL 8 实例，并导入 `docs/sql/basic.sql` 与 `docs/sql/hotel.sql`
+- 可选：Docker 20+（用于容器化部署）
+
+### 本地启动
+
+1. 配置数据库并确保应用有权访问。
+2. 安装依赖并编译：
+   ```bash
+   mvn clean install
+   ```
+3. 使用开发配置启动：
+   ```bash
+   mvn spring-boot:run
+   ```
+4. 访问：
+    - 健康检查：`http://localhost:9090/actuator/health`
+    - API 文档：`http://localhost:9090/swagger-ui.html`
+
+### 调试技巧
+
+- 通过 `application-dev.yml`（可新增）或环境变量覆写调试参数。
+- 使用 P6Spy（`spy.properties`）观察 SQL，日志输出位于 `logs/heytrip-supplier.log`。
+- Caffeine 缓存配置位于 `spring.cache` 段，可按需调整最大缓存数或过期时间。
+
+
+
+## 9. 测试与质量保障
+
+- **单元测试**：`src/test/java/com/heytrip/hotel/supplier` 下提供控制器、服务、适配器测试样例。运行：
+  ```bash
+  mvn test
+  ```
+- **集成测试建议**：
+    - 针对不同供应商 Mock Adapter，实现端到端 API 测试。
+    - 使用 `@DataJpaTest` 校验仓储查询逻辑，特别是自定义 JPQL/Specification。
+- **并发/性能验证**：`deploy/api_concurrent_test.sh` 提供针对报价接口的并发压测脚本，可在 Staging 环境评估吞吐与稳定性。
+
+
+
+
+## 10. 部署方案
+
+### 1. Docker Compose（推荐）
+
+- 依赖文件：`deploy/docker-compose.yml`、`deploy/Dockerfile`
+- 构建镜像并启动：
+  ```bash
+  cd deploy
+  export JAR_FILE_PATH=target/heytrip-supplier-1.0.0-SNAPSHOT.jar
+  docker compose build
+  docker compose up -d
+  ```
+- 生产化配置：通过 `.env` 或 CI/CD 注入数据库、认证等敏感信息。
+- 可选 `nginx` profile 提供 80 端口反向代理与静态资源托管。
+
+### 2. shell 脚本一键部署
+
+- `deploy/deploy-jar.sh <jar-path> [--with-nginx] [--port 9090] [--tag <version>] [--clean]`
+- 功能覆盖：依赖检查、镜像构建、容器启动、健康检查、日志查看提示。
+
+### 3. 其他
+
+- `deploy/JAR_DEPLOYMENT.md` 描述了 JAR 包部署最佳实践与注意事项。
+- `deploy/version-manager.sh` 帮助维护多环境镜像版本号。
+
+## 11. 扩展指南：新增供应商适配器
+
+1. **定义适配器实现**：在 `adapter/impl/` 下新增类，实现 `SupplierAdapter`，并按需实现 `StaticBridge`、`PricingBridge`、`OrderBridge`。
+2. **配置启用条件**：重写 `isEnabled()` 与 `getPriority()` 控制适配器注册顺序与启用状态，可结合数据库配置。
+3. **路由标识**：确保 `getSupplierName()` 与上游请求的 `supplierType` 一致，`SupplierAdapterManager` 会自动映射。
+4. **健康检查**：实现 `healthCheck()` 返回 `Mono<Boolean>`，用于 `/suppliers/**/health`。
+5. **数据持久化**：如需参数化配置，扩展 `SupplierConfig` 或在 `SystemConfig` 中存储 JSON。
+6. **测试与文档**：
+    - 编写单元测试覆盖新适配器能力。
+    - 补充 `docs/供应商对接说明文档.md` 或新增条目，记录供应商特性与验收要点。
+
+
+
+
 
 
 
