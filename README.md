@@ -19,12 +19,14 @@ HeyTrip 酒店供应商集成系统是一个基于 Spring Boot 3.2.0 的微服�
 - **监控**: Spring Boot Actuator
 - **SQL监控**: P6Spy
 - **FTP支持**: Apache Commons Net
-- **定位**：为 HeyTrip 平台提供统一、标准化的酒店供应商对接能力，涵盖静态数据同步、报价检索、订单履约、配置管理以及健康监控。
-- **核心价值**：
-    - 通过 `SupplierAdapter` 插件式架构，实现多供应商并行接入与能力路由。
-    - 提供标准化 API，屏蔽各供应商差异，简化上游调用逻辑。
-    - 内建缓存、重试、异步与调度能力，增强性能与稳定性。
-    - 完整的部署脚手架（Dockerfile、Docker Compose、Shell 脚本）确保上线效率。
+
+**定位**：为 HeyTrip 平台提供统一、标准化的酒店供应商对接能力，涵盖静态数据同步、报价检索、订单履约、配置管理以及健康监控。
+
+**核心价值**：
+- 通过 `SupplierAdapter` 插件式架构，实现多供应商并行接入与能力路由。
+- 提供标准化 API，屏蔽各供应商差异，简化上游调用逻辑。
+- 内建缓存、重试、异步与调度能力，增强性能与稳定性。
+- 完整的部署脚手架（Dockerfile、Docker Compose、Shell 脚本）确保上线效率。
 
 ### 1.3 项目结构
 ```
@@ -385,7 +387,7 @@ heytrip-supplier-integration/
 
 ## 10. 部署方案
 
-### 1. Docker Compose（推荐）
+### 10.1 Docker Compose（推荐）
 
 - 依赖文件：`deploy/docker-compose.yml`、`deploy/Dockerfile`
 - 构建镜像并启动：
@@ -398,12 +400,12 @@ heytrip-supplier-integration/
 - 生产化配置：通过 `.env` 或 CI/CD 注入数据库、认证等敏感信息。
 - 可选 `nginx` profile 提供 80 端口反向代理与静态资源托管。
 
-### 2. shell 脚本一键部署
+### 10.2 Shell 脚本一键部署
 
 - `deploy/deploy-jar.sh <jar-path> [--with-nginx] [--port 9090] [--tag <version>] [--clean]`
 - 功能覆盖：依赖检查、镜像构建、容器启动、健康检查、日志查看提示。
 
-### 3. 其他
+### 10.3 其他部署资产
 
 - `deploy/JAR_DEPLOYMENT.md` 描述了 JAR 包部署最佳实践与注意事项。
 - `deploy/version-manager.sh` 帮助维护多环境镜像版本号。
@@ -418,9 +420,6 @@ heytrip-supplier-integration/
 6. **测试与文档**：
     - 编写单元测试覆盖新适配器能力。
     - 补充 `docs/供应商对接说明文档.md` 或新增条目，记录供应商特性与验收要点。
-
-
-
 
 
 
