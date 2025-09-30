@@ -147,7 +147,7 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-deploy/.env
+
 .venv
 env/
 venv/
@@ -262,7 +262,6 @@ web_modules/
 .yarn-integrity
 
 # dotenv environment variable files
-deploy/.env
 .env.development.local
 .env.test.local
 .env.production.local
