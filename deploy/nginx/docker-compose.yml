@@ -1,0 +1,38 @@
+version: "3.8"
+  
+services:
+
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      TZ: Asia/Shanghai
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./logs:/var/log/nginx
+      - ../registry/certs:/etc/nginx/certs:ro
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    networks:
+      - heytrip_backend
+      - registry_net
+      - portainer_net
+
+networks:
+  heytrip_backend:
+    external: true
+    name: heytrip_backend
+  registry_net:
+    external: true
+    name: registry_net
+  portainer_net:
+    external: true
+    name: portainer_net                                                                                                                                                                                                                                                                                   

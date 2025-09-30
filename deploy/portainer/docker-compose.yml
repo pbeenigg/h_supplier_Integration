@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  portainer:
+    container_name: portainer
+    image: 6053537/portainer-ce:2.27.9
+    restart: unless-stopped
+    environment:
+      PUBLIC_URL: /portainer/
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./data:/data
+    networks:
+      - portainer_net
+      - heytrip_backend
+
+networks:
+  portainer_net:
+    name: portainer_net
+    driver: bridge
+  heytrip_backend:
+    external: true
+    name: heytrip_backend
