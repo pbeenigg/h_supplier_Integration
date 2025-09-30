@@ -327,3 +327,5 @@ dist
 .idea
 
 
+!/.github/
+!/.windsurf/
