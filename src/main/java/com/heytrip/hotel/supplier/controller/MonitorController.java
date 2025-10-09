@@ -20,16 +20,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * Monitoring
@@ -310,85 +307,8 @@ public class MonitorController implements HealthIndicator {
         }
     }
     
-    /**
-     * 获取供应商健康状态监控信息
-     */
-    @GetMapping("/supplier-health")
-    public ResponseEntity<Map<String, Object>> getSupplierHealthStatus() {
-        try {
-            Map<String, Object> healthStatus = new HashMap<>();
-            
-            // 获取所有供应商配置
-            List<SupplierConfig> suppliers = supplierConfigRepository.findAll();
-            List<Map<String, Object>> supplierHealthList = new ArrayList<>();
-            
-            for (SupplierConfig supplier : suppliers) {
-                Map<String, Object> supplierHealth = new HashMap<>();
-                supplierHealth.put("supplierId", supplier.getId());
-                supplierHealth.put("supplierName", supplier.getSupplierName());
-                supplierHealth.put("supplierCode", supplier.getSupplierCode());
-                supplierHealth.put("enabled", supplier.getIsActive());
-                
-                // 获取最近的健康检查日志
-                List<SupplierHealthLog> recentHealthLogs = supplierHealthLogRepository
-                    .findRecentLogsBySupplierId(supplier.getId(), PageRequest.of(0, 1));
-                
-                if (!recentHealthLogs.isEmpty()) {
-                    SupplierHealthLog latestLog = recentHealthLogs.get(0);
-                    supplierHealth.put("lastCheckTime", latestLog.getCreatedAt());
-                    supplierHealth.put("healthStatus", latestLog.getHealthStatus());
-                    supplierHealth.put("responseTime", latestLog.getResponseTimeMs());
-                    supplierHealth.put("errorMessage", latestLog.getErrorMessage());
-                } else {
-                    supplierHealth.put("lastCheckTime", null);
-                    supplierHealth.put("healthStatus", "UNKNOWN");
-                    supplierHealth.put("responseTime", null);
-                    supplierHealth.put("errorMessage", "No health check data available");
-                }
-                
-                // 获取最近24小时的API调用统计
-                LocalDateTime yesterday = LocalDateTime.now().minusDays(1);
-                LocalDateTime now = LocalDateTime.now();
-                
-                Long totalCalls = apiCallLogRepository.countCallsBySupplierId(supplier.getId());
-                Long successCalls = apiCallLogRepository.countSuccessfulCallsBetween(yesterday, now);
-                Long failedCalls = apiCallLogRepository.countFailedCallsBetween(yesterday, now);
-                Double avgResponseTime = apiCallLogRepository.calculateAverageResponseTime(yesterday, now);
-                
-                supplierHealth.put("totalCalls", totalCalls != null ? totalCalls : 0);
-                supplierHealth.put("successCalls24h", successCalls != null ? successCalls : 0);
-                supplierHealth.put("failedCalls24h", failedCalls != null ? failedCalls : 0);
-                supplierHealth.put("avgResponseTime24h", avgResponseTime != null ? avgResponseTime : 0.0);
-                
-                // 计算成功率
-                if (totalCalls != null && totalCalls > 0) {
-                    double successRate = (successCalls != null ? successCalls : 0) * 100.0 / totalCalls;
-                    supplierHealth.put("successRate", Math.round(successRate * 100.0) / 100.0);
-                } else {
-                    supplierHealth.put("successRate", 0.0);
-                }
-                
-                supplierHealthList.add(supplierHealth);
-            }
-            
-            healthStatus.put("suppliers", supplierHealthList);
-            healthStatus.put("totalSuppliers", suppliers.size());
-            healthStatus.put("enabledSuppliers", suppliers.stream().mapToLong(s -> s.getIsActive() ? 1 : 0).sum());
-            healthStatus.put("timestamp", LocalDateTime.now());
-            
-            return ResponseEntity.ok(healthStatus);
-            
-        } catch (Exception e) {
-            logger.error("Failed to get supplier health status", e);
-            Map<String, Object> errorResponse = Map.of(
-                    "error", "Failed to retrieve supplier health status",
-                    "message", e.getMessage(),
-                    "timestamp", LocalDateTime.now()
-            );
-            return ResponseEntity.status(500).body(errorResponse);
-        }
-    }
-    
+
+
     /**
      * 获取指定供应商的详细健康状态
      */
@@ -404,10 +324,10 @@ public class MonitorController implements HealthIndicator {
                 );
                 return ResponseEntity.status(404).body(errorResponse);
             }
-            
+
             SupplierConfig supplier = supplierOpt.get();
             Map<String, Object> healthDetail = new HashMap<>();
-            
+
             // 基本信息
             healthDetail.put("supplierId", supplier.getId());
             healthDetail.put("supplierName", supplier.getSupplierName());
@@ -416,24 +336,22 @@ public class MonitorController implements HealthIndicator {
             healthDetail.put("baseUrl", supplier.getApiBaseUrl());
             healthDetail.put("maxConcurrentRequests", supplier.getMaxConcurrentRequests());
             healthDetail.put("rateLimitPerSecond", supplier.getRateLimitPerSecond());
-            
+
             // 最近的健康检查日志（最近10条）
             List<SupplierHealthLog> recentHealthLogs = supplierHealthLogRepository
                 .findRecentLogsBySupplierId(supplierId, PageRequest.of(0, 10));
             healthDetail.put("recentHealthLogs", recentHealthLogs);
-            
+
             // 最近的API调用日志（最近20条）
             List<ApiCallLog> recentApiCalls = apiCallLogRepository
-                .findRecentCallsBySupplierId(supplierId).stream()
-                .limit(20)
-                .collect(Collectors.toList());
+                .findRecentCallsBySupplierId(supplierId, PageRequest.of(0, 20));
             healthDetail.put("recentApiCalls", recentApiCalls);
-            
+
             // 统计信息
             LocalDateTime yesterday = LocalDateTime.now().minusDays(1);
             LocalDateTime now = LocalDateTime.now();
             LocalDateTime lastWeek = LocalDateTime.now().minusDays(7);
-            
+
             Map<String, Object> statistics = new HashMap<>();
             statistics.put("totalCalls", apiCallLogRepository.countCallsBySupplierId(supplierId));
             statistics.put("successCalls24h", apiCallLogRepository.countSuccessfulCallsBetween(yesterday, now));
@@ -442,12 +360,12 @@ public class MonitorController implements HealthIndicator {
             statistics.put("successCalls7d", apiCallLogRepository.countSuccessfulCallsBetween(lastWeek, now));
             statistics.put("failedCalls7d", apiCallLogRepository.countFailedCallsBetween(lastWeek, now));
             statistics.put("avgResponseTime7d", apiCallLogRepository.calculateAverageResponseTime(lastWeek, now));
-            
+
             healthDetail.put("statistics", statistics);
             healthDetail.put("timestamp", LocalDateTime.now());
-            
+
             return ResponseEntity.ok(healthDetail);
-            
+
         } catch (Exception e) {
             logger.error("Failed to get supplier health detail for supplier: " + supplierId, e);
             Map<String, Object> errorResponse = Map.of(
@@ -459,67 +377,9 @@ public class MonitorController implements HealthIndicator {
             return ResponseEntity.status(500).body(errorResponse);
         }
     }
-    
-    /**
-     * 获取供应商健康检查历史记录
-     */
-    @GetMapping("/supplier-health/{supplierId}/history")
-    public ResponseEntity<Map<String, Object>> getSupplierHealthHistory(
-            @PathVariable Long supplierId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "50") int size,
-            @RequestParam(required = false) String status,
-            @RequestParam(required = false) String checkType) {
-        try {
-            Pageable pageable = PageRequest.of(page, size);
-            Page<SupplierHealthLog> healthLogs;
-            
-            if (status != null && checkType != null) {
-                SupplierHealthLog.HealthStatus healthStatus = SupplierHealthLog.HealthStatus.valueOf(status.toUpperCase());
-                SupplierHealthLog.CheckType checkTypeEnum = SupplierHealthLog.CheckType.valueOf(checkType.toUpperCase());
-                healthLogs = supplierHealthLogRepository.findBySupplierIdAndHealthStatusAndCheckType(
-                    supplierId, healthStatus, checkTypeEnum, pageable);
-            } else if (status != null) {
-                SupplierHealthLog.HealthStatus healthStatus = SupplierHealthLog.HealthStatus.valueOf(status.toUpperCase());
-                healthLogs = supplierHealthLogRepository.findBySupplierIdAndHealthStatus(
-                    supplierId, healthStatus, pageable);
-            } else if (checkType != null) {
-                SupplierHealthLog.CheckType checkTypeEnum = SupplierHealthLog.CheckType.valueOf(checkType.toUpperCase());
-                healthLogs = supplierHealthLogRepository.findBySupplierIdAndCheckType(
-                    supplierId, checkTypeEnum, pageable);
-            } else {
-                healthLogs = supplierHealthLogRepository.findBySupplierId(supplierId, pageable);
-            }
-            
-            Map<String, Object> response = new HashMap<>();
-            response.put("content", healthLogs.getContent());
-            response.put("totalElements", healthLogs.getTotalElements());
-            response.put("totalPages", healthLogs.getTotalPages());
-            response.put("currentPage", healthLogs.getNumber());
-            response.put("size", healthLogs.getSize());
-            response.put("timestamp", LocalDateTime.now());
-            
-            return ResponseEntity.ok(response);
-            
-        } catch (IllegalArgumentException e) {
-            Map<String, Object> errorResponse = Map.of(
-                    "error", "Invalid parameter value",
-                    "message", e.getMessage(),
-                    "timestamp", LocalDateTime.now()
-            );
-            return ResponseEntity.status(400).body(errorResponse);
-        } catch (Exception e) {
-            logger.error("Failed to get supplier health history for supplier: " + supplierId, e);
-            Map<String, Object> errorResponse = Map.of(
-                    "error", "Failed to retrieve supplier health history",
-                    "supplierId", supplierId,
-                    "message", e.getMessage(),
-                    "timestamp", LocalDateTime.now()
-            );
-            return ResponseEntity.status(500).body(errorResponse);
-        }
-    }
-    
+
+
+
 
 
 
@@ -592,9 +452,9 @@ public class MonitorController implements HealthIndicator {
             
             // 认证头部信息
             Map<String, String> headers = new HashMap<>();
-            headers.put("X-App-Id", appId);
-            headers.put("X-Timestamp", timestamp);
-            headers.put("X-Signature", signature);
+            headers.put("app", appId);
+            headers.put("timestamp", timestamp);
+            headers.put("sign", signature);
             
             response.put("headers", headers);
             response.put("appId", appId);
@@ -606,14 +466,14 @@ public class MonitorController implements HealthIndicator {
             // 使用示例
             Map<String, Object> example = new HashMap<>();
             example.put("description", "使用这些头部信息调用需要认证的API");
-            String curlCommand = String.format("curl --location --request GET 'http://localhost:8080/monitor/gen-auth' --header 'X-App-Id: %s' --header 'X-Timestamp: %s' --header 'X-Signature: %s'", appId, timestamp, signature);
+            String curlCommand = String.format("curl --location --request GET 'http://localhost:8080/monitor/gen-auth' --header 'app: %s' --header 'timestamp: %s' --header 'sign: %s'", appId, timestamp, signature);
             example.put("curlCommand", curlCommand);
 
             
             Map<String, String> postmanHeaders = new HashMap<>();
-            postmanHeaders.put("X-App-Id", appId);
-            postmanHeaders.put("X-Timestamp", timestamp);
-            postmanHeaders.put("X-Signature", signature);
+            postmanHeaders.put("app", appId);
+            postmanHeaders.put("timestamp", timestamp);
+            postmanHeaders.put("sign", signature);
             postmanHeaders.put("Content-Type", "application/json");
             
             example.put("postmanHeaders", postmanHeaders);

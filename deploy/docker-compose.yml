@@ -47,7 +47,7 @@ services:
       MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS: always
       
       # JVM配置
-      JAVA_OPTS: -Xmx4g -Xms1g -XX:+UseG1GC -XX:+UseContainerSupport -XX:MaxRAMPercentage=80 -XX:G1HeapRegionSize=16m -XX:MaxGCPauseMillis=200
+      JAVA_OPTS: -Xmx6g -Xms2g -XX:+UseG1GC -XX:+UseContainerSupport -XX:MaxRAMPercentage=80 -XX:G1HeapRegionSize=16m -XX:MaxGCPauseMillis=200
       
     ports:
       - "${HOST_PORT:-9090}:9090"

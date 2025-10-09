@@ -312,9 +312,9 @@ heytrip-supplier-integration/
 
 - **认证模型**：基于自定义 MD5 签名的无状态认证。
 - **HTTP 头要求**：
-    - `X-App-Id`：调用方身份，需与 `app.authorization.app-id` 匹配。
-    - `X-Timestamp`：Unix 时间戳（秒级），允许最大 ±5 分钟偏差。
-    - `X-Signature`：`MD5(appId + timestamp + secretKey)`，`secretKey` 来自配置。
+    - `app`：调用方身份，需与 `app.authorization.app-id` 匹配。
+    - `timestamp`：Unix 时间戳（秒级），允许最大 ±5 分钟偏差。
+    - `sign`：`MD5(appId + timestamp + secretKey)`，`secretKey` 来自配置。
 - **白名单路径**：由 `Config.security.permitAllPatterns` 管理，默认放行健康检查、监控、文档与 `/suppliers/**` 等接口。
 - **强制认证路径**：`Config.security.authenticatedPatterns`，默认覆盖 `/pax/**`、`/common/**`、`/config/**`。
 - **实现细节**：

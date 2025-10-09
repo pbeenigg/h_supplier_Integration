@@ -30,9 +30,9 @@ public class SecurityFilter extends OncePerRequestFilter {
 
     private static final Logger logger = LoggerFactory.getLogger(SecurityFilter.class);
 
-    private static final String HEADER_APP_ID = "X-App-Id";
-    private static final String HEADER_TIMESTAMP = "X-Timestamp";
-    private static final String HEADER_SIGNATURE = "X-Signature";
+    private static final String HEADER_APP_ID = "app";
+    private static final String HEADER_TIMESTAMP = "timestamp";
+    private static final String HEADER_SIGNATURE = "sign";
 
     private static final long MAX_TIME_SKEW_SECONDS = 300; // 5分钟时间偏差
 

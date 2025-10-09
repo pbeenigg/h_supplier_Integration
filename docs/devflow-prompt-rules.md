@@ -117,7 +117,7 @@
   任务：评估 <接口/模块> 的安全性
   参考配置：`application.yml` 中 app.security、authorization
   核查要点：
-  1. Header 校验（X-App-Id、X-Timestamp、X-Signature）
+  1. Header 校验（app、timestamp、sign）
   2. 白名单与受限路径
   3. 日志敏感信息脱敏
   请列出风险清单与修复建议，如需调整 `SecurityFilter` 或 `SecurityConfig`，给出改动思路。

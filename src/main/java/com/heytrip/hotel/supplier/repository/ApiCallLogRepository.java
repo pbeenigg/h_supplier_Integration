@@ -1,6 +1,7 @@
 package com.heytrip.hotel.supplier.repository;
 
 import com.heytrip.hotel.supplier.entity.ApiCallLog;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -105,13 +106,13 @@ public interface ApiCallLogRepository extends JpaRepository<ApiCallLog, Long> {
      */
     @Query("SELECT acl FROM ApiCallLog acl WHERE acl.supplierId = :supplierId " +
            "ORDER BY acl.createdAt DESC")
-    List<ApiCallLog> findRecentCallsBySupplierId(@Param("supplierId") Long supplierId);
+    List<ApiCallLog> findRecentCallsBySupplierId(@Param("supplierId") Long supplierId , Pageable pageable);
     
     /**
      * 根据响应状态统计调用次数
      */
     Long countByResponseStatus(Integer responseStatus);
-    
+
     /**
      * 计算所有调用的平均响应时间
      */

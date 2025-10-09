@@ -49,9 +49,9 @@ class SuppliersControllerTest {
     private static final String TEST_SECRET_KEY = "HeyTrip@Pax#SupplierIntegration!2025";
 
     // 认证头部常量
-    private static final String HEADER_APP_ID = "X-App-Id";
-    private static final String HEADER_TIMESTAMP = "X-Timestamp";
-    private static final String HEADER_SIGNATURE = "X-Signature";
+    private static final String HEADER_APP_ID = "app";
+    private static final String HEADER_TIMESTAMP = "timestamp";
+    private static final String HEADER_SIGNATURE = "sign";
 
     @BeforeEach
     void setUp() {
