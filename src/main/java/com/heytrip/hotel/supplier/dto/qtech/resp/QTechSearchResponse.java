@@ -6,8 +6,6 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
@@ -279,16 +277,14 @@ public class QTechSearchResponse extends QTechBaseResponse {
         /**
          * 开始时间
          */
-        @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss Z")
         @JsonProperty("Start")
-        private OffsetDateTime start;
+        private String start;
         
         /**
          * 结束时间
          */
-        @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss Z")
         @JsonProperty("End")
-        private OffsetDateTime end;
+        private String end;
         
         /**
          * 取消费用

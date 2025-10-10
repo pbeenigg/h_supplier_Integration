@@ -34,12 +34,9 @@ import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
-import java.time.Duration;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.*;
 import java.time.format.DateTimeParseException;
 import java.util.*;
-
 
 /**
  * Asianoverland Via QTECH 供应商适配器实现
@@ -51,7 +48,6 @@ import java.util.*;
  */
 @Component
 public class AsianOverlandAdapter extends AbstractSupplierAdapter implements PricingBridge, OrderBridge, StaticBridge {
-
 
     @Resource
     private HttpClientService httpClientService;
@@ -68,13 +64,11 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
     private static final String SEARCH_BASE_URL = "http://colosseum.otrams.com:8087";
     private static final String API_BASE_URL = "https://colosseum.otrams.com";
 
-
     // 支持的城市列表（可扩展）
     private static final List<String> SUPPORTED_CITIES = Arrays.asList(
             "Kuala Lumpur", "Penang", "Johor Bahru", "Malacca", "Ipoh", "Kota Kinabalu", "Kuching",
             "Dubai", "Singapore", "Bangkok", "Manila", "Jakarta"
     );
-
 
     /**
      * 初始化适配器
@@ -83,7 +77,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
     public void init() {
         initialize();
     }
-
 
     /**
      * 获取供应商标识符
@@ -94,14 +87,12 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
         return DEFAULT_SUPPLIER_CODE; // 供应商代码，用于数据库查询
     }
 
-
     /**
      * 获取当前供应商配置
      */
     public SupplierConfig getSupplierConfig() {
         return supplierConfig;
     }
-
 
     /**
      * 兼容测试：获取支持的城市列表（来自供应商配置）
@@ -116,7 +107,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
     public String getSupportedCountries() {
         return supplierConfig != null ? supplierConfig.getSupportedCountries() : null;
     }
-
 
     /**
      * 安全获取供应商ID（优先使用数据库配置，否则使用默认值）
@@ -134,7 +124,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
         return StrUtil.isNotBlank(supplierName) ? supplierName : DEFAULT_SUPPLIER_NAME;
     }
 
-
     /**
      * 检查是否支持指定城市
      */
@@ -143,7 +132,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
         return SUPPORTED_CITIES.stream()
                 .anyMatch(supportedCity -> supportedCity.equalsIgnoreCase(city));
     }
-
 
     /**
      * 检查是否支持指定国家
@@ -156,7 +144,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                 .anyMatch(supportedCountry -> supportedCountry.equalsIgnoreCase(country));
     }
 
-
     /**
      * 优先级设置
      * 数值越小优先级越高
@@ -165,7 +152,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
     public int getPriority() {
         return 10; // 高优先级
     }
-
 
     /**
      * 统一的HTTP GET请求方法，自动应用认证头部
@@ -189,7 +175,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                 getSafeSupplierId()
         );
     }
-
 
     /**
      * 执行QTECH酒店搜索
@@ -371,7 +356,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
         }
     }
 
-
     /**
      * 获取取消规则 （获取的精准最新的预定价格）
      *
@@ -466,7 +450,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
         return executeGetRequest(API_BASE_URL, endpoint, QTechCancellationResponse.class);
     }
-
 
     // ============================================ 报价与订单 ============================================
 
@@ -568,7 +551,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
         }
     }
 
-
     /**
      * 多酒店报价桥接
      *
@@ -594,7 +576,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             // 币种，默认 USD
             req.setSelCurrency(StrUtil.isBlank(input.getCurrency()) ? "USD" : input.getCurrency());
 
-
             //尝试从第一个酒店获取国家代码
             Arrays.stream(hotelIds.split(",")).findFirst().ifPresent(firstHotelId -> {
                 staticDataQueryService.getHotelByHotelCode(getSafeSupplierId(), getSafeSupplierName(), firstHotelId)
@@ -605,7 +586,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                             }
                         });
             });
-
 
             // 房间明细与房间数
             List<QTechSearchRequest.RoomDetail> details = HeyUtil.buildQTechRoomDetails(input.getOccupancy());
@@ -662,7 +642,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             throw new RuntimeException("获取原始报价失败: " + e.getMessage());
         }
     }
-
 
     /**
      * 创建订单桥接（预定酒店）
@@ -765,7 +744,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             reservationRequest.setHotelId(input.getHotelId());
             reservationRequest.setAgentRefNo(input.getCreateKey()); // 订单校验返回的 订单唯一号
             reservationRequest.setUniqueId(searchUniqueId); //从搜索酒店结果中获取
-            reservationRequest.setSectionUniqueId(matchedRoom.getExt()); // 房型唯一标识 - 这里存储在 XRoom.ext 字段中
+            reservationRequest.setSectionUniqueId(matchedRoom.getExt()); // 房型唯一标识，每次查询酒店报价的唯一标识（动态变化）
 
             //// 构建预订房间明细（需要转换为JSON字符串格式）
             /// 根据 input.getRoomNum() 入参的房间数，构建对应数量的房间明细，如果只有一个房间，则只构建一个
@@ -890,7 +869,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
         }
     }
 
-
     /**
      * 获取原始单酒店报价（供应商原始数据格式）
      * 返回 QTech 供应商的原始搜索响应数据
@@ -928,7 +906,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                         });
             });
 
-
             // 房间明细与房间数
             List<QTechSearchRequest.RoomDetail> details = HeyUtil.buildQTechRoomDetails(input.getOccupancy());
             req.setRoomDetails(details);
@@ -937,7 +914,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             // 可根据需要设置静态信息、limit、availableonly 等
             req.setAvailableonly(1);
             req.setStaticData(1);
-
 
             // 2. 调用 QTECH 搜索
             QTechSearchResponse response = this.searchHotels(req)
@@ -970,7 +946,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
         // QTech API 支持传入多个酒店ID（逗号分隔），直接复用 getPriceOrig
         return getPriceOrig(input);
     }
-
 
     /**
      * 订单前置校验（标准格式）
@@ -1117,7 +1092,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                 throw new IllegalStateException("价格发生变化，搜索价格: " + searchTotalPrice + ", 最新价格: " + policyTotalPrice);
             }
 
-
             // 8. 生成createKey
             String createKey = HeyUtil.generateCreateKey(
                     getSafeSupplierName(),
@@ -1201,7 +1175,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                     .doOnError(e -> logger.error("[AsianOverlandAdapter.orderCheckOrg] 酒店搜索失败", e))
                     .block();
 
-
             // 3. 如果有搜索响应，添加到结果中
             if (searchResponse != null) {
                 result.put("searchResponse", searchResponse);
@@ -1228,7 +1201,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                         throw new IllegalStateException("无可用房型");
                     }
                     logger.info("[AsianOverlandAdapter.orderCheck] 单酒店报价完成，酒店:{} 返回:{}个房型,总价:{}", targetHotel.getHotelId(), xRooms.size(), targetHotel.getTotalCharges());
-
 
                     String searchUniqueId = searchResponse.getSearchUniqueId();
                     logger.info("[AsianOverlandAdapter.orderCheckOrg] 获取到searchUniqueId: {}, 继续调用取消规则接口", searchUniqueId);
@@ -1275,7 +1247,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             return errorResult;
         }
     }
-
 
     // ============================================ 报价与订单 ============================================
 
@@ -1360,7 +1331,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             throw new RuntimeException("获取原始数据失败: " + e.getMessage());
         }
     }
-
 
     // ============================================ 工具方法 ==============================================
 
@@ -1539,7 +1509,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
         QTechBookingStatusEnum qtechEnum = QTechBookingStatusEnum.fromCode(qtechStatus);
         return qtechEnum.shouldContinuePolling();
     }
-
 
     /**
      * 判断订单详情是否为最终状态（不需要继续轮询）
@@ -1821,7 +1790,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
         }
     }
 
-
     /**
      * 从搜索响应中获取指定酒店和房型的供应商价格
      *
@@ -1957,7 +1925,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
                 XRoom xRoom = new XRoom();
 
-
                 /// 每一次查询酒店报价，供应商所生成的报价标识 ID
                 xRoom.setExt(prop.getSectionUniqueId());
 
@@ -1989,7 +1956,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
                 List<XRatePlan> ratePlans = new ArrayList<>();
                 XRatePlan ratePlan = new XRatePlan();
-
 
                 // 是否可退
                 String isRefundable = prop.getRefundable() ? "1" : "0";
@@ -2048,17 +2014,58 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                 if(ratePlan.getCancelable()) {
                     //取消规则
                     List<XRatePlan.XCancelRule> xCancelRules = new ArrayList<>();
+
+                    // 找到最早的取消政策开始时间，用于生成免费取消规则
+                    String earliestPolicyStartTime = null;
+                    if (!cancellationPolicy.isEmpty()) {
+                        earliestPolicyStartTime = cancellationPolicy.stream()
+                                .map(QTechSearchResponse.CancellationPolicy::getStart)
+                                .min(String::compareTo)
+                                .orElse(null);
+                    }
+
+                    // 遍历所有取消政策，生成收费取消规则
                     cancellationPolicy.forEach(policy -> {
                         XRatePlan.XCancelRule xCancelRule = new XRatePlan.XCancelRule();
-                        xCancelRule.setStartTimeOrig(policy.getStart().toString());
-                        xCancelRule.setEndTimeOrig(policy.getEnd().toString());
-                        xCancelRule.setStartTime(policy.getStart().format(HeyUtil.DATE_FORMATTER));
-                        xCancelRule.setEndTime(policy.getEnd().format(HeyUtil.DATE_FORMATTER));
-                        //xCancelRule.setIsAfter(true);
+
+                        xCancelRule.setStartTimeOrig(policy.getStart());
+                        xCancelRule.setEndTimeOrig(policy.getEnd());
+
+                        ZonedDateTime startTime = HeyUtil.convertTimeZone(policy.getStart());
+                        ZonedDateTime endTime = HeyUtil.convertTimeZone(policy.getEnd());
+
+                        xCancelRule.setStartTime(HeyUtil.formatZonedDateTimeZone(startTime));
+                        xCancelRule.setEndTime(HeyUtil.formatZonedDateTimeZone(endTime));
+
                         xCancelRule.setDeductValue(String.valueOf(policy.getCharges()));
-                        xCancelRule.setDeductType(XEnumDeductType.LIMITED_FREE);
+                        xCancelRule.setDeductType(XEnumDeductType.MONEY);
                         xCancelRules.add(xCancelRule);
                     });
+
+                    // 生成免费取消规则：在最早取消政策开始时间之前取消是免费的
+                    if (earliestPolicyStartTime != null) {
+                        XRatePlan.XCancelRule freeCancelRule = new XRatePlan.XCancelRule();
+
+                        // 当前时间（上海时区）
+                        ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Asia/Shanghai"));
+                        String nowFormatted = HeyUtil.formatZonedDateTimeZone(now);
+
+                        // 最早取消政策的开始时间（转换为上海时区）
+                        ZonedDateTime earliestStartTime = HeyUtil.convertTimeZone(earliestPolicyStartTime);
+                        String earliestStartFormatted = HeyUtil.formatZonedDateTimeZone(earliestStartTime);
+
+                        // 设置免费取消规则
+                        freeCancelRule.setStartTimeOrig(nowFormatted);
+                        freeCancelRule.setEndTimeOrig(earliestStartFormatted);
+                        freeCancelRule.setStartTime(nowFormatted);
+                        freeCancelRule.setEndTime(earliestStartFormatted);
+                        freeCancelRule.setDeductValue("0");
+                        freeCancelRule.setDeductType(XEnumDeductType.FREE);
+
+                        // 将免费取消规则插入到列表开头（最优先）
+                        xCancelRules.add(0, freeCancelRule);
+                    }
+
                     //设置取消规则
                     ratePlan.setCancelRules(xCancelRules);
                 }
@@ -2066,7 +2073,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                 //设置 房型 单间的价格
                 ratePlan.setPrice(String.valueOf(roomRate.getRoomRate()));
                 ratePlan.setBasePrice(String.valueOf(roomRate.getRoomRate()));
-
 
                 //设置 日价明细
                 List<QTechSearchResponse.RateBreakup> rateBreakups = roomRate.getRateBreakup();
@@ -2091,8 +2097,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                 ratePlan.setCheckInDate(checkInDate);
                 ratePlan.setCheckOutDate(checkOutDate);
                 ratePlan.setQuantity(roomNum);
-
-
 
                 //添加到房价列表
                 ratePlans.add(ratePlan);

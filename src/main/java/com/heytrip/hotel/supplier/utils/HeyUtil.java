@@ -8,9 +8,9 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.time.DayOfWeek;
-import java.time.LocalDate;
+import java.time.*;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.*;
 
 /**
@@ -25,8 +25,149 @@ public class HeyUtil {
     // 日期格式化器
     public static final DateTimeFormatter DATE_FORMATTER_DDMMYYYY = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     public static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    public static final DateTimeFormatter DATE_FORMATTER_Z = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss Z");
 
 
+    /**
+     * 将带时区的时间字符串转换为目标时区
+     *
+     * @param dateTimeStr  输入时间字符串，格式：2025-12-29 03:00:01 +0530
+     * @param targetZoneId 目标时区ID
+     * @return 转换后的时间
+     */
+    public static ZonedDateTime convertTimeZone(String dateTimeStr, String targetZoneId) {
+        return convertTimeZone(dateTimeStr, ZoneId.of(targetZoneId));
+    }
+
+    /**
+     * 将带时区的时间字符串转换为目标时区 （默认时区：Asia/Shanghai ）
+     *
+     * @param dateTimeStr  输入时间字符串，格式：2025-12-29 03:00:01 +0530
+     * @return 转换后的时间
+     */
+    public static ZonedDateTime convertTimeZone(String dateTimeStr) {
+        return convertTimeZone(dateTimeStr,  ZoneId.of("Asia/Shanghai"));
+    }
+
+    /**
+     * 将带时区的时间字符串转换为目标时区
+     *
+     * @param dateTimeStr 输入时间字符串
+     * @param targetZone  目标时区
+     * @return 转换后的时间
+     */
+    public static ZonedDateTime convertTimeZone(String dateTimeStr, ZoneId targetZone) {
+        try {
+            // 分离日期时间和时区部分
+            String trimmedStr = dateTimeStr.trim();
+            String[] parts = trimmedStr.split(" (?=\\+|-)");
+
+            if (parts.length != 2) {
+                throw new IllegalArgumentException("Invalid date time format: " + dateTimeStr);
+            }
+
+            String dateTimePart = parts[0];
+            String zoneOffsetPart = parts[1];
+
+            // 解析日期时间部分
+            java.time.LocalDateTime localDateTime =
+                    java.time.LocalDateTime.parse(dateTimePart, DATE_FORMATTER);
+
+            // 解析时区偏移
+            java.time.ZoneOffset zoneOffset = java.time.ZoneOffset.of(zoneOffsetPart);
+
+            // 创建原始ZonedDateTime
+            ZonedDateTime originalZoned = ZonedDateTime.of(localDateTime, zoneOffset);
+
+            // 转换到目标时区
+            return originalZoned.withZoneSameInstant(targetZone);
+
+        } catch (DateTimeParseException e) {
+            throw new IllegalArgumentException("Failed to parse date time: " + dateTimeStr, e);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Failed to convert time zone for: " + dateTimeStr, e);
+        }
+    }
+
+    /**
+     * 将带时区的时间字符串转换为目标时区的 OffsetDateTime
+     *
+     * @param dateTimeStr
+     * @param targetZone
+     * @return
+     */
+    public static OffsetDateTime convertToTargetZone(String dateTimeStr, ZoneId targetZone) {
+        // 处理 +0530 格式
+        String[] parts = dateTimeStr.trim().split(" (?=\\+|-)");
+        String dateTimePart = parts[0];
+        String zoneOffsetPart = parts[1].replace("+", "GMT+").replace("-", "GMT-");
+
+        // 解析原始时间
+        OffsetDateTime originalTime = OffsetDateTime.of(
+                LocalDateTime.parse(dateTimePart, DATE_FORMATTER),
+                ZoneOffset.of(zoneOffsetPart.substring(3)) // 提取时区偏移部分
+        );
+
+        // 转换为目标时区
+        return originalTime.atZoneSameInstant(targetZone).toOffsetDateTime();
+    }
+
+    /**
+     * 格式化ZonedDateTime为字符串
+     *
+     * @param zonedDateTime 时间
+     * @return 格式化后的字符串
+     */
+    public static String formatZonedDateTimeZone(ZonedDateTime zonedDateTime) {
+        return zonedDateTime.format(DATE_FORMATTER_Z);
+    }
+
+    /**
+     * 格式化OffsetDateTime为字符串
+     *
+     * @param offsetDateTime 时间
+     * @return 格式化后的字符串
+     */
+    public static String formatOffsetDateTimeZone(OffsetDateTime offsetDateTime) {
+        return offsetDateTime.format(DATE_FORMATTER_Z);
+    }
+
+    public static void main(String[] args) {
+        // 测试数据
+        String startTime = "2025-12-29 03:00:01 +0530";
+        String endTime = "2026-01-04 05:30:00 +0530";
+
+        // 你所在时区（示例：上海）
+        //ZoneId targetZone = ZoneId.of("Asia/Shanghai");
+        // 或者使用系统默认时区
+        ZoneId targetZone = ZoneId.systemDefault();
+
+        try {
+            // 转换开始时间
+            ZonedDateTime startConverted = convertTimeZone(startTime, targetZone);
+            System.out.println("原始开始时间: " + startTime);
+            System.out.println("转换后开始时间: " +
+                    formatZonedDateTimeZone(startConverted));
+
+            // 转换结束时间
+            ZonedDateTime endConverted = convertTimeZone(endTime, targetZone);
+            System.out.println("原始结束时间: " + endTime);
+            System.out.println("转换后结束时间: " +
+                    formatZonedDateTimeZone(endConverted));
+
+
+            // 转换开始时间
+            OffsetDateTime startConverted2 = convertToTargetZone(startTime, targetZone);
+            System.out.println("转换后开始时间2: " + formatOffsetDateTimeZone(startConverted2));
+
+            // 转换结束时间
+            OffsetDateTime endConverted2 = convertToTargetZone(endTime, targetZone);
+            System.out.println("转换后结束时间2: " + formatOffsetDateTimeZone(endConverted2));
+
+        } catch (Exception e) {
+            System.err.println("转换失败: " + e.getMessage());
+        }
+    }
 
 
     /**
@@ -91,7 +232,7 @@ public class HeyUtil {
      * 计算字符串的 SHA-256 十六进制（64位小写）
      * 默认长度64
      */
-    public static String sha256Hex(String input,int length) {
+    public static String sha256Hex(String input, int length) {
         try {
             // 获取一个 SHA-256 的消息摘要实例
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
@@ -109,7 +250,6 @@ public class HeyUtil {
             throw new RuntimeException(e);
         }
     }
-
 
 
     /**
@@ -274,6 +414,7 @@ public class HeyUtil {
 
     /**
      * 生成唯一的订单创建请求 Key
+     *
      * @param supplierCode
      * @param hotelId
      * @param roomId
@@ -282,7 +423,7 @@ public class HeyUtil {
      * @param totalPrice
      * @return
      */
-    public  static  String  generateCreateKey( String supplierCode, String hotelId, String roomId, String checkIn, String checkOut, String totalPrice){
+    public static String generateCreateKey(String supplierCode, String hotelId, String roomId, String checkIn, String checkOut, String totalPrice) {
         String keySource = String.join("|",
                 supplierCode == null ? "" : supplierCode,
                 hotelId == null ? "" : hotelId,
