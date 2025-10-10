@@ -31,7 +31,14 @@ public class QTechBookingDetailRequest {
      */
     @JsonProperty("booking_id")
     private String bookingId;
-    
+
+    /**
+     * 代理参考号（必须唯一）
+     */
+    @JsonProperty("agent_ref_no")
+    private String agentRefNo;
+
+
     /**
      * 响应压缩
      */

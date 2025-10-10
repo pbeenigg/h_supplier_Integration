@@ -1,5 +1,6 @@
 package com.heytrip.hotel.supplier.dto.qtech.resp;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
@@ -12,6 +13,7 @@ import java.util.List;
  * @author Pax
  */
 @Data
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class QTechBookingDetailResponse extends QTechBaseResponse {
 
     
@@ -21,11 +23,18 @@ public class QTechBookingDetailResponse extends QTechBaseResponse {
     @JsonProperty("BookingDetail")
     private BookingDetail bookingDetail;
 
+
+    /**
+     * 预定类型
+     */
+    @JsonProperty("BookingServiceType")
+    private String bookingServiceType;
     
     /**
      * 预订详情
      */
     @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class BookingDetail {
         /**
          * 预订ID
@@ -82,6 +91,9 @@ public class QTechBookingDetailResponse extends QTechBaseResponse {
          */
         @JsonProperty("LeaderLastName")
         private String leaderLastName;
+
+        @JsonProperty("HotelPhone")
+        private String hotelPhone;
         
         /**
          * 币种
@@ -124,6 +136,13 @@ public class QTechBookingDetailResponse extends QTechBaseResponse {
          */
         @JsonProperty("CurrentStatus")
         private String currentStatus;
+
+
+        /**
+         * 凭证过期时间
+         */
+        @JsonProperty("ExpirationDate")
+        private String expirationDate;
         
         /**
          * 总成人数
@@ -166,6 +185,13 @@ public class QTechBookingDetailResponse extends QTechBaseResponse {
          */
         @JsonProperty("AgentRefNo")
         private String agentRefNo;
+
+
+        /**
+         * 特殊备注
+         */
+        @JsonProperty("SpecialRemark")
+        private String specialRemark;
         
         /**
          * 房间详情
@@ -202,6 +228,7 @@ public class QTechBookingDetailResponse extends QTechBaseResponse {
      * 房间详情
      */
     @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class RoomDetail {
         /**
          * 房型描述
@@ -244,6 +271,7 @@ public class QTechBookingDetailResponse extends QTechBaseResponse {
      * 乘客信息
      */
     @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Passenger {
         /**
          * 称谓

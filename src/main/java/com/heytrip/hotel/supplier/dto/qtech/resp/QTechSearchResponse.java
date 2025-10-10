@@ -147,8 +147,28 @@ public class QTechSearchResponse extends QTechBaseResponse {
         @JsonProperty("Policies")
         private Policies policies;
     }
-    
+
+
     /**
+     * 房型组合ID+具体房类ID
+     */
+    @Data
+    public static class RoomRateExt {
+        /**
+         * 房型组合唯一ID
+         */
+        @JsonProperty("SectionUniqueId")
+        private String sectionUniqueId;
+
+        /**
+         * 具体房类ID
+         */
+        @JsonProperty("ClassUniqueId")
+        private String classUniqueId;
+
+    }
+
+        /**
      * 房型详情
      */
     @Data

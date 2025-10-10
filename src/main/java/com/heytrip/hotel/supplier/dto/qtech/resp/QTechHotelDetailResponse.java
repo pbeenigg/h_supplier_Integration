@@ -1,5 +1,6 @@
 package com.heytrip.hotel.supplier.dto.qtech.resp;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
@@ -13,6 +14,7 @@ import java.util.List;
  * @author Pax
  */
 @Data
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class QTechHotelDetailResponse extends QTechBaseResponse {
     
 

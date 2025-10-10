@@ -105,13 +105,13 @@ public class QTechReservationRequest {
          * 名
          */
         @JsonProperty("first_name")
-        private String firstName;
+        private String first_name;
         
         /**
          * 姓
          */
         @JsonProperty("last_name")
-        private String lastName;
+        private String last_name;
         
         /**
          * 年龄（儿童必填）

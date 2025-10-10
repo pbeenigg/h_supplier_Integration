@@ -23,6 +23,11 @@ public enum QTechBookingStatusEnum {
      * 预订未确认或已被取消
      */
     REJECTED("rejected", "预订未确认或已被取消"),
+
+    /**
+     * 预订已取消
+     */
+    CANCELLED("cancelled", "预订已取消"),
     
     /**
      * 因第三方错误或请求技术错误导致预订失败

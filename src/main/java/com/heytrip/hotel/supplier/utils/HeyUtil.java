@@ -132,6 +132,97 @@ public class HeyUtil {
         return offsetDateTime.format(DATE_FORMATTER_Z);
     }
 
+    /**
+     * 智能解析多种时间格式并转换为LocalDateTime（默认使用上海时区）
+     * <p>
+     * 支持的格式：
+     * <ul>
+     *   <li>2026-01-10（仅日期，时间默认为00:00:00）</li>
+     *   <li>2025-10-10 06:30:46（日期+时间，无时区）</li>
+     *   <li>2026-01-01 11:30:01 +0800（日期+时间+时区）</li>
+     *   <li>2026-01-01 +0800（日期+时区，时间默认为00:00:00）</li>
+     * </ul>
+     *
+     * @param dateTimeStr 时间字符串
+     * @return LocalDateTime，如果输入为空则返回null
+     */
+    public static LocalDateTime parseToLocalDateTime(String dateTimeStr) {
+        return parseToLocalDateTime(dateTimeStr, ZoneId.of("Asia/Shanghai"));
+    }
+
+    /**
+     * 智能解析多种时间格式并转换为LocalDateTime（指定目标时区）
+     * <p>
+     * 支持的格式：
+     * <ul>
+     *   <li>2026-01-10（仅日期，时间默认为00:00:00）</li>
+     *   <li>2025-10-10 06:30:46（日期+时间，无时区）</li>
+     *   <li>2026-01-01 11:30:01 +0800（日期+时间+时区）</li>
+     *   <li>2026-01-01 +0800（日期+时区，时间默认为00:00:00）</li>
+     * </ul>
+     *
+     * @param dateTimeStr 时间字符串
+     * @param targetZone  目标时区（对于带时区的输入，会先转换到目标时区）
+     * @return LocalDateTime，如果输入为空则返回null
+     */
+    public static LocalDateTime parseToLocalDateTime(String dateTimeStr, ZoneId targetZone) {
+        if (StrUtil.isBlank(dateTimeStr)) {
+            return null;
+        }
+
+        String trimmed = dateTimeStr.trim();
+
+        try {
+            // 情况1: 带时区的格式（包含 + 或 - 符号）
+            // 使用正则匹配时区偏移：+0800, -0500 等
+            if (trimmed.matches(".*[\\s](\\+|-)\\d{4}$")) {
+                String[] parts = trimmed.split("\\s+(?=\\+|-)");
+
+                if (parts.length == 2) {
+                    String dateTimePart = parts[0].trim();
+                    String zoneOffsetPart = parts[1].trim();
+
+                    LocalDateTime localDateTime;
+
+                    // 判断是否包含时间部分（检查是否有冒号）
+                    if (dateTimePart.contains(":")) {
+                        // 格式：2026-01-01 11:30:01 +0800
+                        localDateTime = LocalDateTime.parse(dateTimePart, DATE_FORMATTER);
+                    } else {
+                        // 格式：2026-01-01 +0800（仅日期+时区）
+                        LocalDate date = LocalDate.parse(dateTimePart);
+                        localDateTime = date.atStartOfDay();
+                    }
+
+                    // 解析时区偏移
+                    ZoneOffset zoneOffset = ZoneOffset.of(zoneOffsetPart);
+
+                    // 创建带时区的时间并转换到目标时区
+                    ZonedDateTime zonedDateTime = ZonedDateTime.of(localDateTime, zoneOffset);
+                    return zonedDateTime.withZoneSameInstant(targetZone).toLocalDateTime();
+                }
+            }
+
+            // 情况2: 日期+时间（无时区）
+            if (trimmed.contains(":")) {
+                // 格式：2025-10-10 06:30:46
+                return LocalDateTime.parse(trimmed, DATE_FORMATTER);
+            }
+
+            // 情况3: 仅日期
+            // 格式：2026-01-10
+            LocalDate date = LocalDate.parse(trimmed);
+            return date.atStartOfDay();
+
+        } catch (DateTimeParseException e) {
+            logger.error("[HeyUtil.parseToLocalDateTime] 时间格式解析失败: {}", dateTimeStr, e);
+            throw new IllegalArgumentException("无法解析时间格式: " + dateTimeStr + ", 原因: " + e.getMessage(), e);
+        } catch (Exception e) {
+            logger.error("[HeyUtil.parseToLocalDateTime] 时间转换失败: {}", dateTimeStr, e);
+            throw new IllegalArgumentException("时间转换失败: " + dateTimeStr + ", 原因: " + e.getMessage(), e);
+        }
+    }
+
     public static void main(String[] args) {
         // 测试数据
         String startTime = "2025-12-29 03:00:01 +0530";
