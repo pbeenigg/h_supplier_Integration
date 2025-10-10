@@ -819,7 +819,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
 
             QTechCancellationChargesResponse chargesResponse = this.getCancellationCharges(chargesRequest)
-                    .timeout(Duration.ofSeconds(10))
+                    .timeout(Duration.ofSeconds(20))
                     .doOnError(e -> logger.error("[AsianOverlandAdapter.cancelOrder] 获取取消费用失败", e))
                     .onErrorResume(e -> Mono.empty())
                     .block();
@@ -845,7 +845,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             cancelRequest.setBookingId(input.getSupplierOrderId());
 
             QTechCancellationResponse cancellationResponse = this.cancelBooking(cancelRequest)
-                    .timeout(Duration.ofSeconds(10))
+                    .timeout(Duration.ofSeconds(20))
                     .doOnError(e -> logger.error("[AsianOverlandAdapter.cancelOrder] 取消预订失败", e))
                     .onErrorResume(e -> Mono.empty())
                     .block();
