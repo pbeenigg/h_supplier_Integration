@@ -1,5 +1,6 @@
 package com.heytrip.hotel.supplier.utils;
 
+import cn.hutool.core.util.StrUtil;
 import org.slf4j.Logger;
 
 import java.security.MessageDigest;
@@ -21,7 +22,8 @@ public class SignUtil {
      */
     public static String generateSignature(String appId, String timestamp, String secretKey) {
         try {
-            String data = appId + timestamp + secretKey;
+
+            String data = StrUtil.format("app{}secret{}timestamp{}", appId, secretKey,timestamp);
             MessageDigest md = MessageDigest.getInstance("MD5");
             byte[] hashBytes = md.digest(data.getBytes());
 

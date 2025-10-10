@@ -2,9 +2,7 @@ package com.heytrip.hotel.supplier.adapter.impl;
 
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
-import com.heytrip.common.enums.SupplierOrderStatusEnum;
-import com.heytrip.common.enums.XEnumCurrency;
-import com.heytrip.common.enums.XEnumNoSmoking;
+import com.heytrip.common.enums.*;
 import com.heytrip.common.request.XCancelOrderRequest;
 import com.heytrip.common.request.XCreateOrderRequest;
 import com.heytrip.common.request.XSupplierCheckRequest;
@@ -2013,6 +2011,10 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
                 //货币种类
                 ratePlan.setCurrency(HeyUtil.toXwCurrency(hotel.getRateCurrencyCode()).orElse(XEnumCurrency.USD));
+                // 预付方式
+                ratePlan.setPayType(XEnumPayType.PREPAID);
+                //餐食类型 未知
+                ratePlan.setMealType(XMealType.UNKNOWN);
 
                 // 是否带餐食
                 if (roomRate.getMealBasis().contains("breakfast") || roomRate.getRoomType().contains("breakfast")) {
@@ -2042,24 +2044,29 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                 //是否可退款
                 ratePlan.setCancelable(prop.getRefundable());
 
-                //取消规则
-                List<XRatePlan.XCancelRule> xCancelRules = new ArrayList<>();
-                cancellationPolicy.forEach(policy -> {
-                    XRatePlan.XCancelRule xCancelRule = new XRatePlan.XCancelRule();
-                    xCancelRule.setStartTimeOrig(policy.getStart().toString());
-                    xCancelRule.setEndTimeOrig(policy.getEnd().toString());
-                    xCancelRule.setStartTime(policy.getStart().format(HeyUtil.DATE_FORMATTER));
-                    xCancelRule.setEndTime(policy.getEnd().format(HeyUtil.DATE_FORMATTER));
-                    xCancelRule.setIsAfter(true);
-                    xCancelRule.setDeductValue(String.valueOf(policy.getCharges()));
-                    xCancelRules.add(xCancelRule);
-                });
-                //设置取消规则
-                ratePlan.setCancelRules(xCancelRules);
+                // 设置取消规则
+                if(ratePlan.getCancelable()) {
+                    //取消规则
+                    List<XRatePlan.XCancelRule> xCancelRules = new ArrayList<>();
+                    cancellationPolicy.forEach(policy -> {
+                        XRatePlan.XCancelRule xCancelRule = new XRatePlan.XCancelRule();
+                        xCancelRule.setStartTimeOrig(policy.getStart().toString());
+                        xCancelRule.setEndTimeOrig(policy.getEnd().toString());
+                        xCancelRule.setStartTime(policy.getStart().format(HeyUtil.DATE_FORMATTER));
+                        xCancelRule.setEndTime(policy.getEnd().format(HeyUtil.DATE_FORMATTER));
+                        //xCancelRule.setIsAfter(true);
+                        xCancelRule.setDeductValue(String.valueOf(policy.getCharges()));
+                        xCancelRule.setDeductType(XEnumDeductType.LIMITED_FREE);
+                        xCancelRules.add(xCancelRule);
+                    });
+                    //设置取消规则
+                    ratePlan.setCancelRules(xCancelRules);
+                }
 
                 //设置 房型 单间的价格
                 ratePlan.setPrice(String.valueOf(roomRate.getRoomRate()));
                 ratePlan.setBasePrice(String.valueOf(roomRate.getRoomRate()));
+
 
                 //设置 日价明细
                 List<QTechSearchResponse.RateBreakup> rateBreakups = roomRate.getRateBreakup();
@@ -2075,6 +2082,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                     daily.setCurrency(HeyUtil.toXwCurrency(hotel.getRateCurrencyCode()).orElse(XEnumCurrency.USD));
                     daily.setCancelable(prop.getRefundable());
                     daily.setInstantConfirm(false);
+                    daily.setMealType(XMealType.UNKNOWN);
                     dailyPrices.add(daily);
                 });
                 ratePlan.setDailys(dailyPrices);
@@ -2083,6 +2091,8 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                 ratePlan.setCheckInDate(checkInDate);
                 ratePlan.setCheckOutDate(checkOutDate);
                 ratePlan.setQuantity(roomNum);
+
+
 
                 //添加到房价列表
                 ratePlans.add(ratePlan);
