@@ -101,6 +101,7 @@ public class QTechHotelDetailResponse extends QTechBaseResponse {
      * 设施信息
      */
     @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Amenities {
         /**
          * 酒店设施
@@ -119,6 +120,7 @@ public class QTechHotelDetailResponse extends QTechBaseResponse {
      * 酒店设施
      */
     @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class HotelAmenity {
         /**
          * 设施名称
@@ -131,6 +133,7 @@ public class QTechHotelDetailResponse extends QTechBaseResponse {
      * 房间设施
      */
     @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class RoomAmenity {
         /**
          * 房间设施名称
@@ -143,6 +146,7 @@ public class QTechHotelDetailResponse extends QTechBaseResponse {
      * 酒店图片
      */
     @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class HotelImage {
         /**
          * 缩略图URL
@@ -161,6 +165,7 @@ public class QTechHotelDetailResponse extends QTechBaseResponse {
      * 房型选择信息
      */
     @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class SectionSelection {
         /**
          * 房型组合总价
@@ -197,6 +202,7 @@ public class QTechHotelDetailResponse extends QTechBaseResponse {
      * 房型详情
      */
     @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class RoomRate {
         /**
          * 是否可用
@@ -269,6 +275,7 @@ public class QTechHotelDetailResponse extends QTechBaseResponse {
      * 价格明细
      */
     @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class RateBreakup {
         /**
          * 日期

@@ -669,6 +669,18 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
         if (StrUtil.isBlank(input.getDistributorOrderId())) {
             throw new IllegalArgumentException("缺少分销商订单号");
         }
+        if(StrUtil.isBlank(input.getHotelId())){
+            throw new IllegalArgumentException("缺少酒店ID");
+        }
+        if (input.getRoomNum() <= 0 || input.getRoomNum() > 5) {
+            throw new IllegalArgumentException("房间数必须在1到5之间");
+        }
+        if (input.getOccupancy() == null || input.getOccupancy().isEmpty()) {
+            throw new IllegalArgumentException("缺少入住信息");
+        }
+        if (StrUtil.isBlank(input.getCurrency())) {
+            throw new IllegalArgumentException("缺少币种");
+        }
 
         searchRequest.setHotelIds(input.getHotelId());
         if (StrUtil.isBlank(searchRequest.getHotelIds())) {

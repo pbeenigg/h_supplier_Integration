@@ -1,6 +1,7 @@
 package com.heytrip.hotel.supplier.dto.qtech.resp;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
@@ -26,6 +27,7 @@ public class QTechSearchResponse extends QTechBaseResponse {
      * 酒店信息
      */
     @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Hotel {
         /**
          * 运行时酒店ID
@@ -153,6 +155,7 @@ public class QTechSearchResponse extends QTechBaseResponse {
      * 房型组合ID+具体房类ID
      */
     @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class RoomRateExt {
         /**
          * 房型组合唯一ID
@@ -172,6 +175,7 @@ public class QTechSearchResponse extends QTechBaseResponse {
      * 房型详情
      */
     @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class RoomRate {
         /**
          * 是否可订  1 - 可订，0 - 不可订
@@ -256,6 +260,7 @@ public class QTechSearchResponse extends QTechBaseResponse {
      * 日价明细
      */
     @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class RateBreakup {
         /**
          * 日期
@@ -281,6 +286,7 @@ public class QTechSearchResponse extends QTechBaseResponse {
      * 政策信息
      */
     @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Policies {
         /**
          * 取消政策列表
@@ -293,6 +299,7 @@ public class QTechSearchResponse extends QTechBaseResponse {
      * 取消政策
      */
     @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class CancellationPolicy {
         /**
          * 开始时间

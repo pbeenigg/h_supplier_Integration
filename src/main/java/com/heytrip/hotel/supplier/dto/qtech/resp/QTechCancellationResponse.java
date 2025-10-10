@@ -28,6 +28,7 @@ public class QTechCancellationResponse  extends QTechBaseResponse{
      * 取消详情
      */
     @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class CancellationDetail {
         /**
          * 预订ID

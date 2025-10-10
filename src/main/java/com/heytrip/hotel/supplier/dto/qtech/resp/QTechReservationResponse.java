@@ -36,6 +36,7 @@ public class QTechReservationResponse extends QTechBaseResponse {
      * 预订详情
      */
     @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class BookingDetail {
         /**
          * 预订ID
@@ -186,6 +187,7 @@ public class QTechReservationResponse extends QTechBaseResponse {
      * 房间详情
      */
     @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class RoomDetail {
         /**
          * 房型描述
@@ -210,6 +212,7 @@ public class QTechReservationResponse extends QTechBaseResponse {
      * 乘客信息
      */
     @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Passenger {
         /**
          * 称谓

@@ -72,6 +72,7 @@ public class QTechCancellationPolicyResponse  extends QTechBaseResponse{
      * 政策信息
      */
     @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Policies {
         /**
          * 取消政策列表
@@ -96,6 +97,7 @@ public class QTechCancellationPolicyResponse  extends QTechBaseResponse{
      * 取消政策详情
      */
     @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class CancellationPolicy {
         /**
          * 开始时间
@@ -126,6 +128,7 @@ public class QTechCancellationPolicyResponse  extends QTechBaseResponse{
      * 预订允许信息
      */
     @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class BookingAllowedInfo {
         /**
          * 价格是否变化
