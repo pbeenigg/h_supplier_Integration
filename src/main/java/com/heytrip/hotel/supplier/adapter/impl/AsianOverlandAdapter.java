@@ -776,7 +776,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             reservationRequest.setUniqueId(searchUniqueId); //从搜索酒店结果中获取
             reservationRequest.setSectionUniqueId(roomRateExt.getSectionUniqueId()); // 房型唯一标识，每次查询酒店报价的唯一标识（动态变化）
 
-            //// 构建预订房间明细（需要转换为JSON字符串格式）
+            //// 构建预订房间明细（需要转换为JSON字符串）
             /// 根据 input.getRoomNum() 入参的房间数，构建对应数量的房间明细，如果只有一个房间，则只构建一个
             /// 然后还需要为每个房间设置一个 对应的 房间类型ID（roomClassId）= input.getRatePlanId(), 但是入参只支持一个房间类型 ID
             /// 如果 input.getRoomNum() 入参的房间数 > 1 则表示多间房， 但是没有传递多个房间类型 ID 的参数，暂时只能使用同一个房间类型 ID
@@ -1012,6 +1012,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                 logger.warn("[AsianOverlandAdapter.orderCheck] 输入缺少酒店ID，无法报价");
                 throw new IllegalArgumentException("输入缺少酒店ID");
             }
+
             // 币种，默认 USD
             req.setSelCurrency(StrUtil.isBlank(input.getCurrency()) ? "USD" : input.getCurrency());
 
@@ -1022,8 +1023,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                             String country = hotel.getCountryCode();
                             req.setSelNationality(country);
                             req.setCountryOfResidence(country);
-                        } else {
-                            throw new IllegalArgumentException("酒店ID无效，无法获取酒店信息");
                         }
                     });
 
@@ -1809,10 +1808,12 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
                 // 获取该房间的入住人信息
                 List<XCreateOrderRequest.CreateOrderCustomer> roomCustomers = roomGroups.get(i);
-                List<QTechReservationRequest.Passenger> passengers = new ArrayList<>();
+                
+                // 从实际入住人信息中提取成人和儿童
+                List<QTechReservationRequest.Passenger> actualAdults = new ArrayList<>();
+                List<QTechReservationRequest.Passenger> actualChildren = new ArrayList<>();
 
                 if (roomCustomers != null && !roomCustomers.isEmpty()) {
-                    // 使用实际入住人信息
                     for (XCreateOrderRequest.CreateOrderCustomer customer : roomCustomers) {
                         QTechReservationRequest.Passenger passenger = new QTechReservationRequest.Passenger();
 
@@ -1827,32 +1828,78 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                             passenger.setAge(customer.getAge().toString());
                         }
 
-                        passengers.add(passenger);
-                    }
-                } else {
-                    // 使用默认入住人信息（基于搜索房间明细模板）
-                    int adultCount = templateRoom.getNumberOfAdults();
-                    int childCount = templateRoom.getNumberOfChild() != null ? templateRoom.getNumberOfChild() : 0;
-
-                    // 添加成人
-                    for (int j = 0; j < adultCount; j++) {
-                        QTechReservationRequest.Passenger passenger = new QTechReservationRequest.Passenger();
-                        passenger.setSalutation("MR");
-                        passenger.setFirst_name("Guest" + (j + 1));
-                        passenger.setLast_name("");
-                        passengers.add(passenger);
-                    }
-
-                    // 添加儿童
-                    for (int j = 0; j < childCount; j++) {
-                        QTechReservationRequest.Passenger passenger = new QTechReservationRequest.Passenger();
-                        passenger.setSalutation("Child");
-                        passenger.setFirst_name("Child" + (j + 1));
-                        passenger.setLast_name("");
-                        passenger.setAge("8"); // 默认儿童年龄
-                        passengers.add(passenger);
+                        // 分类存储
+                        if (isChild) {
+                            actualChildren.add(passenger);
+                        } else {
+                            actualAdults.add(passenger);
+                        }
                     }
                 }
+
+                // 补齐成人数量
+                while (actualAdults.size() < templateRoom.getNumberOfAdults()) {
+                    QTechReservationRequest.Passenger passenger = new QTechReservationRequest.Passenger();
+                    
+                    if (!actualAdults.isEmpty()) {
+                        // 复制已有成人信息
+                        QTechReservationRequest.Passenger template = actualAdults.get(0);
+                        passenger.setSalutation(template.getSalutation());
+                        // 生成3位随机数
+                        String randomSuffix = String.format("%03d", (int)(Math.random() * 1000));
+                        passenger.setFirst_name(template.getFirst_name() + randomSuffix);
+                        passenger.setLast_name(template.getLast_name() + randomSuffix);
+                        if (template.getAge() != null) {
+                            passenger.setAge(template.getAge());
+                        }
+                    } else {
+                        // 没有已有成人信息时使用默认值
+                        passenger.setSalutation("MR");
+                        String randomSuffix = String.format("%03d", (int)(Math.random() * 1000));
+                        passenger.setFirst_name("Guest" + randomSuffix);
+                        passenger.setLast_name("");
+                    }
+                    actualAdults.add(passenger);
+                }
+
+                // 补齐儿童数量
+                while (actualChildren.size() < (templateRoom.getNumberOfChild() != null ? templateRoom.getNumberOfChild() : 0)) {
+                    QTechReservationRequest.Passenger passenger = new QTechReservationRequest.Passenger();
+                    
+                    if (!actualChildren.isEmpty()) {
+                        // 复制已有儿童信息
+                        QTechReservationRequest.Passenger template = actualChildren.get(0);
+                        passenger.setSalutation(template.getSalutation());
+                        // 生成3位随机数
+                        String randomSuffix = String.format("%03d", (int)(Math.random() * 1000));
+                        passenger.setFirst_name(template.getFirst_name() + randomSuffix);
+                        passenger.setLast_name(template.getLast_name() + randomSuffix);
+                        if (template.getAge() != null) {
+                            passenger.setAge(template.getAge());
+                        }
+                    } else {
+                        // 没有已有儿童信息时使用默认值
+                        passenger.setSalutation("Child");
+                        String randomSuffix = String.format("%03d", (int)(Math.random() * 1000));
+                        passenger.setFirst_name("Child" + randomSuffix);
+                        passenger.setLast_name("");
+                        passenger.setAge("8"); // 默认儿童年龄
+                    }
+                    actualChildren.add(passenger);
+                }
+
+                // 如果实际人数超过要求，截取到要求的数量
+                if (actualAdults.size() > templateRoom.getNumberOfAdults()) {
+                    actualAdults = actualAdults.subList(0, templateRoom.getNumberOfAdults());
+                }
+                if (actualChildren.size() > (templateRoom.getNumberOfChild() != null ? templateRoom.getNumberOfChild() : 0)) {
+                    actualChildren = actualChildren.subList(0, templateRoom.getNumberOfChild() != null ? templateRoom.getNumberOfChild() : 0);
+                }
+
+                // 合并成人和儿童列表（成人在前，儿童在后）
+                List<QTechReservationRequest.Passenger> passengers = new ArrayList<>();
+                passengers.addAll(actualAdults);
+                passengers.addAll(actualChildren);
 
                 reservationRoom.setPassangers(passengers);
                 roomDetailsList.add(reservationRoom);
