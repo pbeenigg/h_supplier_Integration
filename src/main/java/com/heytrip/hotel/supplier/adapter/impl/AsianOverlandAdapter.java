@@ -1845,10 +1845,9 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                         // 复制已有成人信息
                         QTechReservationRequest.Passenger template = actualAdults.get(0);
                         passenger.setSalutation(template.getSalutation());
-                        // 生成3位随机数
-                        String randomSuffix = String.format("%03d", (int)(Math.random() * 1000));
-                        passenger.setFirst_name(template.getFirst_name() + randomSuffix);
-                        passenger.setLast_name(template.getLast_name() + randomSuffix);
+
+                        passenger.setFirst_name(template.getFirst_name());
+                        passenger.setLast_name(template.getLast_name() );
                         if (template.getAge() != null) {
                             passenger.setAge(template.getAge());
                         }
@@ -1870,10 +1869,9 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                         // 复制已有儿童信息
                         QTechReservationRequest.Passenger template = actualChildren.get(0);
                         passenger.setSalutation(template.getSalutation());
-                        // 生成3位随机数
-                        String randomSuffix = String.format("%03d", (int)(Math.random() * 1000));
-                        passenger.setFirst_name(template.getFirst_name() + randomSuffix);
-                        passenger.setLast_name(template.getLast_name() + randomSuffix);
+
+                        passenger.setFirst_name(template.getFirst_name() );
+                        passenger.setLast_name(template.getLast_name() );
                         if (template.getAge() != null) {
                             passenger.setAge(template.getAge());
                         }
@@ -2413,6 +2411,13 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                 response.setTotalPrice(detail.getTotalCharges());
                 response.setCurrency(detail.getCurrencyCode() != null ? detail.getCurrencyCode() : "USD");
             }
+
+            // 设置  预定ID  和 分销商系统订单号  预定确认号
+            response.setSupplierOrderId(detail.getId());
+            response.setDistributorOrderId(detail.getAgentRefNo());
+            response.setConfirmNo(detail.getBookingReference());
+
+
             response.setCheckInDate(HeyUtil.parseToLocalDateTime(detail.getCheckInDate()));
             response.setCheckOutDate(HeyUtil.parseToLocalDateTime(detail.getCheckOutDate()));
             response.setBookDate(HeyUtil.parseToLocalDateTime(detail.getBookingDate()));
@@ -2422,8 +2427,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             response.setDesc(detail.getSpecialRemark());
             response.setContactName(detail.getLeaderFirstName() + " " + detail.getLeaderLastName());
 
-            response.setConfirmNo(detail.getBookingReference());
-            response.setDistributorOrderId(detail.getAgentRefNo());
 
 
             response.setHotelName(detail.getHotelName());
