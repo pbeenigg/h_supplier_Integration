@@ -152,22 +152,24 @@ public class QTechSearchResponse extends QTechBaseResponse {
 
 
     /**
-     * 房型组合ID+具体房类ID
+     *房型 key +   房型属性ID + 具体房类ID
      */
     @Data
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class RoomRateExt {
+
+        private String key;
         /**
-         * 房型组合唯一ID
+         * 房型组合唯一IDD (随时变、动态ID )
          */
         @JsonProperty("SectionUniqueId")
         private String sectionUniqueId;
 
         /**
-         * 具体房类ID
+         * 具体房类ID (随时变、动态ID )
          */
         @JsonProperty("ClassUniqueId")
-        private String classUniqueId;
+        private List<String> classUniqueId;
 
     }
 
