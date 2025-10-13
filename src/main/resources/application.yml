@@ -55,7 +55,7 @@ spring:
 # 日志配置
 logging:
   level:
-    com.heytrip.hotel.supplier: DEBUG
+    com.heytrip.hotel.supplier: INFO
     org.springframework.web: INFO
     com.p6spy: INFO  # P6Spy日志级别
     p6spy: INFO      # P6Spy日志输出

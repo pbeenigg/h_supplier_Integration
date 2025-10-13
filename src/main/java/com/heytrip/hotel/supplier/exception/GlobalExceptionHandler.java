@@ -1,5 +1,6 @@
 package com.heytrip.hotel.supplier.exception;
 
+import com.heytrip.common.result.Result;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
@@ -34,16 +35,10 @@ public class GlobalExceptionHandler {
      * 处理业务异常
      */
     @ExceptionHandler(BusinessException.class)
-    public ResponseEntity<ErrorResponse> handleBusinessException(BusinessException e) {
-        logger.warn("Business exception: {}", e.getMessage());
-        
-        ErrorResponse errorResponse = ErrorResponse.builder()
-                .code(e.getCode())
-                .message(e.getMessage())
-                .timestamp(LocalDateTime.now())
-                .build();
-        
-        return ResponseEntity.badRequest().body(errorResponse);
+    public Result handleBusinessException(BusinessException e) {
+        logger.error("Business 处理业务异常: code={}, bizCode={} ,message={}", e.getCode(), e.getBizCode(),e.getMessage());
+        Result  result =new Result(e.getCode(),e.getBizCode(), e.getMessage(),"",e.getData(),null);
+        return result;
     }
     
     /**

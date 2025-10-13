@@ -120,16 +120,11 @@ public class SupplierAdapterManager {
             return Result.fail("未找到供应商适配器");
         }
 
-        try {
-            if (adapter instanceof StaticBridge bridge) {
-                Object object = bridge.getHotelRoomOrigContent(supplierType, hotelId, language, ext);
-                return object;
-            }
-            return Result.fail("适配器还未不支持 StaticBridge");
-        } catch (Exception ex) {
-            logger.error("[getHotelRoomOrigContent] 委派执行失败, supplierName={}", supplierType, ex);
-            return Result.fail(ex.getMessage());
+        if (adapter instanceof StaticBridge bridge) {
+            Object object = bridge.getHotelRoomOrigContent(supplierType, hotelId, language, ext);
+            return object;
         }
+        return Result.fail("适配器还未不支持 StaticBridge");
     }
 
 
@@ -145,16 +140,11 @@ public class SupplierAdapterManager {
             return Result.fail("未找到供应商适配器");
         }
 
-        try {
-            if (adapter instanceof PricingBridge bridge) {
-                List<XRoom> rooms = bridge.getPrice(input);
-                return Result.ok(rooms != null ? rooms : Collections.emptyList());
-            }
-            return Result.fail("适配器还未不支持 PricingBridge");
-        } catch (Exception ex) {
-            logger.error("[getPrice] 委派执行失败, supplierName={}", input.getSupplierType(), ex);
-            return Result.fail(ex.getMessage());
+        if (adapter instanceof PricingBridge bridge) {
+            List<XRoom> rooms = bridge.getPrice(input);
+            return Result.ok(rooms != null ? rooms : Collections.emptyList());
         }
+        return Result.fail("适配器还未不支持 PricingBridge");
     }
 
     /**
@@ -166,16 +156,11 @@ public class SupplierAdapterManager {
             logger.warn("[getPrices] 未找到供应商适配器: {}", input.getSupplierType());
             return Result.fail("未找到供应商适配器");
         }
-        try {
-            if (adapter instanceof PricingBridge bridge) {
-                Map<String, List<XRoom>>  result = bridge.getPrices(input);
-                return Result.ok(result != null ? result : Collections.emptyMap());
-            }
-            return Result.fail("适配器还未不支持 PricingBridge");
-        } catch (Exception ex) {
-            logger.error("[getPrices] 委派执行失败, supplierName={}", input.getSupplierType(), ex);
-            return Result.fail(ex.getMessage());
+        if (adapter instanceof PricingBridge bridge) {
+            Map<String, List<XRoom>>  result = bridge.getPrices(input);
+            return Result.ok(result != null ? result : Collections.emptyMap());
         }
+        return Result.fail("适配器还未不支持 PricingBridge");
     }
 
     /**
@@ -189,16 +174,11 @@ public class SupplierAdapterManager {
             return Result.fail("未找到供应商适配器");
         }
 
-        try {
-            if (adapter instanceof PricingBridge bridge) {
-                return bridge.getPriceOrig(input);
-            }
-            logger.warn("[getPriceOrig] 适配器不支持 PricingBridge: {}", supplierName);
-            return Result.fail("适配器还未不支持 PricingBridge");
-        } catch (Exception ex) {
-            logger.error("[getPriceOrig] 委派执行失败, supplierName={}", supplierName, ex);
-            return Result.fail(ex.getMessage());
+        if (adapter instanceof PricingBridge bridge) {
+            return bridge.getPriceOrig(input);
         }
+        logger.warn("[getPriceOrig] 适配器不支持 PricingBridge: {}", supplierName);
+        return Result.fail("适配器还未不支持 PricingBridge");
     }
 
     /**
@@ -212,16 +192,11 @@ public class SupplierAdapterManager {
             return Result.fail("未找到供应商适配器");
         }
 
-        try {
-            if (adapter instanceof PricingBridge bridge) {
-                return bridge.getPricesOrg(input);
-            }
-            logger.warn("[getPricesOrg] 适配器不支持 PricingBridge: {}", supplierName);
-            return Result.fail("适配器还未不支持 PricingBridge");
-        } catch (Exception ex) {
-            logger.error("[getPricesOrg] 委派执行失败, supplierName={}", supplierName, ex);
-            return Result.fail(ex.getMessage());
+        if (adapter instanceof PricingBridge bridge) {
+            return bridge.getPricesOrg(input);
         }
+        logger.warn("[getPricesOrg] 适配器不支持 PricingBridge: {}", supplierName);
+        return Result.fail("适配器还未不支持 PricingBridge");
     }
 
 
@@ -235,17 +210,12 @@ public class SupplierAdapterManager {
             logger.warn("[orderCheck] 未找到供应商适配器: {}", supplierName);
             return Result.fail("未找到供应商适配器");
         }
-        try {
-            if (adapter instanceof PricingBridge bridge) {
-                XOrderCheckResponse result = bridge.orderCheck(input);
-                return Result.ok(result != null ? result : null);
-            }
-            logger.warn("[orderCheck] 适配器不支持 PricingBridge: {}", supplierName);
-            return Result.fail("适配器还未不支持 PricingBridge");
-        } catch (Exception ex) {
-            logger.error("[orderCheck] 委派执行失败, supplierName={}", supplierName, ex);
-            return Result.fail(ex.getMessage());
+        if (adapter instanceof PricingBridge bridge) {
+            XOrderCheckResponse result = bridge.orderCheck(input);
+            return Result.ok(result != null ? result : null);
         }
+        logger.warn("[orderCheck] 适配器不支持 PricingBridge: {}", supplierName);
+        return Result.fail("适配器还未不支持 PricingBridge");
     }
 
     /**
@@ -259,16 +229,11 @@ public class SupplierAdapterManager {
             return Collections.emptyMap();
         }
 
-        try {
-            if (adapter instanceof PricingBridge bridge) {
-                return bridge.orderCheckOrg(input);
-            }
-            logger.warn("[orderCheckOrg] 适配器不支持 PricingBridge: {}", supplierName);
-            return Collections.emptyMap();
-        } catch (Exception ex) {
-            logger.error("[orderCheckOrg] 委派执行失败, supplierName={}", supplierName, ex);
-            return ex.getMessage();
+        if (adapter instanceof PricingBridge bridge) {
+            return bridge.orderCheckOrg(input);
         }
+        logger.warn("[orderCheckOrg] 适配器不支持 PricingBridge: {}", supplierName);
+        return Collections.emptyMap();
     }
 
     /**
@@ -279,17 +244,12 @@ public class SupplierAdapterManager {
         if (adapter == null) {
            return Result.fail("未找到供应商适配器");
         }
-        try {
-            if (adapter instanceof OrderBridge bridge) {
-                XCreateOrderResponse resp = bridge.createOrder(input);
-                return Result.ok(resp);
-            }
-            logger.warn("[createOrder] 适配器不支持 OrderBridge: {}", supplierName);
-            return Result.fail("适配器还未不支持 OrderBridge");
-        } catch (Exception ex) {
-            logger.error("[createOrder] 委派执行失败, supplierName={}", supplierName, ex);
-            return Result.fail(ex.getMessage());
+        if (adapter instanceof OrderBridge bridge) {
+            XCreateOrderResponse resp = bridge.createOrder(input);
+            return Result.ok(resp);
         }
+        logger.warn("[createOrder] 适配器不支持 OrderBridge: {}", supplierName);
+        return Result.fail("适配器还未不支持 OrderBridge");
     }
 
     /**
@@ -300,17 +260,12 @@ public class SupplierAdapterManager {
         if (adapter == null) {
             return Result.fail("未找到供应商适配器");
         }
-        try {
-            if (adapter instanceof OrderBridge bridge) {
-                XCancelOrderResponse resp = bridge.cancelOrder(input);
-                return Result.ok(resp);
-            }
-           logger.warn("[cancelOrder] 适配器不支持 OrderBridge: {}", supplierName);
-            return Result.fail("适配器还未不支持 OrderBridge");
-        } catch (Exception ex) {
-            logger.error("[cancelOrder] 委派执行失败, supplierName={}", supplierName, ex);
-            return Result.fail(ex.getMessage());
+        if (adapter instanceof OrderBridge bridge) {
+            XCancelOrderResponse resp = bridge.cancelOrder(input);
+            return Result.ok(resp);
         }
+        logger.warn("[cancelOrder] 适配器不支持 OrderBridge: {}", supplierName);
+        return Result.fail("适配器还未不支持 OrderBridge");
     }
 
     /**
@@ -321,17 +276,12 @@ public class SupplierAdapterManager {
         if (adapter == null) {
             return Result.fail("未找到供应商适配器");
         }
-        try {
-            if (adapter instanceof OrderBridge bridge) {
-                XQueryOrderResponse resp = bridge.queryOrder(distributorOrderId, supplierOrderId, ext);
-                return Result.ok(resp);
-            }
-            logger.warn("[queryOrder] 适配器不支持 OrderBridge: {}", supplierName);
-            return Result.fail("适配器还未不支持 OrderBridge");
-        } catch (Exception ex) {
-            logger.error("[queryOrder] 委派执行失败, supplierName={}", supplierName, ex);
-            return Result.fail(ex.getMessage());
+        if (adapter instanceof OrderBridge bridge) {
+            XQueryOrderResponse resp = bridge.queryOrder(distributorOrderId, supplierOrderId, ext);
+            return Result.ok(resp);
         }
+        logger.warn("[queryOrder] 适配器不支持 OrderBridge: {}", supplierName);
+        return Result.fail("适配器还未不支持 OrderBridge");
     }
 
     /**

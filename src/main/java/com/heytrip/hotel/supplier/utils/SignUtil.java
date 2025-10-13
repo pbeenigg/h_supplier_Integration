@@ -1,6 +1,7 @@
 package com.heytrip.hotel.supplier.utils;
 
 import cn.hutool.core.util.StrUtil;
+import com.heytrip.hotel.supplier.exception.BusinessException;
 import org.slf4j.Logger;
 
 import java.security.MessageDigest;
@@ -34,7 +35,7 @@ public class SignUtil {
             return sb.toString();
         } catch (Exception e) {
             logger.error("生成签名时出错! ", e);
-            throw new RuntimeException("签名生成失败!", e);
+            throw  BusinessException.signError("签名生成失败!");
         }
     }
 }
