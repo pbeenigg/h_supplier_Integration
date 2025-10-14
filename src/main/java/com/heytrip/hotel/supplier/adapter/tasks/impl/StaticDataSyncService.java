@@ -5,7 +5,6 @@ import com.heytrip.hotel.supplier.adapter.parser.StaticDataParser;
 import com.heytrip.hotel.supplier.client.FtpClientService;
 import com.heytrip.hotel.supplier.config.CacheEvictor;
 import com.heytrip.hotel.supplier.config.FtpClientConfig;
-import com.heytrip.hotel.supplier.constant.SyncBusinessTypeNames;
 import com.heytrip.hotel.supplier.dto.supplier.SupplierFtp;
 import com.heytrip.hotel.supplier.entity.*;
 import com.heytrip.hotel.supplier.repository.*;
@@ -25,7 +24,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-
 import java.util.function.Supplier;
 
 import static com.heytrip.hotel.supplier.constant.SyncBusinessTypeNames.*;
@@ -71,7 +69,7 @@ public class StaticDataSyncService {
         }
         SupplierFtp ftp = parseFtpConfig(sc.getFtpConfig());
         logger.info("开始静态数据同步，supplierId={}, supplierCode={}", supplierId, supplierCode);
-        syncOne(() -> syncCountries(ftp, supplierId, supplierCode), supplierId, supplierCode, COUNTRIES, ftp.getCountriesPath());
+        //syncOne(() -> syncCountries(ftp, supplierId, supplierCode), supplierId, supplierCode, COUNTRIES, ftp.getCountriesPath());
         syncOne(() -> syncCities(ftp, supplierId, supplierCode), supplierId, supplierCode, CITIES, ftp.getCitiesPath());
         syncOne(() -> syncNationalities(ftp, supplierId, supplierCode), supplierId, supplierCode, NATIONALITY, ftp.getNationalityPath());
         syncOne(() -> syncGiata(ftp, supplierId, supplierCode), supplierId, supplierCode, GIATA, ftp.getGiataLocalPath());

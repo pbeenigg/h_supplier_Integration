@@ -33,7 +33,7 @@ public class AOStaticDataParser implements StaticDataParser {
             Country e = new Country();
             e.setSupplierId(supplierId);
             e.setSupplierCode(supplierCode);
-            e.setCountryCode(countryCode);
+            e.setCountryId(countryCode);
             e.setCountryName(val(row, "country_name"));
             list.add(e);
         }
@@ -78,7 +78,7 @@ public class AOStaticDataParser implements StaticDataParser {
             e.setHotelName(val(row, "NAME"));
             e.setCityCode(val(row, "city_code"));
             e.setCity(val(row, "city_name"));
-            e.setCountryCode(val(row, "country_code"));
+            e.setCountryId(val(row, "country_code"));
             e.setHeroImg(val(row, "main_image"));
             e.setDescription(val(row, "short_desc"));
             e.setLongDesc(val(row, "long_desc"));

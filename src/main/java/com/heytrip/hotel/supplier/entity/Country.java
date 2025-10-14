@@ -39,8 +39,13 @@ public class Country {
     @Comment("供应商代码")
     private String supplierCode;
 
+
+    @Column(name = "country_id", length = 20, nullable = false)
+    @Comment("国家ID")
+    private String countryId;
+
     @Column(name = "country_code", length = 20, nullable = false)
-    @Comment("国家代码")
+    @Comment("国家代码(简码)")
     private String countryCode;
 
     @Column(name = "country_name", length = 200)

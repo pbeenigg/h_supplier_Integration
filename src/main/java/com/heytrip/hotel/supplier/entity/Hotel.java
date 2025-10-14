@@ -61,15 +61,15 @@ public class Hotel {
     private String localeName;
 
     @Column(name = "country_code", length = 20)
-    @Comment("国家代码")
+    @Comment("国家代码(国家简码)")
     private String countryCode;
 
-    @Column(name = "country_id")
-    @Comment("国家编号")
-    private Integer countryId;
+    @Column(name = "country_id", length = 20)
+    @Comment("国家编号（国家ID）")
+    private String countryId;
 
     @Column(name = "country", length = 100)
-    @Comment("国家")
+    @Comment("国家名称")
     private String country;
 
     @Column(name = "city_code", length = 50)

@@ -594,6 +594,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
         XCountryResponse x = new XCountryResponse();
         x.setId(e.getCountryCode());
         x.setNameEn(e.getCountryName());
+        x.setExt(e.getCountryCode());
         return x;
     }
 
@@ -661,7 +662,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
         x.setHotelName(e.getHotelName());
         x.setLocaleName(e.getLocaleName());
         x.setCountryCode(e.getCountryCode());
-        x.setCountryId(e.getCountryId());
+        x.setCountryId(Integer.valueOf(e.getCountryId()));
         x.setCountry(e.getCountry());
         x.setCityId(e.getCityId());
         x.setCity(e.getCity());
