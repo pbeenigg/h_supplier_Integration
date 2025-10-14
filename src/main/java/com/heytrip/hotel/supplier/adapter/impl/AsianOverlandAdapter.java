@@ -1866,7 +1866,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                         QTechReservationRequest.Passenger passenger = new QTechReservationRequest.Passenger();
 
                         // 判断是否为儿童（0 ～ 12岁儿童）
-                        boolean isChild = customer.getAge() != null && customer.getAge() < 12;
+                        boolean isChild = customer.getAge() != null && customer.getAge() <= 12;
 
                         passenger.setSalutation(isChild ? "Child" : "MR");
                         passenger.setFirst_name(customer.getName() != null ? customer.getName() : "Guest");
@@ -1903,7 +1903,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                         passenger.setSalutation("MR");
                         String randomSuffix = String.format("%03d", (int) (Math.random() * 1000));
                         passenger.setFirst_name("Guest" + randomSuffix);
-                        passenger.setLast_name("");
+                        passenger.setLast_name("Guest");
                     }
                     actualAdults.add(passenger);
                 }
@@ -1927,8 +1927,8 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                         passenger.setSalutation("Child");
                         String randomSuffix = String.format("%03d", (int) (Math.random() * 1000));
                         passenger.setFirst_name("Child" + randomSuffix);
-                        passenger.setLast_name("");
-                        passenger.setAge("8"); // 默认儿童年龄
+                        passenger.setLast_name("Child");
+                        passenger.setAge("6"); // 默认儿童年龄
                     }
                     actualChildren.add(passenger);
                 }
