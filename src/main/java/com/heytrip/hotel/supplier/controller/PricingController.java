@@ -6,6 +6,7 @@ import com.heytrip.common.request.XSupplierPriceRequest;
 import com.heytrip.common.response.base.XRoom;
 import com.heytrip.common.response.other.XOrderCheckResponse;
 import com.heytrip.common.result.Result;
+import com.heytrip.hotel.supplier.annotation.ApiLog;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,6 +43,9 @@ public class PricingController {
      * @return 酒店房型列表
      */
     @GetMapping("/getPrice")
+    @ApiLog(businessType = "getPrice",
+            extractFields = {"hotelId", "checkInDate", "checkOutDate"},
+            description = "获取报价(单酒店)")
     public Result<List<XRoom>> getPrice(@ModelAttribute XSupplierPriceRequest xwPriceRequest) {
         return supplierApiService.getPrice(xwPriceRequest);
     }
@@ -53,6 +57,9 @@ public class PricingController {
      * @return 酒店ID到房型列表的映射
      */
     @GetMapping("/getPrices")
+    @ApiLog(businessType = "getPrices",
+            extractFields = {"hotelIds", "checkInDate", "checkOutDate"},
+            description = "获取报价(多酒店)")
     public  Result<Map<String, List<XRoom>>> getPrices(@ModelAttribute XSupplierPriceRequest xwPriceRequest) {
         return supplierApiService.getPrices(xwPriceRequest);
     }
@@ -64,6 +71,11 @@ public class PricingController {
      * @return 验单响应
      */
     @GetMapping("/orderCheck")
+    @ApiLog(businessType = "order_check",
+            recordOrderDetail = true,
+            extractFields = {"distributorOrderId", "hotelId", "checkInDate", "checkOutDate",
+                    "roomId", "ratePlanId","salePrice", "occupancy", "roomNum", "currency", "salePrice"},
+            description = "验证订单")
     public Result<XOrderCheckResponse> checkOrder(@ModelAttribute XSupplierCheckRequest xwCheckRequest) {
         return supplierApiService.orderCheck(xwCheckRequest);
     }

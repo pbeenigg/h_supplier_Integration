@@ -1,6 +1,8 @@
 package com.heytrip.hotel.supplier.adapter.impl;
 
 import cn.hutool.core.util.StrUtil;
+import com.heytrip.hotel.supplier.adapter.SupplierAdapter;
+import com.heytrip.hotel.supplier.adapter.SupplierAdapterManager;
 import com.heytrip.hotel.supplier.dto.qtech.req.QTechHotelDetailRequest;
 import com.heytrip.hotel.supplier.dto.qtech.req.QTechSearchRequest;
 import com.heytrip.hotel.supplier.dto.qtech.resp.QTechHotelDetailResponse;
@@ -31,6 +33,21 @@ class AsianOverlandAdapterTest {
 
     @Autowired
     private AsianOverlandAdapter asianOverlandAdapter;
+
+    @Autowired
+    private SupplierAdapterManager  supplierAdapterManager;
+
+
+    @Test
+    void testSupplier() {
+        supplierAdapterManager.getEnabledSuppliers().forEach(adapter -> {
+            logger.info("已注册的适配器: {} (ID: {})", adapter);
+
+             SupplierAdapter supplierAdapter = supplierAdapterManager.getAdapterByName(adapter);
+             System.out.printf("适配器名称: %s, 供应商ID: %d%n", supplierAdapter.getSupplierName(), supplierAdapter.getSupplierId());
+        });
+
+    }
 
     /**
      * 测试适配器基本功能

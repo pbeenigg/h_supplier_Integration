@@ -1,11 +1,14 @@
 package com.heytrip.hotel.supplier.utils;
 
+import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.util.StrUtil;
 import com.heytrip.common.enums.XEnumCurrency;
 import com.heytrip.hotel.supplier.dto.qtech.req.QTechSearchRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.*;
@@ -42,11 +45,11 @@ public class HeyUtil {
     /**
      * 将带时区的时间字符串转换为目标时区 （默认时区：Asia/Shanghai ）
      *
-     * @param dateTimeStr  输入时间字符串，格式：2025-12-29 03:00:01 +0530
+     * @param dateTimeStr 输入时间字符串，格式：2025-12-29 03:00:01 +0530
      * @return 转换后的时间
      */
     public static ZonedDateTime convertTimeZone(String dateTimeStr) {
-        return convertTimeZone(dateTimeStr,  ZoneId.of("Asia/Shanghai"));
+        return convertTimeZone(dateTimeStr, ZoneId.of("Asia/Shanghai"));
     }
 
     /**
@@ -555,4 +558,250 @@ public class HeyUtil {
         // 默认为生产环境
         return false;
     }
+
+    /**
+     * 安全获取字符串值
+     *
+     * @param fields
+     * @param key
+     * @return
+     */
+    public static String getStringValue(Map<String, Object> fields, String key) {
+        if (fields == null || key == null) {
+            return null;
+        }
+        Object value = fields.get(key);
+        return value != null ? String.valueOf(value) : null;
+    }
+
+    /**
+     * 安全获取BigDecimal值
+     */
+    public static BigDecimal getBigDecimalValue(Map<String, Object> fields, String key) {
+        if (fields == null || key == null) {
+            return null;
+        }
+        Object value = fields.get(key);
+        if (value == null) {
+            return null;
+        }
+        try {
+            if (value instanceof BigDecimal) {
+                return (BigDecimal) value;
+            }
+            if (value instanceof Number) {
+                return BigDecimal.valueOf(((Number) value).doubleValue());
+            }
+            String strValue = String.valueOf(value).trim();
+            return StringUtils.hasText(strValue) ? new BigDecimal(strValue) : null;
+        } catch (NumberFormatException e) {
+            logger.warn("无法转换为BigDecimal，key: {}, value: {}", key, value);
+            return null;
+        }
+    }
+
+    /**
+     * 安全获取整数值
+     */
+    public static int getIntValue(Map<String, Object> fields, String key, int defaultValue) {
+        if (fields == null || key == null) {
+            return defaultValue;
+        }
+        Object value = fields.get(key);
+        if (value == null) {
+            return defaultValue;
+        }
+        try {
+            if (value instanceof Integer) {
+                return (Integer) value;
+            }
+            if (value instanceof Number) {
+                return ((Number) value).intValue();
+            }
+            String strValue = String.valueOf(value).trim();
+            return StringUtils.hasText(strValue) ? Integer.parseInt(strValue) : defaultValue;
+        } catch (NumberFormatException e) {
+            logger.warn("无法转换为整数，key: {}, value: {}，使用默认值: {}", key, value, defaultValue);
+            return defaultValue;
+        }
+    }
+
+
+    /**
+     * 安全地从Map中获取Long值
+     *
+     * @param map 数据源Map
+     * @param key 键名
+     * @return Long值，如果不存在、为null或转换失败则返回null
+     */
+    public static Long getLongValue(Map<String, Object> map, String key) {
+        if (map == null || key == null) {
+            return null;
+        }
+
+        Object value = map.get(key);
+        if (value == null) {
+            return null;
+        }
+
+        try {
+            if (value instanceof Long) {
+                return (Long) value;
+            } else if (value instanceof Number) {
+                return ((Number) value).longValue();
+            } else {
+                String strValue = String.valueOf(value).trim();
+                if (strValue.isEmpty()) {
+                    return null;
+                }
+                return Long.valueOf(strValue);
+            }
+        } catch (NumberFormatException e) {
+            logger.warn("无法将值转换为Long: key={}, value={}", key, value, e);
+            return null;
+        }
+    }
+
+    /**
+     * 安全地从Map中获取Boolean值
+     *
+     * @param map 数据源Map
+     * @param key 键名
+     * @return Boolean值，如果不存在或为null则返回null
+     */
+    public static Boolean getBooleanValue(Map<String, Object> map, String key) {
+        if (map == null || key == null) {
+            return null;
+        }
+
+        Object value = map.get(key);
+        if (value == null) {
+            return null;
+        }
+
+        if (value instanceof Boolean) {
+            return (Boolean) value;
+        } else {
+            String strValue = String.valueOf(value).toLowerCase().trim();
+            return "true".equals(strValue) || "1".equals(strValue) || "yes".equals(strValue);
+        }
+    }
+
+    // ======================== 时间参数安全转换工具方法 ========================
+
+    /**
+     * 安全地从Map中获取时间字符串并转换为LocalDateTime
+     * 适用于包含时间信息的字段
+     *
+     * @param map 数据源Map
+     * @param key 键名
+     * @return LocalDateTime对象，如果不存在、为null或解析失败则返回null
+     */
+    public static LocalDate getDateValue(Map<String, Object> map, String key) {
+        String dateTimeStr = getStringValue(map, key);
+        if (dateTimeStr == null || dateTimeStr.trim().isEmpty()) {
+            return null;
+        }
+
+        try {
+            return DateUtil.toLocalDateTime(DateUtil.parse(dateTimeStr)).toLocalDate();
+        } catch (Exception e) {
+            logger.warn("时间解析失败: key={}, value={}", key, dateTimeStr, e);
+            return null;
+        }
+    }
+
+    /**
+     * 安全地从Map中获取时间字符串并转换为LocalDateTime
+     * 适用于包含时间信息的字段
+     *
+     * @param map 数据源Map
+     * @param key 键名
+     * @return LocalDateTime对象，如果不存在、为null或解析失败则返回null
+     */
+    public static LocalDateTime getDateTimeValue(Map<String, Object> map, String key) {
+        String dateTimeStr = getStringValue(map, key);
+        if (dateTimeStr == null || dateTimeStr.trim().isEmpty()) {
+            return null;
+        }
+
+        try {
+            return DateUtil.toLocalDateTime(DateUtil.parse(dateTimeStr));
+        } catch (Exception e) {
+            logger.warn("时间解析失败: key={}, value={}", key, dateTimeStr, e);
+            return null;
+        }
+    }
+
+    /**
+     * 安全地从Map中获取时间字符串并格式化为标准格式
+     * 专门用于API日志记录中的时间字段标准化
+     *
+     * @param map 数据源Map
+     * @param key 键名（如：checkInDate、checkOutDate）
+     * @return 标准格式的日期字符串（yyyy-MM-dd），如果解析失败则返回原始字符串
+     */
+    public static String getFormattedDateValue(Map<String, Object> map, String key) {
+        String originalValue = getStringValue(map, key);
+        if (originalValue == null || originalValue.trim().isEmpty()) {
+            return null;
+        }
+
+        LocalDate date = getDateValue(map, key);
+        if (date != null) {
+            return date.toString(); // 返回标准格式 yyyy-MM-dd
+        } else {
+            // 如果解析失败，返回原始值（用于调试）
+            logger.debug("时间格式化失败，返回原始值: key={}, value={}", key, originalValue);
+            return originalValue;
+        }
+    }
+
+    public static String getFormattedDateTimeValue(Map<String, Object> map, String key) {
+        String originalValue = getStringValue(map, key);
+        if (originalValue == null || originalValue.trim().isEmpty()) {
+            return null;
+        }
+
+        LocalDateTime dateTime = getDateTimeValue(map, key);
+        if (dateTime != null) {
+            return dateTime.toString(); // 返回标准格式 yyyy-MM-dd HH:mm:ss
+        } else {
+            // 如果解析失败，返回原始值（用于调试）
+            logger.debug("时间格式化失败，返回原始值: key={}, value={}", key, originalValue);
+            return originalValue;
+        }
+    }
+
+    /**
+     * 验证时间参数的有效性
+     *
+     * @param checkInDate  入住日期
+     * @param checkOutDate 离店日期
+     * @return 验证结果，true表示有效
+     */
+    public static boolean validateDateRange(LocalDateTime checkInDate, LocalDateTime checkOutDate) {
+        if (checkInDate == null || checkOutDate == null) {
+            return false;
+        }
+
+        // 离店日期必须在入住日期之后
+        return checkOutDate.isAfter(checkInDate);
+    }
+
+    /**
+     * 验证时间参数的有效性（从Map中获取）
+     *
+     * @param map         数据源Map
+     * @param checkInKey  入住日期键名
+     * @param checkOutKey 离店日期键名
+     * @return 验证结果，true表示有效
+     */
+    public static boolean validateDateRange(Map<String, Object> map, String checkInKey, String checkOutKey) {
+        LocalDateTime checkInDate = getDateTimeValue(map, checkInKey);
+        LocalDateTime checkOutDate = getDateTimeValue(map, checkOutKey);
+        return validateDateRange(checkInDate, checkOutDate);
+    }
+
+
 }

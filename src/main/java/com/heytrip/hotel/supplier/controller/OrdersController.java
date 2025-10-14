@@ -8,6 +8,7 @@ import com.heytrip.common.response.other.XCancelOrderResponse;
 import com.heytrip.common.response.other.XCreateOrderResponse;
 import com.heytrip.common.response.other.XQueryOrderResponse;
 import com.heytrip.common.result.Result;
+import com.heytrip.hotel.supplier.annotation.ApiLog;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,6 +41,11 @@ public class OrdersController {
      * @return 订单创建响应
      */
     @PostMapping("/createOrder")
+    @ApiLog(businessType = "createOrder",
+            recordOrderDetail = true,
+            extractFields = {"supplierType","distributorOrderId", "hotelId", "checkInDate", "checkOutDate",
+                    "roomId", "ratePlanId","salePrice", "occupancy", "roomNum", "currency", "salePrice"},
+            description = "创建订单")
     public Result<XCreateOrderResponse> createOrder(@RequestBody XCreateOrderRequest request) {
         return supplierApiService.createOrder(request);
     }
@@ -51,6 +57,10 @@ public class OrdersController {
      * @return 取消订单响应
      */
     @PostMapping("/cancelOrder")
+    @ApiLog(businessType = "cancelOrder",
+            recordOrderDetail = true,
+            extractFields = {"supplierType","distributorOrderId", "supplierOrderId", "cancelReason"},
+            description = "取消订单")
     public Result<XCancelOrderResponse> cancelOrder(@RequestBody XCancelOrderRequest request) {
         return supplierApiService.cancelOrder(request);
     }
@@ -65,6 +75,9 @@ public class OrdersController {
      * @return 订单查询响应
      */
     @GetMapping("/queryOrder")
+    @ApiLog(businessType = "queryOrder",
+            extractFields = {"supplierType","distributorOrderId", "supplierOrderId"},
+            description = "查询订单")
     public Result<XQueryOrderResponse> queryOrder(
             @RequestParam(value = "supplierType") String supplierType,
             @RequestParam(value = "distributorOrderId", required = false) String distributorOrderId,
@@ -82,6 +95,11 @@ public class OrdersController {
      * @return 修改订单响应
      */
     @PostMapping("/modifyOrder")
+    @ApiLog(businessType = "modifyOrder",
+            recordOrderDetail = true,
+            extractFields = {"supplierType","distributorOrderId", "supplierOrderId",  "hotelId", "checkInDate", "checkOutDate",
+                    "roomId", "ratePlanId","salePrice", "occupancy", "roomNum", "currency", "salePrice"},
+            description = "修改订单")
     public Object modifyOrder(@RequestBody XModifyOrderRequest request) {
         return supplierApiService.modifyOrder(request);
     }

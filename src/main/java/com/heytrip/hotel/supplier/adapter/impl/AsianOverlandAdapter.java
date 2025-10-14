@@ -1170,6 +1170,9 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             if (!validatePriceConsistency(searchTotalPrice, policyTotalPrice)) {
                 logger.warn("[AsianOverlandAdapter.orderCheck] 价格不一致 - 搜索价格: {}, 取消规则价格: {}",
                         searchTotalPrice, policyTotalPrice);
+
+                ///  后续可以根据业务需求调整 目前改为不阻断验单查询，  直接返回最新价格给渠道，由渠道决定是否继续预订
+                ///  后期还可以在这里做个价格变动的监控统计， 方便统计出价格波动较大的酒店
                // throw BusinessException.invalidParameter("价格发生变化，搜索价格: " + searchTotalPrice + ", 最新价格: " + policyTotalPrice);
             }
 
@@ -2302,9 +2305,9 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
                     //设置 房型价格
                     xRoom.setRatePlans(ratePlans);
-                    //设置 酒店报价
-                    xRoom.setMinPrice(hotel.getTotalCharges());
-                    xRoom.setMinBasePrice(hotel.getTotalCharges());
+                    //设置 房型报价
+                    xRoom.setMinPrice(prop.getDisplayRoomRate());
+                    xRoom.setMinBasePrice(prop.getDisplayRoomRate());
 
 
                     logger.debug("[AsianOverlandAdapter.convertHotelToXRooms] 转换报价: {},ID={},CODE={},NMAME={}", xRoom.getMinPrice(), xRoom.getRoomId(), xRoom.getRoomId(), xRoom.getRoomName());
