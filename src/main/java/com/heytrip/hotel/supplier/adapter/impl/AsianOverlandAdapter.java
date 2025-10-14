@@ -1,6 +1,7 @@
 package com.heytrip.hotel.supplier.adapter.impl;
 
 import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.util.ObjUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.heytrip.common.enums.*;
@@ -487,7 +488,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             staticDataQueryService.getHotelByHotelCode(getSafeSupplierId(), getSafeSupplierName(), input.getHotelId())
                     .ifPresent(hotel -> {
                         if (hotel != null) {
-                            String country = hotel.getCountryCode();
+                            String country = String.valueOf(hotel.getCountryId());
                             //String country = "138"; //TODO  测试
                             req.setSelNationality(country);
                             req.setCountryOfResidence(country);
@@ -596,9 +597,9 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             Arrays.stream(hotelIds.split(",")).findFirst().ifPresent(firstHotelId -> {
                 staticDataQueryService.getHotelByHotelCode(getSafeSupplierId(), getSafeSupplierName(), firstHotelId)
                         .ifPresent(hotel -> {
-                            if (hotel != null && StrUtil.isNotBlank(hotel.getCountryCode())) {
-                                req.setSelNationality(hotel.getCountryCode());
-                                req.setCountryOfResidence(hotel.getCountryCode());
+                            if (hotel != null && ObjUtil.isNotNull(hotel.getCountryId())) {
+                                req.setSelNationality(String.valueOf(hotel.getCountryId()));
+                                req.setCountryOfResidence(String.valueOf(hotel.getCountryId()));
                             }
                         });
             });
@@ -722,7 +723,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
         staticDataQueryService.getHotelByHotelCode(getSafeSupplierId(), getSafeSupplierName(), searchRequest.getHotelIds())
                 .ifPresent(hotel -> {
                     if (hotel != null) {
-                        String country = hotel.getCountryCode();
+                        String country = String.valueOf(hotel.getCountryId());
                         //String country = "138"; //TODO  测试
                         searchRequest.setSelNationality(country);
                         searchRequest.setCountryOfResidence(country);
@@ -965,9 +966,9 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
         Arrays.stream(hotelIds.split(",")).findFirst().ifPresent(firstHotelId -> {
             staticDataQueryService.getHotelByHotelCode(getSafeSupplierId(), getSafeSupplierName(), firstHotelId)
                     .ifPresent(hotel -> {
-                        if (hotel != null && StrUtil.isNotBlank(hotel.getCountryCode())) {
-                            req.setSelNationality(hotel.getCountryCode());
-                            req.setCountryOfResidence(hotel.getCountryCode());
+                        if (hotel != null && ObjUtil.isNotNull(hotel.getCountryId())) {
+                            req.setSelNationality(String.valueOf(hotel.getCountryId()));
+                            req.setCountryOfResidence(String.valueOf(hotel.getCountryId()));
                         }
                     });
         });
@@ -1052,7 +1053,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             staticDataQueryService.getHotelByHotelCode(getSafeSupplierId(), getSafeSupplierName(), input.getHotelId())
                     .ifPresent(hotel -> {
                         if (hotel != null) {
-                            String country = hotel.getCountryCode();
+                            String country = String.valueOf(hotel.getCountryId());
                             req.setSelNationality(country);
                             req.setCountryOfResidence(country);
                         }
@@ -1233,7 +1234,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             staticDataQueryService.getHotelByHotelCode(getSafeSupplierId(), getSafeSupplierName(), input.getHotelId())
                     .ifPresent(hotel -> {
                         if (hotel != null) {
-                            String country = hotel.getCountryCode();
+                            String country =String.valueOf(hotel.getCountryId());
                             req.setSelNationality(country);
                             req.setCountryOfResidence(country);
                         }
@@ -1373,13 +1374,19 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                 throw BusinessException.invalidParameter("缺少酒店ID");
             }
 
+
             // 币种，默认 USD
             req.setSelCurrency("USD");
 
-            // 设置国家信息（简化处理，使用固定值）
-            String country = "1"; // 测试用国家代码
-            req.setSelNationality(country);
-            req.setCountryOfResidence(country);
+            //从当前酒店详细里获取 : 目的地国家/目的地城市/国籍/居住国
+            staticDataQueryService.getHotelByHotelCode(getSafeSupplierId(), getSafeSupplierName(), hotelId)
+                    .ifPresent(hotel -> {
+                        if (hotel != null) {
+                            String country =String.valueOf(hotel.getCountryId());
+                            req.setSelNationality(country);
+                            req.setCountryOfResidence(country);
+                        }
+                    });
 
             // 房间明细
             req.setRoomDetails(HeyUtil.buildQTechRoomDetails("2"));
