@@ -1170,7 +1170,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             if (!validatePriceConsistency(searchTotalPrice, policyTotalPrice)) {
                 logger.warn("[AsianOverlandAdapter.orderCheck] 价格不一致 - 搜索价格: {}, 取消规则价格: {}",
                         searchTotalPrice, policyTotalPrice);
-                throw BusinessException.invalidParameter("价格发生变化，搜索价格: " + searchTotalPrice + ", 最新价格: " + policyTotalPrice);
+               // throw BusinessException.invalidParameter("价格发生变化，搜索价格: " + searchTotalPrice + ", 最新价格: " + policyTotalPrice);
             }
 
             // 8. 生成createKey
