@@ -2113,10 +2113,10 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                     ratePlan.setPayType(XEnumPayType.PREPAID);
                     //餐食类型 未知
                     ratePlan.setMealType(XMealType.UNKNOWN);
-
                     // 是否带餐食
                     if (roomRate.getMealBasis().contains("breakfast") || roomRate.getRoomType().contains("breakfast")) {
                         ratePlan.setBreakfast(1);
+                        ratePlan.setMealType(XMealType.SPECIFY);
                     }
                     if (roomRate.getMealBasis().contains("lunch") || roomRate.getRoomType().contains("lunch")) {
                         ratePlan.setLunch(1);
