@@ -4,10 +4,7 @@ import com.heytrip.common.request.XSupplierCheckRequest;
 import com.heytrip.common.request.XSupplierPriceRequest;
 import com.heytrip.common.response.base.XRoom;
 import com.heytrip.common.response.other.XOrderCheckResponse;
-import com.heytrip.common.response.other.XPriceCacheIncrementResponse;
-import com.heytrip.common.result.Result;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 

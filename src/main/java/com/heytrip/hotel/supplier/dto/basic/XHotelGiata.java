@@ -1,6 +1,5 @@
 package com.heytrip.hotel.supplier.dto.basic;
 
-import jakarta.persistence.Column;
 import lombok.Data;
 import org.hibernate.annotations.Comment;
 

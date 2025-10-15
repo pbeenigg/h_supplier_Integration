@@ -1,9 +1,9 @@
 package com.heytrip.hotel.supplier.adapter.capability;
 
-import com.heytrip.common.request.XCreateOrderRequest;
 import com.heytrip.common.request.XCancelOrderRequest;
-import com.heytrip.common.response.other.XCreateOrderResponse;
+import com.heytrip.common.request.XCreateOrderRequest;
 import com.heytrip.common.response.other.XCancelOrderResponse;
+import com.heytrip.common.response.other.XCreateOrderResponse;
 import com.heytrip.common.response.other.XQueryOrderResponse;
 
 /**

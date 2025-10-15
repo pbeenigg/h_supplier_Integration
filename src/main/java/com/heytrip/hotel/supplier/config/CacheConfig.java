@@ -4,7 +4,6 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import com.heytrip.hotel.supplier.constant.StaticCacheNames;
 import org.springframework.cache.Cache;
 import org.springframework.cache.caffeine.CaffeineCache;
-import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.cache.support.SimpleCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
