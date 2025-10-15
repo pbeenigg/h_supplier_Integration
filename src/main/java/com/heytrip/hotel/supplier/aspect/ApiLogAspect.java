@@ -12,6 +12,7 @@ import com.heytrip.hotel.supplier.service.ApiLogService;
 import com.heytrip.hotel.supplier.utils.ApiLogExtractUtil;
 import com.heytrip.hotel.supplier.utils.HeyUtil;
 import com.heytrip.hotel.supplier.utils.JsonCompressionUtil;
+import com.heytrip.hotel.supplier.utils.TraceIdHolder;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -83,8 +84,11 @@ public class ApiLogAspect {
         HttpServletResponse response = attributes.getResponse();
 
         // 生成并设置traceId
-        String traceId = generateTraceId(request);
+        String traceId = generateTraceId(request, response);
         MDC.put("traceId", traceId);
+
+        // 将traceId设置到Request和Response的header中，便于链路追踪
+        setTraceIdToHeaders(request, response, traceId);
 
         long startTime = System.currentTimeMillis();
         ApiLogData logData = initializeLogData(request, traceId, apiLog);
@@ -132,6 +136,7 @@ public class ApiLogAspect {
                 logger.error("记录API日志失败，traceId: {}", traceId, e);
             } finally {
                 MDC.remove("traceId");
+                TraceIdHolder.clear(); // 清理ThreadLocal，避免内存泄漏
             }
         }
     }
@@ -139,7 +144,7 @@ public class ApiLogAspect {
     /**
      * 生成traceId
      */
-    private String generateTraceId(HttpServletRequest request) {
+    private String generateTraceId(HttpServletRequest request, HttpServletResponse response) {
         // 优先使用请求头中的traceId
         String traceId = request.getHeader("X-Trace-Id");
         if (!StringUtils.hasText(traceId)) {
@@ -152,6 +157,33 @@ public class ApiLogAspect {
         }
 
         return traceId;
+    }
+
+    /**
+     * 将traceId设置到Request和Response的header中
+     * 这样可以在后续的HTTP调用中传递traceId，实现完整的链路追踪
+     */
+    private void setTraceIdToHeaders(HttpServletRequest request, HttpServletResponse response, String traceId) {
+        try {
+            // 设置到Response header中，前端可以获取到
+            if (response != null && !response.isCommitted()) {
+                response.setHeader("X-Trace-Id", traceId);
+                response.setHeader("traceId", traceId); // 兼容性header
+            }
+
+            // 将traceId设置到Request的attribute中，供后续的HTTP客户端使用
+            if (request != null) {
+                request.setAttribute("X-Trace-Id", traceId);
+                request.setAttribute("traceId", traceId);
+            }
+
+            // 同时设置到ThreadLocal中，供HTTP客户端工具类使用
+            TraceIdHolder.setTraceId(traceId);
+
+            logger.debug("TraceId已设置到headers: {}", traceId);
+        } catch (Exception e) {
+            logger.warn("设置TraceId到headers失败: {}", traceId, e);
+        }
     }
 
     /**

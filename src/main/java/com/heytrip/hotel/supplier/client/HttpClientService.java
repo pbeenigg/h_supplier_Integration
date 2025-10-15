@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.heytrip.hotel.supplier.entity.ApiCallLog;
 import com.heytrip.hotel.supplier.exception.HttpClientException;
 import com.heytrip.hotel.supplier.repository.ApiCallLogRepository;
+import com.heytrip.hotel.supplier.utils.TraceIdHolder;
 import com.heytrip.hotel.supplier.utils.UrlUtil;
 import io.netty.channel.ChannelOption;
 import io.netty.handler.timeout.ReadTimeoutHandler;
@@ -211,12 +212,26 @@ public class HttpClientService {
 
         // 添加请求体（如果有）
         WebClient.RequestHeadersSpec<?> headersSpec;
+        String traceId = TraceIdHolder.getTraceId();
         if (requestBody != null && (method == HttpMethod.POST || method == HttpMethod.PUT)) {
-            headersSpec = requestSpec.bodyValue(requestBody);
+            // 自动添加traceId到请求头（用于链路追踪）
+            if (traceId != null) {
+                headersSpec = requestSpec.bodyValue(requestBody).header(TraceIdHolder.TRACE_ID_HEADER, TraceIdHolder.getOrGenerateTraceId())
+                    .header(TraceIdHolder.TRACE_ID_HEADER_LEGACY, TraceIdHolder.getOrGenerateTraceId());
+                logger.debug("已添加traceId到HTTP请求头: {} -> {}", endpoint, traceId);
+            }else{
+                headersSpec = requestSpec.bodyValue(requestBody);
+            }
         } else {
-            headersSpec = requestSpec;
+            if (traceId != null) {
+                 // 自动添加traceId到请求头（用于链路追踪）
+                headersSpec = requestSpec.header(TraceIdHolder.TRACE_ID_HEADER, TraceIdHolder.getOrGenerateTraceId())
+                    .header(TraceIdHolder.TRACE_ID_HEADER_LEGACY, TraceIdHolder.getOrGenerateTraceId());
+                logger.debug("已添加traceId到HTTP请求头: {} -> {}", endpoint, traceId);
+            }else {
+                headersSpec = requestSpec;
+            }
         }
-
         // 应用自定义头部设置
         if (headersCustomizer != null) {
             headersCustomizer.accept(headersSpec);
@@ -246,7 +261,7 @@ public class HttpClientService {
                 .map(responseEntity -> {
                     // 成功请求计数
                     successfulRequests.incrementAndGet();
-                    
+
                     // 直接从ResponseEntity获取响应头和响应体
                     long responseTime = System.currentTimeMillis() - startTime;
                     String responseBody = responseEntity.getBody() != null ? JSONUtil.toJsonStr(responseEntity.getBody()) : "";
@@ -254,7 +269,7 @@ public class HttpClientService {
                     String requestParamsJson = parseQueryParamsToJson(endpoint);
                     
                     // 记录API调用日志（包含完整的响应头信息）
-                    logApiCall(supplierId, endpoint, method.name(), requestData,
+                    logApiCall(supplierId,traceId, endpoint, method.name(), requestData,
                               responseBody, responseEntity.getStatusCode().value(), 
                               responseTime, null, 
                               null, // 请求头信息（WebClient限制无法直接获取）
@@ -276,7 +291,7 @@ public class HttpClientService {
                     int statusCode = extractStatusCode(error);
                     String errorMessage = error.getMessage();
                     String requestParamsJson = parseQueryParamsToJson(endpoint);
-                    logApiCall(supplierId, endpoint, method.name(), requestData, "",
+                    logApiCall(supplierId,traceId, endpoint, method.name(), requestData, "",
                               statusCode, responseTime, errorMessage,
                               null, null, requestParamsJson,
                               retryCounter.get(), sizeInBytes(requestData), 0L);
@@ -399,7 +414,7 @@ public class HttpClientService {
     /**
      * 记录API调用日志
      */
-    private void logApiCall(Long supplierId, String endpoint, String method, String requestData,
+    private void logApiCall(Long supplierId,String traceId, String endpoint, String method, String requestData,
                            String responseData, int statusCode, long responseTime, String errorMessage,
                            String requestHeadersJson, String responseHeadersJson, String requestParamsJson,
                            Long retryCount, Long requestSizeBytes, Long responseSizeBytes) {
@@ -411,6 +426,7 @@ public class HttpClientService {
 
             ApiCallLog log = new ApiCallLog();
             log.setSupplierId(supplierId);
+            log.setTraceId(traceId);
             log.setApiEndpoint(endpoint);
             log.setHttpMethod(method);
             log.setRequestBody(requestData);
