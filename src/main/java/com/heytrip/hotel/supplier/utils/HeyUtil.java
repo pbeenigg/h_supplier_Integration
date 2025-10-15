@@ -30,6 +30,7 @@ public class HeyUtil {
     public static final DateTimeFormatter DATE_FORMATTER_DDMMYYYY = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     public static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     public static final DateTimeFormatter DATE_FORMATTER_Z = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss Z");
+    private static final DateTimeFormatter DATE_FORMATTER_ISO = DateTimeFormatter.ISO_DATE_TIME;
 
 
     /**
@@ -209,8 +210,30 @@ public class HeyUtil {
 
             // 情况2: 日期+时间（无时区）
             if (trimmed.contains(":")) {
-                // 格式：2025-10-10 06:30:46
-                return LocalDateTime.parse(trimmed, DATE_FORMATTER);
+                try {
+                    // 首先尝试 ISO 格式：2025-11-12T00:00:00
+                    if (trimmed.contains("T")) {
+                        return LocalDateTime.parse(trimmed, DATE_FORMATTER_ISO);
+                    }
+                    // 然后尝试标准格式：2025-10-10 06:30:46
+                    return LocalDateTime.parse(trimmed, DATE_FORMATTER);
+                } catch (DateTimeParseException e) {
+                    // 如果两种格式都失败，尝试其他常见格式
+                    logger.debug("标准格式解析失败，尝试其他格式: {}", trimmed);
+
+                    // 尝试更宽松的解析
+                    try {
+                        // 移除可能的毫秒部分，如：2025-11-12T00:00:00.000
+                        String cleanedStr = trimmed.replaceAll("\\.\\d+", "");
+                        if (cleanedStr.contains("T")) {
+                            return LocalDateTime.parse(cleanedStr, DATE_FORMATTER_ISO);
+                        } else {
+                            return LocalDateTime.parse(cleanedStr, DATE_FORMATTER);
+                        }
+                    } catch (DateTimeParseException ex) {
+                        throw e; // 重新抛出原始异常
+                    }
+                }
             }
 
             // 情况3: 仅日期

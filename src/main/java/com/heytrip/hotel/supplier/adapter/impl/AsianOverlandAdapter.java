@@ -798,7 +798,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             }
 
             // 设置预定价格 - 实现价格判断和设置逻辑
-            BigDecimal finalBookingPrice = determineFinalBookingPrice(input, searchResponse);
+            BigDecimal finalBookingPrice = verifyBookingPrice(input.getSalePrice(), matchedRoom.getMinBasePrice());
             reservationRequest.setExpectedPrice(finalBookingPrice);
             reservationRequest.setHotelId(input.getHotelId());
             reservationRequest.setAgentRefNo(input.getDistributorOrderId()); // 订单校验返回的 订单唯一号  （分销商系统订单号）
@@ -1751,59 +1751,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
         return response;
     }
 
-    /**
-     * 确定最终预定价格
-     * 实现价格判断和设置逻辑：
-     * 1、SalePrice渠道 100 < 供应商 101 = 亏 1 截断
-     * 2、SalePrice渠道 120 > 供应商 101 = 加价 19 不截断，用接口获取的最新预定价去提交预定
-     * 3、SalePrice渠道 100 = 供应商 100 = 不加价不截断 用接口获取的最新预定价去提交预定
-     *
-     * @param input          创建订单请求
-     * @param searchResponse 搜索响应
-     * @return 最终预定价格
-     */
-    private BigDecimal determineFinalBookingPrice(XCreateOrderRequest input, QTechSearchResponse searchResponse) {
 
-        // 1. 获取供应商最新价格
-        BigDecimal supplierPrice = getSupplierPriceFromSearchResponse(input.getHotelId(), input.getRoomId(), searchResponse);
-        if (supplierPrice == null) {
-            logger.warn("[AsianOverlandAdapter.determineFinalBookingPrice] 无法获取供应商价格，使用订单总价");
-            throw BusinessException.internalError("无法获取供应商价格");
-        }
-
-        // 2. 获取渠道销售价格
-        BigDecimal salePrice = input.getSalePrice();
-        if (salePrice == null) {
-            logger.info("[AsianOverlandAdapter.determineFinalBookingPrice] 无销售价格，使用供应商价格: {}", supplierPrice);
-            return supplierPrice;
-        }
-
-        // 3. 价格对比和决策逻辑
-        int comparison = salePrice.compareTo(supplierPrice);
-
-        if (comparison < 0) {
-            // 情况1: SalePrice < 供应商价格 = 亏损，截断订单
-            BigDecimal loss = supplierPrice.subtract(salePrice);
-            logger.warn("[AsianOverlandAdapter.determineFinalBookingPrice] 价格亏损截断 - 销售价: {}, 供应商价: {}, 亏损: {}",
-                    salePrice, supplierPrice, loss);
-            throw BusinessException.invalidParameter("价格亏损，无法预订 - 销售价: " + salePrice + ", 供应商价: " + supplierPrice + ", 亏损: " + loss);
-
-        } else if (comparison > 0) {
-            // 情况2: SalePrice > 供应商价格 = 加价，不截断，用供应商最新价格预定
-            BigDecimal markup = salePrice.subtract(supplierPrice);
-            logger.info("[AsianOverlandAdapter.determineFinalBookingPrice] 价格加价不截断 - 销售价: {}, 供应商价: {}, 加价: {}, 使用供应商价格预定",
-                    salePrice, supplierPrice, markup);
-            return supplierPrice;
-
-        } else {
-            // 情况3: SalePrice = 供应商价格 = 不加价不截断，用供应商最新价格预定
-            logger.info("[AsianOverlandAdapter.determineFinalBookingPrice] 价格相等不截断 - 销售价: {}, 供应商价: {}, 使用供应商价格预定",
-                    salePrice, supplierPrice);
-            return supplierPrice;
-        }
-
-
-    }
 
     /**
      *  验证预定价格
@@ -2000,61 +1948,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
         }
     }
 
-    /**
-     * 从搜索响应中获取指定酒店和房型的供应商价格
-     *
-     * @param hotelId        酒店ID
-     * @param roomId         房型ID
-     * @param searchResponse 搜索响应
-     * @return 供应商价格
-     */
-    private BigDecimal getSupplierPriceFromSearchResponse(String hotelId, String roomId, QTechSearchResponse searchResponse) {
-        try {
-            if (searchResponse == null || searchResponse.getHotelList() == null) {
-                logger.warn("[AsianOverlandAdapter.getSupplierPriceFromSearchResponse] 搜索响应或酒店列表为空");
-                return null;
-            }
 
-            // 查找指定酒店
-            Optional<QTechSearchResponse.Hotel> targetHotelOpt = searchResponse.getHotelList().stream()
-                    .filter(hotel -> hotelId.equals(hotel.getHotelId()))
-                    .findFirst();
-
-            if (targetHotelOpt.isEmpty()) {
-                logger.warn("[AsianOverlandAdapter.getSupplierPriceFromSearchResponse] 未找到酒店: {}", hotelId);
-                return null;
-            }
-
-            QTechSearchResponse.Hotel targetHotel = targetHotelOpt.get();
-
-            // 优先使用酒店总价
-            if (targetHotel.getTotalCharges() != null) {
-                logger.debug("[AsianOverlandAdapter.getSupplierPriceFromSearchResponse] 使用酒店总价: {}", targetHotel.getTotalCharges());
-                return targetHotel.getTotalCharges();
-            }
-
-            // 如果没有总价，从房型属性中查找
-            if (targetHotel.getHotelProperty() != null) {
-                for (QTechSearchResponse.HotelProperty property : targetHotel.getHotelProperty()) {
-                    if ("Selection".equalsIgnoreCase(property.getType()) && roomId.equals(property.getSectionUniqueId())) {
-
-                        BigDecimal roomRate = property.getDisplayRoomRate();
-                        if (roomRate != null) {
-                            logger.debug("[AsianOverlandAdapter.getSupplierPriceFromSearchResponse] 使用房型价格: {}", roomRate);
-                            return roomRate;
-                        }
-                    }
-                }
-            }
-
-            logger.warn("[AsianOverlandAdapter.getSupplierPriceFromSearchResponse] 无法获取价格信息");
-            return null;
-
-        } catch (Exception e) {
-            logger.error("[AsianOverlandAdapter.getSupplierPriceFromSearchResponse] 获取供应商价格异常", e);
-            return null;
-        }
-    }
 
     /**
      * 验证价格一致性
