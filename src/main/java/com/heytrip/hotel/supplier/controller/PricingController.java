@@ -71,7 +71,7 @@ public class PricingController {
      * @return 验单响应
      */
     @GetMapping("/orderCheck")
-    @ApiLog(businessType = "order_check",
+    @ApiLog(businessType = "orderCheck",
             recordOrderDetail = true,
             extractFields = {"distributorOrderId", "hotelId", "checkInDate", "checkOutDate",
                     "roomId", "ratePlanId","salePrice", "occupancy", "roomNum", "currency", "salePrice"},

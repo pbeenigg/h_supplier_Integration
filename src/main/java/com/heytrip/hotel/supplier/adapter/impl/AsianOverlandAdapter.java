@@ -244,9 +244,9 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                             return Mono.error(BusinessException.internalError("获取取消规则失败,无法获取预定价格"));
                         }
 
-                        if (!validatePriceConsistency(request.getExpectedPrice(), policy.getTotalBookingAmount())) {
-                            return Mono.error(BusinessException.internalError("预定价格与取消规则价格不一致,无法进行预定"));
-                        }
+                        // 再次验证预定价格与取消规则中的价格一致
+                       verifyBookingPrice(request.getExpectedPrice(), policy.getTotalBookingAmount());
+
 
                         QTechCancellationPolicyResponse.BookingAllowedInfo allowedInfo = policy.getBookingAllowedInfo();
                         if (allowedInfo == null || !"yes".equalsIgnoreCase(allowedInfo.getBookingAllowed())) {
@@ -1803,6 +1803,42 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
         }
 
 
+    }
+
+    /**
+     *  验证预定价格
+     * 实现价格判断和设置逻辑：
+     * 1、SalePrice渠道 100 < 供应商 101 = 亏 1 截断
+     * 2、SalePrice渠道 120 > 供应商 101 = 加价 19 不截断，用接口获取的最新预定价去提交预定
+     * 3、SalePrice渠道 100 = 供应商 100 = 不加价不截断 用接口获取的最新预定价去提交预定
+     *
+     * @param salePrice    预定销售价格
+     * @param supplierPrice 供应商价格
+     * @return 最终预定价格
+     */
+    private BigDecimal verifyBookingPrice(BigDecimal salePrice, BigDecimal supplierPrice) {
+        // 3. 价格对比和决策逻辑
+        int comparison = salePrice.compareTo(supplierPrice);
+        if (comparison < 0) {
+            // 情况1: SalePrice < 供应商价格 = 亏损，截断订单
+            BigDecimal loss = supplierPrice.subtract(salePrice);
+            logger.warn("[AsianOverlandAdapter.determineFinalBookingPrice] 价格亏损截断 - 销售价: {}, 供应商价: {}, 亏损: {}",
+                    salePrice, supplierPrice, loss);
+            throw BusinessException.invalidParameter("价格亏损，无法预订 - 销售价: " + salePrice + ", 供应商价: " + supplierPrice + ", 亏损: " + loss);
+
+        } else if (comparison > 0) {
+            // 情况2: SalePrice > 供应商价格 = 加价，不截断，用供应商最新价格预定
+            BigDecimal markup = salePrice.subtract(supplierPrice);
+            logger.info("[AsianOverlandAdapter.determineFinalBookingPrice] 价格加价不截断 - 销售价: {}, 供应商价: {}, 加价: {}, 使用供应商价格预定",
+                    salePrice, supplierPrice, markup);
+            return supplierPrice;
+
+        } else {
+            // 情况3: SalePrice = 供应商价格 = 不加价不截断，用供应商最新价格预定
+            logger.info("[AsianOverlandAdapter.determineFinalBookingPrice] 价格相等不截断 - 销售价: {}, 供应商价: {}, 使用供应商价格预定",
+                    salePrice, supplierPrice);
+            return supplierPrice;
+        }
     }
 
     /**
