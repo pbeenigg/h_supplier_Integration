@@ -43,8 +43,8 @@ public class OrdersController {
     @PostMapping("/createOrder")
     @ApiLog(businessType = "createOrder",
             recordOrderDetail = true,
-            extractFields = {"supplierType","distributorOrderId", "hotelId", "checkInDate", "checkOutDate",
-                    "roomId", "ratePlanId","salePrice", "occupancy", "roomNum", "currency", "salePrice"},
+            extractFields = {"supplierType","distributorOrderId","supplierOrderId", "hotelId", "checkInDate", "checkOutDate",
+                    "roomId", "ratePlanId", "occupancy", "roomNum", "currency", "salePrice","totalPrice"},
             description = "创建订单")
     public Result<XCreateOrderResponse> createOrder(@RequestBody XCreateOrderRequest request) {
         return supplierApiService.createOrder(request);

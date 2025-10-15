@@ -109,6 +109,18 @@ public class ApiLogExtractUtil {
      * 从JSON字符串中提取指定字段
      */
     public static Map<String, Object> extractFieldsFromJson(String jsonContent, String[] fieldNames) {
+        return extractFieldsFromJson(jsonContent, fieldNames, true);
+    }
+
+    /**
+     * 从JSON字符串中提取指定字段
+     *
+     * @param jsonContent JSON字符串内容
+     * @param fieldNames 要提取的字段名数组
+     * @param ignoreCase 是否忽略大小写匹配字段名
+     * @return 提取到的字段Map
+     */
+    public static Map<String, Object> extractFieldsFromJson(String jsonContent, String[] fieldNames, boolean ignoreCase) {
         Map<String, Object> extractedFields = new HashMap<>();
 
         if (!StringUtils.hasText(jsonContent) || fieldNames == null || fieldNames.length == 0) {
@@ -119,13 +131,14 @@ public class ApiLogExtractUtil {
             JsonNode rootNode = objectMapper.readTree(jsonContent);
 
             for (String fieldName : fieldNames) {
-                Object value = extractFieldValue(rootNode, fieldName);
+                Object value = extractFieldValue(rootNode, fieldName, ignoreCase);
                 if (value != null) {
                     extractedFields.put(fieldName, value);
                 }
             }
         } catch (Exception e) {
-            logger.warn("从JSON中提取字段失败: {}", jsonContent, e);
+            logger.warn("从JSON中提取字段失败: {}", jsonContent.length() > 200 ?
+                      jsonContent.substring(0, 200) + "..." : jsonContent, e);
         }
 
         return extractedFields;
@@ -135,11 +148,55 @@ public class ApiLogExtractUtil {
      * 递归提取JSON字段值（支持嵌套字段）
      */
     private static Object extractFieldValue(JsonNode node, String fieldPath) {
-        if (node == null || !StringUtils.hasText(fieldPath)) {
+        return extractFieldValue(node, fieldPath, true);
+    }
+
+
+    /**
+     * 递归提取JSON字段值（支持嵌套字段和忽略大小写）
+     *
+     * @param node JSON节点
+     * @param fieldPath 字段路径，支持点分隔的嵌套字段
+     * @param ignoreCase 是否忽略大小写匹配字段名
+     * @return 字段值
+     */
+    private static Object extractFieldValue(JsonNode node, String fieldPath, boolean ignoreCase) {
+        return extractFieldValue(node, fieldPath, ignoreCase, 3);
+    }
+
+    /**
+     * 递归提取JSON字段值（支持嵌套字段、忽略大小写和深度限制）
+     *
+     * @param node JSON节点
+     * @param fieldPath 字段路径，支持点分隔的嵌套字段
+     * @param ignoreCase 是否忽略大小写匹配字段名
+     * @param maxDepth 最大搜索深度，防止过深递归
+     * @return 字段值
+     */
+    private static Object extractFieldValue(JsonNode node, String fieldPath, boolean ignoreCase, int maxDepth) {
+        if (node == null || !StringUtils.hasText(fieldPath) || maxDepth <= 0) {
             return null;
         }
 
-        // 支持点分隔的嵌套字段，如 "booking.hotelKey"
+        // 如果字段路径包含点分隔符，按指定路径查找
+        if (fieldPath.contains(".")) {
+            return extractFieldByPath(node, fieldPath, ignoreCase);
+        }
+
+        // 简单字段名，先在当前层级查找
+        JsonNode directMatch = findFieldInNode(node, fieldPath, ignoreCase);
+        if (directMatch != null) {
+            return convertNodeToValue(directMatch);
+        }
+
+        // 当前层级未找到，递归搜索子层级（深度优先搜索）
+        return searchFieldRecursively(node, fieldPath, ignoreCase, maxDepth);
+    }
+
+    /**
+     * 按指定路径提取字段值（点分隔的嵌套字段）
+     */
+    private static Object extractFieldByPath(JsonNode node, String fieldPath, boolean ignoreCase) {
         String[] pathParts = fieldPath.split("\\.");
         JsonNode currentNode = node;
 
@@ -147,12 +204,12 @@ public class ApiLogExtractUtil {
             if (currentNode.isArray()) {
                 // 如果是数组，尝试从第一个元素中提取
                 if (currentNode.size() > 0) {
-                    currentNode = currentNode.get(0).get(part);
+                    currentNode = findFieldInNode(currentNode.get(0), part, ignoreCase);
                 } else {
                     return null;
                 }
             } else {
-                currentNode = currentNode.get(part);
+                currentNode = findFieldInNode(currentNode, part, ignoreCase);
             }
 
             if (currentNode == null) {
@@ -160,16 +217,116 @@ public class ApiLogExtractUtil {
             }
         }
 
-        // 根据节点类型返回相应的值
-        if (currentNode.isTextual()) {
-            return currentNode.asText();
-        } else if (currentNode.isNumber()) {
-            return currentNode.asLong();
-        } else if (currentNode.isBoolean()) {
-            return currentNode.asBoolean();
-        } else {
-            return currentNode.toString();
+        return convertNodeToValue(currentNode);
+    }
+
+    /**
+     * 递归搜索字段（深度优先搜索）
+     */
+    private static Object searchFieldRecursively(JsonNode node, String fieldName, boolean ignoreCase, int remainingDepth) {
+        if (node == null || remainingDepth <= 0) {
+            return null;
         }
+
+        // 遍历当前节点的所有子字段
+        if (node.isObject()) {
+            var fields = node.fields();
+            while (fields.hasNext()) {
+                var field = fields.next();
+                JsonNode childNode = field.getValue();
+
+                // 递归搜索子节点
+                Object result = searchFieldRecursively(childNode, fieldName, ignoreCase, remainingDepth - 1);
+                if (result != null) {
+                    return result;
+                }
+
+                // 检查当前子节点是否匹配目标字段名
+                JsonNode targetField = findFieldInNode(childNode, fieldName, ignoreCase);
+                if (targetField != null) {
+                    return convertNodeToValue(targetField);
+                }
+            }
+        } else if (node.isArray()) {
+            // 如果是数组，递归搜索数组元素
+            for (JsonNode arrayElement : node) {
+                Object result = searchFieldRecursively(arrayElement, fieldName, ignoreCase, remainingDepth - 1);
+                if (result != null) {
+                    return result;
+                }
+
+                // 检查数组元素是否包含目标字段
+                JsonNode targetField = findFieldInNode(arrayElement, fieldName, ignoreCase);
+                if (targetField != null) {
+                    return convertNodeToValue(targetField);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * 将JsonNode转换为相应的Java值
+     */
+    private static Object convertNodeToValue(JsonNode node) {
+        if (node == null) {
+            return null;
+        }
+
+        // 根据节点类型返回相应的值
+        if (node.isTextual()) {
+            return node.asText();
+        } else if (node.isDouble() || node.isFloat()) {
+            return node.decimalValue();
+        } else if (node.isBigDecimal()) {
+            return node.decimalValue();
+        } else if (node.isLong() || node.isInt() || node.isShort() || node.isBigInteger()) {
+            return node.asLong();
+        } else if (node.isBoolean()) {
+            return node.asBoolean();
+        } else if (node.isNull()) {
+            return null;
+        } else if (node.isArray() || node.isObject()) {
+            return node.toString();
+        } else {
+            return node.toString();
+        }
+    }
+
+    /**
+     * 在JSON节点中查找指定字段，支持忽略大小写
+     *
+     * @param node JSON节点
+     * @param fieldName 字段名
+     * @param ignoreCase 是否忽略大小写
+     * @return 找到的字段节点，如果未找到则返回null
+     */
+    private static JsonNode findFieldInNode(JsonNode node, String fieldName, boolean ignoreCase) {
+        if (node == null || !StringUtils.hasText(fieldName)) {
+            return null;
+        }
+
+        // 如果不忽略大小写，直接使用原有逻辑
+        if (!ignoreCase) {
+            return node.get(fieldName);
+        }
+
+        // 忽略大小写查找字段
+        if (node.isObject()) {
+            // 遍历所有字段名，进行大小写不敏感的比较
+            var fields = node.fields();
+            while (fields.hasNext()) {
+                var field = fields.next();
+                String actualFieldName = field.getKey();
+                if (actualFieldName.equalsIgnoreCase(fieldName)) {
+                    logger.debug("字段名大小写匹配成功: 配置字段='{}', JSON字段='{}'", fieldName, actualFieldName);
+                    return field.getValue();
+                }
+            }
+        }
+
+        return null;
     }
 
     /**

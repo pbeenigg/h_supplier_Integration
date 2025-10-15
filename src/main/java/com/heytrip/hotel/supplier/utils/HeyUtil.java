@@ -14,6 +14,7 @@ import java.security.MessageDigest;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 /**
@@ -226,42 +227,7 @@ public class HeyUtil {
         }
     }
 
-    public static void main(String[] args) {
-        // 测试数据
-        String startTime = "2025-12-29 03:00:01 +0530";
-        String endTime = "2026-01-04 05:30:00 +0530";
 
-        // 你所在时区（示例：上海）
-        //ZoneId targetZone = ZoneId.of("Asia/Shanghai");
-        // 或者使用系统默认时区
-        ZoneId targetZone = ZoneId.systemDefault();
-
-        try {
-            // 转换开始时间
-            ZonedDateTime startConverted = convertTimeZone(startTime, targetZone);
-            System.out.println("原始开始时间: " + startTime);
-            System.out.println("转换后开始时间: " +
-                    formatZonedDateTimeZone(startConverted));
-
-            // 转换结束时间
-            ZonedDateTime endConverted = convertTimeZone(endTime, targetZone);
-            System.out.println("原始结束时间: " + endTime);
-            System.out.println("转换后结束时间: " +
-                    formatZonedDateTimeZone(endConverted));
-
-
-            // 转换开始时间
-            OffsetDateTime startConverted2 = convertToTargetZone(startTime, targetZone);
-            System.out.println("转换后开始时间2: " + formatOffsetDateTimeZone(startConverted2));
-
-            // 转换结束时间
-            OffsetDateTime endConverted2 = convertToTargetZone(endTime, targetZone);
-            System.out.println("转换后结束时间2: " + formatOffsetDateTimeZone(endConverted2));
-
-        } catch (Exception e) {
-            System.err.println("转换失败: " + e.getMessage());
-        }
-    }
 
 
     /**
@@ -803,5 +769,152 @@ public class HeyUtil {
         return validateDateRange(checkInDate, checkOutDate);
     }
 
+
+    /**
+     *  计算两个日期之间的天数差（不包含结束日期）
+     * @param startDate
+     * @param endDate
+     * @return
+     */
+    public static int daysBetween(LocalDate startDate, LocalDate endDate) {
+        if (startDate == null || endDate == null) {
+            return 0;
+        }
+        return (int) ChronoUnit.DAYS.between(startDate, endDate);
+    }
+
+    /**
+     * 根据Occupancy字符串计算入住总人数（成人+儿童）
+     * <p>
+     * 入住人信息格式说明：
+     * <ul>
+     *   <li>2-5-3 代表2成人2个儿童（1个5岁，1个3岁）</li>
+     *   <li>多间房用下划线分割，如：2-5_1-3_2-4-6</li>
+     *   <li>第一个数字是成人数，后续数字是儿童年龄</li>
+     * </ul>
+     *
+     * @param occupancy 入住人信息字符串
+     * @return 总人数（成人+儿童），如果输入为空或格式错误则返回0
+     */
+    public static int calculateTotalGuests(String occupancy) {
+        if (StrUtil.isBlank(occupancy)) {
+            return 0;
+        }
+
+        int totalGuests = 0;
+
+        try {
+            // 按下划线分割多间房
+            String[] roomStrs = occupancy.trim().split("_");
+
+            for (String roomStr : roomStrs) {
+                if (StrUtil.isBlank(roomStr)) {
+                    continue;
+                }
+
+                // 按连字符分割成人数和儿童年龄
+                String[] parts = roomStr.trim().split("-");
+                if (parts.length >= 1) {
+                    // 第一个数字是成人数
+                    try {
+                        int adults = Integer.parseInt(parts[0].trim());
+                        totalGuests += Math.max(0, adults); // 确保非负数
+                    } catch (NumberFormatException e) {
+                        logger.warn("解析成人数失败，occupancy: {}, 房间: {}, 成人部分: {}",
+                                occupancy, roomStr, parts[0]);
+                    }
+
+                    // 后续数字是儿童年龄，数量即为儿童人数
+                    if (parts.length > 1) {
+                        int children = parts.length - 1; // 儿童数量 = 总部分数 - 成人部分
+                        totalGuests += children;
+                    }
+                }
+            }
+
+            logger.debug("计算入住总人数: occupancy={}, totalGuests={}", occupancy, totalGuests);
+            return totalGuests;
+
+        } catch (Exception e) {
+            logger.error("计算入住总人数失败，occupancy: {}", occupancy, e);
+            return 0;
+        }
+    }
+
+    /**
+     * 根据Occupancy字符串分别计算成人和儿童人数
+     *
+     * @param occupancy 入住人信息字符串
+     * @return 数组，[0]为成人总数，[1]为儿童总数
+     */
+    public static int[] calculateGuestBreakdown(String occupancy) {
+        if (StrUtil.isBlank(occupancy)) {
+            return new int[]{0, 0};
+        }
+
+        int totalAdults = 0;
+        int totalChildren = 0;
+
+        try {
+            // 按下划线分割多间房
+            String[] roomStrs = occupancy.trim().split("_");
+
+            for (String roomStr : roomStrs) {
+                if (StrUtil.isBlank(roomStr)) {
+                    continue;
+                }
+
+                // 按连字符分割成人数和儿童年龄
+                String[] parts = roomStr.trim().split("-");
+                if (parts.length >= 1) {
+                    // 第一个数字是成人数
+                    try {
+                        int adults = Integer.parseInt(parts[0].trim());
+                        totalAdults += Math.max(0, adults);
+                    } catch (NumberFormatException e) {
+                        logger.warn("解析成人数失败，occupancy: {}, 房间: {}, 成人部分: {}",
+                                occupancy, roomStr, parts[0]);
+                    }
+
+                    // 后续数字是儿童年龄，数量即为儿童人数
+                    if (parts.length > 1) {
+                        int children = parts.length - 1;
+                        totalChildren += children;
+                    }
+                }
+            }
+
+            logger.debug("计算入住人数明细: occupancy={}, adults={}, children={}",
+                    occupancy, totalAdults, totalChildren);
+            return new int[]{totalAdults, totalChildren};
+
+        } catch (Exception e) {
+            logger.error("计算入住人数明细失败，occupancy: {}", occupancy, e);
+            return new int[]{0, 0};
+        }
+    }
+
+    public static void main(String[] args) {
+        System.out.printf("%s%n", HeyUtil.daysBetween(LocalDate.of(2024, 6, 1), LocalDate.of(2024, 6, 5)));
+
+        // 测试Occupancy计算方法
+        System.out.println("=== 测试Occupancy计算方法 ===");
+
+        // 测试用例
+        String[] testCases = {
+            "2-5-3",         // 2成人2儿童，总计4人
+            "2-5_1-3_2-4-6", // 三间房：2+1+1, 1+1, 2+2 = 总计10人
+            "1-7",           // 1成人1儿童，总计2人
+            "2",             // 2成人，总计2人
+            "0"              // 空字符串，总计0人
+        };
+
+        for (String testCase : testCases) {
+            int totalGuests = HeyUtil.calculateTotalGuests(testCase);
+            int[] breakdown = HeyUtil.calculateGuestBreakdown(testCase);
+            System.out.printf("Occupancy: %-15s | 总人数: %2d | 成人: %2d | 儿童: %2d%n",
+                    "'" + testCase + "'", totalGuests, breakdown[0], breakdown[1]);
+        }
+    }
 
 }

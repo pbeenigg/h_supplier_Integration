@@ -7,6 +7,7 @@ import com.heytrip.hotel.supplier.annotation.ApiLog;
 import com.heytrip.hotel.supplier.config.ApiLogProperties;
 import com.heytrip.hotel.supplier.dto.ApiLogData;
 import com.heytrip.hotel.supplier.dto.OrderLogData;
+import com.heytrip.hotel.supplier.exception.BusinessException;
 import com.heytrip.hotel.supplier.service.ApiLogService;
 import com.heytrip.hotel.supplier.utils.ApiLogExtractUtil;
 import com.heytrip.hotel.supplier.utils.HeyUtil;
@@ -107,6 +108,18 @@ public class ApiLogAspect {
             try {
                 // 提取业务字段
                 extractBusinessFields(logData, request, result, apiLog.extractFields());
+
+                // 如果未能通过请求头或体提取到supplierId，尝试从提取的字段中获取
+                if(logData.getSupplierId() == null) {
+                    Map<String, Object> fields = logData.getExtractedFields();
+                    String supplierType = fields != null ? HeyUtil.getStringValue(fields, "supplierType") : "";
+                    if (StringUtils.hasText(supplierType)) {
+                        SupplierAdapter supplierAdapter = supplierAdapterManager.getAdapterByName(supplierType);
+                        if (supplierAdapter != null) {
+                            logData.setSupplierId(supplierAdapter.getSupplierId());
+                        }
+                    }
+                }
 
                 // 构建订单日志数据
                 if (apiLog.recordOrderDetail()) {
@@ -241,8 +254,12 @@ public class ApiLogAspect {
             long responseTime = System.currentTimeMillis() - startTime;
             logData.setResponseTimeMs(responseTime);
             logData.setIsSuccess(false);
-            logData.setErrorCode(exception.getClass().getSimpleName());
-            logData.setErrorMessage(exception.getMessage());
+
+            // 智能异常识别和转换
+            ExceptionInfo exceptionInfo = analyzeException(exception);
+            logData.setErrorCode(exceptionInfo.getErrorCode());
+            logData.setErrorMessage(exceptionInfo.getErrorMessage());
+
             logData.setResponseStatus(500);
 
         } catch (Exception e) {
@@ -354,31 +371,31 @@ public class ApiLogAspect {
         Map<String, String> mapping = new HashMap<>();
 
         // 酒店相关字段映射
-        mapping.put("hotelKey", "HotelId");
         mapping.put("hotelId", "HotelId");
 
         // 日期相关字段映射
-        mapping.put("checkInKey", "CheckInDate");
         mapping.put("checkInDate", "CheckInDate");
-        mapping.put("checkOutKey", "CheckOutDate");
         mapping.put("checkOutDate", "CheckOutDate");
+        mapping.put("checkIn", "CheckInDate");
+        mapping.put("checkOut", "CheckOutDate");
+        mapping.put("checkInKey", "CheckInDate");
+        mapping.put("checkOutKey", "CheckOutDate");
 
         // 订单相关字段映射
-        mapping.put("distributionOrdersKey", "DistributorOrderId");
         mapping.put("distributorOrderId", "DistributorOrderId");
-        mapping.put("supplierBookingKey", "SupplierBookingKey");
-        mapping.put("supplierOrderId", "SupplierBookingKey");
+        mapping.put("distributorOrdersKey", "DistributorOrderId");
+        mapping.put("supplierBookingKey", "supplierOrderId");
+        mapping.put("supplierOrderId", "SupplierOrderId");
 
         // 房间相关字段映射
-        mapping.put("roomKey", "RoomId");
         mapping.put("roomId", "RoomId");
-        mapping.put("rateKey", "RatePlanId");
         mapping.put("ratePlanId", "RatePlanId");
         mapping.put("rooms", "RoomNum");
         mapping.put("roomNum", "RoomNum");
 
         // 价格相关字段映射
         mapping.put("totalAmount", "SalePrice");
+        mapping.put("totalAmount", "TotalPrice");
         mapping.put("salePrice", "SalePrice");
         mapping.put("totalPrice", "TotalPrice");
 
@@ -425,6 +442,8 @@ public class ApiLogAspect {
             Map<String, Object> fields = logData.getExtractedFields();
             if (fields != null && !fields.isEmpty()) {
                 logger.debug("提取的字段数量: {}, 字段列表: {}", fields.size(), fields.keySet());
+
+
 
                 // 使用安全的类型转换和空值检查
                 orderData.setHotelKey(HeyUtil.getStringValue(fields, "hotelId"));
@@ -520,5 +539,128 @@ public class ApiLogAspect {
                 clazz == Double.class || clazz == Float.class ||
                 clazz == Boolean.class || clazz == Character.class ||
                 clazz == Byte.class || clazz == Short.class;
+    }
+
+    /**
+     * 智能分析异常并生成错误信息
+     * 根据异常类型动态转换成相应的业务错误代码
+     */
+    private ExceptionInfo analyzeException(Throwable exception) {
+        String errorCode;
+        String errorMessage = exception.getMessage();
+
+        // 如果已经是BusinessException，直接使用其错误信息
+        if (exception instanceof BusinessException) {
+            BusinessException bizEx = (BusinessException) exception;
+            errorCode = "BIZ_" + bizEx.getCode() + "_" + bizEx.getBizCode();
+            return new ExceptionInfo(errorCode, errorMessage, bizEx.getData());
+        }
+
+        // 根据异常类型进行智能识别和转换
+        Class<?> exceptionClass = exception.getClass();
+        String exceptionName = exceptionClass.getSimpleName();
+
+        switch (exceptionName) {
+            case "IllegalArgumentException":
+                errorCode = "PARAM_INVALID";
+                errorMessage = "参数错误: " + (errorMessage != null ? errorMessage : "无效的参数");
+                break;
+
+            case "NullPointerException":
+                errorCode = "NULL_POINTER";
+                errorMessage = "空指针异常: " + (errorMessage != null ? errorMessage : "访问了空对象");
+                break;
+
+            case "NumberFormatException":
+                errorCode = "NUMBER_FORMAT";
+                errorMessage = "数字格式错误: " + (errorMessage != null ? errorMessage : "无法解析数字");
+                break;
+
+            case "JsonProcessingException":
+            case "JsonParseException":
+            case "JsonEOFException":
+                errorCode = "JSON_PARSE_ERROR";
+                errorMessage = "JSON解析错误: " + (errorMessage != null ? errorMessage : "JSON格式不正确");
+                break;
+
+            case "HttpClientErrorException":
+                errorCode = "HTTP_CLIENT_ERROR";
+                errorMessage = "HTTP客户端错误: " + (errorMessage != null ? errorMessage : "请求失败");
+                break;
+
+            case "ConnectTimeoutException":
+            case "SocketTimeoutException":
+                errorCode = "TIMEOUT_ERROR";
+                errorMessage = "超时错误: " + (errorMessage != null ? errorMessage : "连接或读取超时");
+                break;
+
+            case "DataAccessException":
+            case "SQLException":
+                errorCode = "DATABASE_ERROR";
+                errorMessage = "数据库错误: " + (errorMessage != null ? errorMessage : "数据库操作失败");
+                break;
+
+            case "ValidationException":
+                errorCode = "VALIDATION_ERROR";
+                errorMessage = "验证错误: " + (errorMessage != null ? errorMessage : "数据验证失败");
+                break;
+
+            case "SecurityException":
+                errorCode = "SECURITY_ERROR";
+                errorMessage = "安全错误: " + (errorMessage != null ? errorMessage : "权限不足或安全检查失败");
+                break;
+
+            case "ClassCastException":
+                errorCode = "TYPE_CAST_ERROR";
+                errorMessage = "类型转换错误: " + (errorMessage != null ? errorMessage : "对象类型转换失败");
+                break;
+
+            case "ConcurrentModificationException":
+                errorCode = "CONCURRENT_ERROR";
+                errorMessage = "并发修改错误: " + (errorMessage != null ? errorMessage : "并发访问冲突");
+                break;
+
+            default:
+                // 处理未知异常类型
+                if (exceptionName.contains("Business")) {
+                    errorCode = "BUSINESS_ERROR";
+                    errorMessage = "业务异常: " + (errorMessage != null ? errorMessage : "业务逻辑处理失败");
+                } else if (exceptionName.contains("Runtime")) {
+                    errorCode = "RUNTIME_ERROR";
+                    errorMessage = "运行时异常: " + (errorMessage != null ? errorMessage : "运行时发生错误");
+                } else if (exceptionName.contains("IO")) {
+                    errorCode = "IO_ERROR";
+                    errorMessage = "IO异常: " + (errorMessage != null ? errorMessage : "输入输出操作失败");
+                } else {
+                    errorCode = "UNKNOWN_ERROR";
+                    errorMessage = "未知错误: " + exceptionName + " - " + (errorMessage != null ? errorMessage : "系统发生未知错误");
+                }
+                break;
+        }
+
+        // 记录异常转换日志
+        logger.debug("异常转换: {} -> {}, 原始消息: {}, 转换后消息: {}",
+                    exceptionName, errorCode, exception.getMessage(), errorMessage);
+
+        return new ExceptionInfo(errorCode, errorMessage, null);
+    }
+
+    /**
+     * 异常信息封装类
+     */
+    private static class ExceptionInfo {
+        private final String errorCode;
+        private final String errorMessage;
+        private final Object data;
+
+        public ExceptionInfo(String errorCode, String errorMessage, Object data) {
+            this.errorCode = errorCode;
+            this.errorMessage = errorMessage;
+            this.data = data;
+        }
+
+        public String getErrorCode() { return errorCode; }
+        public String getErrorMessage() { return errorMessage; }
+        public Object getData() { return data; }
     }
 }

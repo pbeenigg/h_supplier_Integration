@@ -1,5 +1,6 @@
 package com.heytrip.hotel.supplier.service;
 
+import cn.hutool.core.util.StrUtil;
 import com.heytrip.hotel.supplier.dto.ApiLogData;
 import com.heytrip.hotel.supplier.entity.DistributionCallLog;
 import com.heytrip.hotel.supplier.entity.DistributionOrdersLog;
@@ -54,9 +55,9 @@ public class ApiLogService {
                 recordDistributionOrdersLog(logData);
             } else {
                 logger.warn("跳过订单详细日志记录 - recordOrderDetail: {}, orderData: {}, traceId: {}",
-                           logData.isRecordOrderDetail(),
-                           logData.getOrderData() != null ? "存在" : "为空",
-                           logData.getTraceId());
+                        logData.isRecordOrderDetail(),
+                        logData.getOrderData() != null ? "存在" : "为空",
+                        logData.getTraceId());
             }
 
             logger.debug("API日志记录成功，traceId: {}", logData.getTraceId());
@@ -141,8 +142,21 @@ public class ApiLogService {
                 ordersLog.setCheckOutKey(orderData.getCheckOutKey());
                 ordersLog.setRoomKey(orderData.getRoomKey());
                 ordersLog.setRateKey(orderData.getRateKey());
-                ordersLog.setNights(orderData.getNights());
-                ordersLog.setGuests(orderData.getGuests());
+
+                if (orderData.getCheckInKey() != null && orderData.getCheckOutKey() != null) {
+                    try {
+                        ordersLog.setNights(HeyUtil.daysBetween(HeyUtil.parseToLocalDateTime(orderData.getCheckInKey()).toLocalDate(), HeyUtil.parseToLocalDateTime(orderData.getCheckOutKey()).toLocalDate()));
+                    } catch (Exception e) {
+                        logger.warn("计算入住晚数失败，traceId: {}, checkInKey: {}, checkOutKey: {}",
+                                logData.getTraceId(), orderData.getCheckInKey(), orderData.getCheckOutKey(), e);
+                    }
+                }
+
+                if(StrUtil.isNotBlank(orderData.getOccupancy())){
+                    ordersLog.setOccupancy(orderData.getOccupancy());
+                    ordersLog.setGuests(HeyUtil.calculateTotalGuests(orderData.getOccupancy()));
+                }
+
                 ordersLog.setRooms(orderData.getRooms());
                 ordersLog.setCurrency(orderData.getCurrency());
                 ordersLog.setNational(orderData.getNational());
