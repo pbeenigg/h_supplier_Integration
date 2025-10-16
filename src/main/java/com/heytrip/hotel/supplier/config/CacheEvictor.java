@@ -1,6 +1,6 @@
 package com.heytrip.hotel.supplier.config;
 
-import com.heytrip.hotel.supplier.constant.StaticCacheNames;
+import com.heytrip.hotel.supplier.constant.CacheNames;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,22 +31,22 @@ public class CacheEvictor {
      *
      */
     private static final List<String> STATIC_CACHE_NAMES = Arrays.asList(
-            StaticCacheNames.NATIONALITY,
-            StaticCacheNames.COUNTRY,
-            StaticCacheNames.CITY,
-            StaticCacheNames.HOTEL,
-            StaticCacheNames.GIATA,
-            StaticCacheNames.ROOM,
-            StaticCacheNames.RATE_PLAN
+            CacheNames.NATIONALITY,
+            CacheNames.COUNTRY,
+            CacheNames.CITY,
+            CacheNames.HOTEL,
+            CacheNames.GIATA,
+            CacheNames.ROOM,
+            CacheNames.RATE_PLAN
     );
 
     /**
      * 供应商配置类缓存
      */
     private static final List<String> SUPPLIER_CFG_CACHES = Arrays.asList(
-            StaticCacheNames.SUPPLIER_CONFIG_CACHE,
-            StaticCacheNames.SUPPLIER_AUTH_CACHE,
-            StaticCacheNames.SUPPLIER_AUTH_FTP
+            CacheNames.SUPPLIER_CONFIG_CACHE,
+            CacheNames.SUPPLIER_AUTH_CACHE,
+            CacheNames.SUPPLIER_AUTH_FTP
     );
 
 
@@ -135,10 +135,10 @@ public class CacheEvictor {
      * 清理系统配置缓存
      */
     public void evictSystemConfig() {
-        Cache cache = cacheManager.getCache(StaticCacheNames.SYSTEM_CONFIG);
+        Cache cache = cacheManager.getCache(CacheNames.SYSTEM_CONFIG);
         if (cache != null) {
             cache.clear();
-            logger.info("已清理系统配置缓存: {}", StaticCacheNames.SYSTEM_CONFIG);
+            logger.info("已清理系统配置缓存: {}", CacheNames.SYSTEM_CONFIG);
         }
     }
 }

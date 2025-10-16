@@ -6,7 +6,7 @@ import com.heytrip.common.response.base.XRoom;
 import com.heytrip.common.response.other.XCityResponse;
 import com.heytrip.common.response.other.XCountryResponse;
 import com.heytrip.hotel.supplier.adapter.service.StaticDataQueryService;
-import com.heytrip.hotel.supplier.constant.StaticCacheNames;
+import com.heytrip.hotel.supplier.constant.CacheNames;
 import com.heytrip.hotel.supplier.dto.basic.XHotelGiata;
 import com.heytrip.hotel.supplier.dto.basic.XNationality;
 import com.heytrip.hotel.supplier.entity.*;
@@ -73,7 +73,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
      * @return
      */
     @Override
-    @Cacheable(cacheNames = StaticCacheNames.COUNTRY, key = "#supplierId + ':' + #supplierCode + ':' + #countryCode +':' + #page + ':' + #size")
+    @Cacheable(cacheNames = CacheNames.COUNTRY, key = "#supplierId + ':' + #supplierCode + ':' + #countryCode +':' + #page + ':' + #size")
     public Page<XCountryResponse> pageCountries(Long supplierId, String supplierCode, String countryCode, int page, int size) {
         Pageable pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100));
         Specification<Country> spec = (root, q, cb) -> {
@@ -91,7 +91,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
         return new PageImpl<>(content, pageable, pageData.getTotalElements());
     }
     @Override
-    @Cacheable(cacheNames = StaticCacheNames.COUNTRY, key = "#supplierId + ':' + #supplierCode + ':'  + #page + ':' + #size")
+    @Cacheable(cacheNames = CacheNames.COUNTRY, key = "#supplierId + ':' + #supplierCode + ':'  + #page + ':' + #size")
     public Page<XCountryResponse> pageCountries(Long supplierId, String supplierCode, int page, int size) {
         return pageCountries(supplierId, supplierCode, null, page, size);
     }
@@ -140,7 +140,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
      * @return
      */
     @Override
-    @Cacheable(cacheNames = StaticCacheNames.CITY, key = "#supplierId + ':' + #supplierCode + ':' + #cityCode + ':' + #countryCode + ':' + #page + ':' + #size")
+    @Cacheable(cacheNames = CacheNames.CITY, key = "#supplierId + ':' + #supplierCode + ':' + #cityCode + ':' + #countryCode + ':' + #page + ':' + #size")
     public Page<XCityResponse> pageCities(Long supplierId, String supplierCode, String cityCode, String countryCode, int page, int size) {
         Pageable pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100));
         Specification<City> spec = (root, q, cb) -> {
@@ -162,7 +162,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
     }
 
     @Override
-    @Cacheable(cacheNames = StaticCacheNames.CITY, key = "#supplierId + ':' + #supplierCode + ':'  + #page + ':' + #size")
+    @Cacheable(cacheNames = CacheNames.CITY, key = "#supplierId + ':' + #supplierCode + ':'  + #page + ':' + #size")
     public  Page<XCityResponse> pageCities(Long supplierId, String supplierCode, int page, int size) {
         return pageCities(supplierId, supplierCode, null, null, page, size);
     }
@@ -179,7 +179,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
      * @return
      */
     @Override
-    @Cacheable(cacheNames = StaticCacheNames.NATIONALITY, key = "#supplierId + ':' + #supplierCode + ':' + #nationalityCode + ':'  + #isoCode + ':' + #page + ':' + #size")
+    @Cacheable(cacheNames = CacheNames.NATIONALITY, key = "#supplierId + ':' + #supplierCode + ':' + #nationalityCode + ':'  + #isoCode + ':' + #page + ':' + #size")
     public Page<XNationality> pageNationalities(Long supplierId, String supplierCode, String nationalityCode, String isoCode, int page, int size) {
         Pageable pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100));
         Specification<Nationality> spec = (root, q, cb) -> {
@@ -201,7 +201,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
     }
 
     @Override
-    @Cacheable(cacheNames = StaticCacheNames.NATIONALITY , key = "#supplierId + ':' + #supplierCode + ':'  + #page + ':' + #size")
+    @Cacheable(cacheNames = CacheNames.NATIONALITY , key = "#supplierId + ':' + #supplierCode + ':'  + #page + ':' + #size")
     public Page<XNationality> pageNationalities(Long supplierId, String supplierCode, int page, int size) {
         return pageNationalities(supplierId, supplierCode, null, null, page, size);
     }
@@ -219,7 +219,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
      * @return
      */
     @Override
-    @Cacheable(cacheNames = StaticCacheNames.HOTEL, key = "#supplierId + ':' + #supplierCode + ':' + #hotelCode + ':' + #cityCode + ':' + #countryCode + ':' + #page + ':' + #size")
+    @Cacheable(cacheNames = CacheNames.HOTEL, key = "#supplierId + ':' + #supplierCode + ':' + #hotelCode + ':' + #cityCode + ':' + #countryCode + ':' + #page + ':' + #size")
     public Page<XHotel> pageHotels(Long supplierId, String supplierCode, String cityCode, String countryCode, int page, int size) {
         Pageable pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100));
         Specification<Hotel> spec = (root, q, cb) -> {
@@ -242,7 +242,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
     }
 
     @Override
-    @Cacheable(cacheNames = StaticCacheNames.HOTEL, key = "#supplierId + ':' + #supplierCode + ':'  + #page + ':' + #size")
+    @Cacheable(cacheNames = CacheNames.HOTEL, key = "#supplierId + ':' + #supplierCode + ':'  + #page + ':' + #size")
     public Page<XHotel> pageHotels(Long supplierId, String supplierCode, int page, int size) {
         return pageHotels(supplierId, supplierCode, null, null, page, size);
     }
@@ -259,7 +259,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
      * @return
      */
     @Override
-    @Cacheable(cacheNames = StaticCacheNames.ROOM, key = "#supplierId + ':' + #supplierCode + ':' + #hotelCode + ':' + #roomCode + ':' + #page + ':' + #size")
+    @Cacheable(cacheNames = CacheNames.ROOM, key = "#supplierId + ':' + #supplierCode + ':' + #hotelCode + ':' + #roomCode + ':' + #page + ':' + #size")
     public Page<XRoom> pageRooms(Long supplierId, String supplierCode, String hotelCode, String roomCode, int page, int size) {
         Pageable pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100));
         Specification<Room> spec = (root, q, cb) -> {
@@ -284,7 +284,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
     }
 
     @Override
-    @Cacheable(cacheNames = StaticCacheNames.ROOM, key = "#supplierId + ':' + #supplierCode + ':'  + #page + ':' + #size")
+    @Cacheable(cacheNames = CacheNames.ROOM, key = "#supplierId + ':' + #supplierCode + ':'  + #page + ':' + #size")
     public Page<XRoom> pageRooms(Long supplierId, String supplierCode, int page, int size) {
         return pageRooms(supplierId, supplierCode, null, null, page, size);
     }
@@ -339,7 +339,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
      * @return
      */
     @Override
-    @Cacheable(cacheNames = StaticCacheNames.GIATA, key = "#supplierId + ':' + #supplierCode + ':' + #hotelCode + ':' + #giataId + ':' + #page + ':' + #size")
+    @Cacheable(cacheNames = CacheNames.GIATA, key = "#supplierId + ':' + #supplierCode + ':' + #hotelCode + ':' + #giataId + ':' + #page + ':' + #size")
     public Page<XHotelGiata> pageGiataMappings(Long supplierId, String supplierCode, String hotelCode, String giataId, int page, int size) {
         Pageable pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100));
         Specification<HotelGiata> spec = (root, q, cb) -> {
@@ -360,7 +360,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
     }
 
     @Override
-    @Cacheable(cacheNames = StaticCacheNames.GIATA, key = "#supplierId + ':' + #supplierCode + ':'  + #page + ':' + #size")
+    @Cacheable(cacheNames = CacheNames.GIATA, key = "#supplierId + ':' + #supplierCode + ':'  + #page + ':' + #size")
     public Page<XHotelGiata> pageGiataMappings(Long supplierId, String supplierCode, int page, int size) {
         return pageGiataMappings(supplierId, supplierCode, null, null, page, size);
     }
@@ -368,7 +368,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
 
     // ================= 不分页查询（list*） =================
     @Override
-    @Cacheable(cacheNames = StaticCacheNames.COUNTRY, key = "#supplierId + ':' + #supplierCode + ':' + #countryCode")
+    @Cacheable(cacheNames = CacheNames.COUNTRY, key = "#supplierId + ':' + #supplierCode + ':' + #countryCode")
     public List<XCountryResponse> listCountries(Long supplierId, String supplierCode, String countryCode) {
         Specification<Country> spec = (root, q, cb) -> {
             List<Predicate> ps = new ArrayList<>();
@@ -384,7 +384,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
     }
 
     @Override
-    @Cacheable(cacheNames = StaticCacheNames.CITY, key = "#supplierId + ':' + #supplierCode + ':' + #cityCode + ':' + #countryCode")
+    @Cacheable(cacheNames = CacheNames.CITY, key = "#supplierId + ':' + #supplierCode + ':' + #cityCode + ':' + #countryCode")
     public List<XCityResponse> listCities(Long supplierId, String supplierCode, String cityCode, String countryCode) {
         Specification<City> spec = (root, q, cb) -> {
             List<Predicate> ps = new ArrayList<>();
@@ -403,7 +403,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
     }
 
     @Override
-    @Cacheable(cacheNames = StaticCacheNames.HOTEL, key = "#supplierId + ':' + #supplierCode + ':' + #hotelCode + ':' + #cityCode + ':' + #countryCode")
+    @Cacheable(cacheNames = CacheNames.HOTEL, key = "#supplierId + ':' + #supplierCode + ':' + #hotelCode + ':' + #cityCode + ':' + #countryCode")
     public List<XHotel> listHotels(Long supplierId, String supplierCode, String hotelCode, String cityCode, String countryCode) {
         Specification<Hotel> spec = (root, q, cb) -> {
             List<Predicate> ps = new ArrayList<>();
@@ -425,7 +425,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
     }
 
     @Override
-    @Cacheable(cacheNames = StaticCacheNames.ROOM, key = "#supplierId + ':' + #supplierCode + ':' + #hotelCode + ':' + #roomCode ")
+    @Cacheable(cacheNames = CacheNames.ROOM, key = "#supplierId + ':' + #supplierCode + ':' + #hotelCode + ':' + #roomCode ")
     public List<XRoom> listRooms(Long supplierId, String supplierCode, String hotelCode, String roomCode) {
         Specification<Room> spec = (root, q, cb) -> {
             List<Predicate> ps = new ArrayList<>();
@@ -449,7 +449,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
     }
 
     @Override
-    @Cacheable(cacheNames = StaticCacheNames.RATE_PLAN, key = "#supplierId + ':' + #supplierCode + ':' + #hotelCode + ':' + #roomCode + ':' + #ratePlanCode ")
+    @Cacheable(cacheNames = CacheNames.RATE_PLAN, key = "#supplierId + ':' + #supplierCode + ':' + #hotelCode + ':' + #roomCode + ':' + #ratePlanCode ")
     public List<XRatePlan> listRatePlans(Long supplierId, String supplierCode, String hotelCode, String roomCode, String ratePlanCode) {
         Specification<RatePlan> spec = (root, q, cb) -> {
             List<Predicate> ps = new ArrayList<>();
@@ -476,7 +476,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
     }
 
     @Override
-    @Cacheable(cacheNames = StaticCacheNames.NATIONALITY, key = "#supplierId + ':' + #supplierCode + ':' + #nationalityCode + ':' + #isoCode")
+    @Cacheable(cacheNames = CacheNames.NATIONALITY, key = "#supplierId + ':' + #supplierCode + ':' + #nationalityCode + ':' + #isoCode")
     public List<XNationality> listNationalities(Long supplierId, String supplierCode, String nationalityCode, String isoCode) {
         Specification<Nationality> spec = (root, q, cb) -> {
             List<Predicate> ps = new ArrayList<>();
@@ -499,7 +499,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
     }
 
     @Override
-    @Cacheable(cacheNames = StaticCacheNames.GIATA, key = "#supplierId + ':' + #supplierCode + ':' + #hotelCode + ':' + #giataId")
+    @Cacheable(cacheNames = CacheNames.GIATA, key = "#supplierId + ':' + #supplierCode + ':' + #hotelCode + ':' + #giataId")
     public List<XHotelGiata> listGiataMappings(Long supplierId, String supplierCode, String hotelCode, String giataId) {
         Specification<HotelGiata> spec = (root, q, cb) -> {
             List<Predicate> ps = new ArrayList<>();
@@ -524,7 +524,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
     // ================= 单条查询（ByCode） =================
 
     @Override
-    @Cacheable(cacheNames = StaticCacheNames.HOTEL, key = "'ONE:'+ #supplierId + ':' + #supplierCode + ':' + #hotelCode")
+    @Cacheable(cacheNames = CacheNames.HOTEL, key = "'ONE:'+ #supplierId + ':' + #supplierCode + ':' + #hotelCode")
     public Optional<XHotel> getHotelByHotelCode(Long supplierId, String supplierCode, String hotelCode) {
         Specification<Hotel> spec = (root, q, cb) -> cb.and(
                 cb.equal(root.get("supplierId"), supplierId),
@@ -535,21 +535,21 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
     }
 
     @Override
-    @Cacheable(cacheNames = StaticCacheNames.ROOM, key = "'ONE:'+ #supplierId + ':' + #supplierCode + ':' +  #roomCode")
+    @Cacheable(cacheNames = CacheNames.ROOM, key = "'ONE:'+ #supplierId + ':' + #supplierCode + ':' +  #roomCode")
     public Optional<XRoom> getRoomByRoomCode(Long supplierId, String supplierCode,String roomCode) {
         // DTO 映射未完成，先返回空
         return Optional.empty();
     }
 
     @Override
-    @Cacheable(cacheNames = StaticCacheNames.RATE_PLAN, key = "'ONE:'+ #supplierId + ':' + #supplierCode + ':' + #ratePlanCode")
+    @Cacheable(cacheNames = CacheNames.RATE_PLAN, key = "'ONE:'+ #supplierId + ':' + #supplierCode + ':' + #ratePlanCode")
     public Optional<XRatePlan> getRatePlanByRatePlanCode(Long supplierId, String supplierCode,  String ratePlanCode) {
         // DTO 映射未完成，先返回空
         return Optional.empty();
     }
 
     @Override
-    @Cacheable(cacheNames = StaticCacheNames.NATIONALITY, key = "'ONE:'+ #supplierId + ':' + #supplierCode + ':' + #nationalityCode")
+    @Cacheable(cacheNames = CacheNames.NATIONALITY, key = "'ONE:'+ #supplierId + ':' + #supplierCode + ':' + #nationalityCode")
     public Optional<XNationality> getNationalityByNationalityCode(Long supplierId, String supplierCode, String nationalityCode) {
         Specification<Nationality> spec = (root, q, cb) -> cb.and(
                 cb.equal(root.get("supplierId"), supplierId),
@@ -560,7 +560,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
     }
 
     @Override
-    @Cacheable(cacheNames = StaticCacheNames.COUNTRY, key = "'ONE:'+ #supplierId + ':' + #supplierCode + ':' + #countryCode")
+    @Cacheable(cacheNames = CacheNames.COUNTRY, key = "'ONE:'+ #supplierId + ':' + #supplierCode + ':' + #countryCode")
     public Optional<XCountryResponse> getCountryByCountryCode(Long supplierId, String supplierCode, String countryCode) {
         Specification<Country> spec = (root, q, cb) -> cb.and(
                 cb.equal(root.get("supplierId"), supplierId),
@@ -571,7 +571,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
     }
 
     @Override
-    @Cacheable(cacheNames = StaticCacheNames.CITY, key = "'ONE:'+ #supplierId + ':' + #supplierCode + ':' + #cityCode")
+    @Cacheable(cacheNames = CacheNames.CITY, key = "'ONE:'+ #supplierId + ':' + #supplierCode + ':' + #cityCode")
     public Optional<XCityResponse> getCityByCityCode(Long supplierId, String supplierCode, String cityCode) {
         Specification<City> spec = (root, q, cb) -> cb.and(
                 cb.equal(root.get("supplierId"), supplierId),

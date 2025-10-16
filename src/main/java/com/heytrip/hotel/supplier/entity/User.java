@@ -43,7 +43,7 @@ public class User {
     private String userNick;
 
     @Comment("性别：M=男，F=女，U=未知")
-    @Column(name = "sex", length = 1)
+    @Column(name = "sex", length = 1, columnDefinition = "char(1) default 'U'")
     private String sex = "U";
 
     @Comment("超时时间（小时）：-1不过期，大于-1过期有效")

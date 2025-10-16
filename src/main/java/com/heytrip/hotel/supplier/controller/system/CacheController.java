@@ -1,7 +1,7 @@
 package com.heytrip.hotel.supplier.controller.system;
 
 import com.heytrip.hotel.supplier.config.CacheEvictor;
-import com.heytrip.hotel.supplier.constant.StaticCacheNames;
+import com.heytrip.hotel.supplier.constant.CacheNames;
 import com.heytrip.hotel.supplier.dto.R;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
@@ -193,17 +193,17 @@ public class CacheController {
             return names;
         }
         return Arrays.asList(
-                StaticCacheNames.COUNTRY,
-                StaticCacheNames.CITY,
-                StaticCacheNames.HOTEL,
-                StaticCacheNames.ROOM,
-                StaticCacheNames.RATE_PLAN,
-                StaticCacheNames.NATIONALITY,
-                StaticCacheNames.GIATA,
-                StaticCacheNames.SUPPLIER_CONFIG_CACHE,
-                StaticCacheNames.SUPPLIER_AUTH_CACHE,
-                StaticCacheNames.SUPPLIER_AUTH_FTP,
-                StaticCacheNames.SYSTEM_CONFIG
+                CacheNames.COUNTRY,
+                CacheNames.CITY,
+                CacheNames.HOTEL,
+                CacheNames.ROOM,
+                CacheNames.RATE_PLAN,
+                CacheNames.NATIONALITY,
+                CacheNames.GIATA,
+                CacheNames.SUPPLIER_CONFIG_CACHE,
+                CacheNames.SUPPLIER_AUTH_CACHE,
+                CacheNames.SUPPLIER_AUTH_FTP,
+                CacheNames.SYSTEM_CONFIG
         );
     }
 

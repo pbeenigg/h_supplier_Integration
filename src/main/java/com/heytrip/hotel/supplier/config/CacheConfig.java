@@ -1,7 +1,7 @@
 package com.heytrip.hotel.supplier.config;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
-import com.heytrip.hotel.supplier.constant.StaticCacheNames;
+import com.heytrip.hotel.supplier.constant.CacheNames;
 import org.springframework.cache.Cache;
 import org.springframework.cache.caffeine.CaffeineCache;
 import org.springframework.cache.support.SimpleCacheManager;
@@ -28,7 +28,7 @@ public class CacheConfig {
 
         // 国家：读多写少，更新极低频
         caches.add(new CaffeineCache(
-                StaticCacheNames.COUNTRY,
+                CacheNames.COUNTRY,
                 Caffeine.newBuilder()
                         .maximumSize(10_000)
                         .expireAfterWrite(Duration.ofDays(20))
@@ -38,7 +38,7 @@ public class CacheConfig {
 
         // 城市：读多写少
         caches.add(new CaffeineCache(
-                StaticCacheNames.CITY,
+                CacheNames.CITY,
                 Caffeine.newBuilder()
                         .maximumSize(20_000)
                         .expireAfterWrite(Duration.ofDays(20))
@@ -48,7 +48,7 @@ public class CacheConfig {
 
         // 酒店：更新频率较低，数据量较大
         caches.add(new CaffeineCache(
-                StaticCacheNames.HOTEL,
+                CacheNames.HOTEL,
                 Caffeine.newBuilder()
                         .maximumSize(50_000)
                         .expireAfterWrite(Duration.ofDays(20))
@@ -58,7 +58,7 @@ public class CacheConfig {
 
         // 房型：相对变动频繁，热点较明显（先占位，后续有真实返回再调优）
         caches.add(new CaffeineCache(
-                StaticCacheNames.ROOM,
+                CacheNames.ROOM,
                 Caffeine.newBuilder()
                         .maximumSize(50_000)
                         .expireAfterWrite(Duration.ofDays(20))
@@ -68,7 +68,7 @@ public class CacheConfig {
 
         // 价计划：与房型类似（先占位，后续再调优）
         caches.add(new CaffeineCache(
-                StaticCacheNames.RATE_PLAN,
+                CacheNames.RATE_PLAN,
                 Caffeine.newBuilder()
                         .maximumSize(100_000)
                         .expireAfterWrite(Duration.ofDays(20))
@@ -78,7 +78,7 @@ public class CacheConfig {
 
         // 国籍：极低变动
         caches.add(new CaffeineCache(
-                StaticCacheNames.NATIONALITY,
+                CacheNames.NATIONALITY,
                 Caffeine.newBuilder()
                         .maximumSize(2_000)
                         .expireAfterWrite(Duration.ofDays(20))
@@ -88,7 +88,7 @@ public class CacheConfig {
 
         // GIATA 映射：数据量较大，低频更新
         caches.add(new CaffeineCache(
-                StaticCacheNames.GIATA,
+                CacheNames.GIATA,
                 Caffeine.newBuilder()
                         .maximumSize(100_000)
                         .expireAfterWrite(Duration.ofDays(20))
@@ -98,7 +98,7 @@ public class CacheConfig {
 
         // 供应商配置缓存：读多写少，变更需要短时间生效
         caches.add(new CaffeineCache(
-                StaticCacheNames.SUPPLIER_CONFIG_CACHE,
+                CacheNames.SUPPLIER_CONFIG_CACHE,
                 Caffeine.newBuilder()
                         .maximumSize(5_000)
                         .expireAfterWrite(Duration.ofDays(30))
@@ -108,7 +108,7 @@ public class CacheConfig {
 
         // 供应商认证配置缓存：安全敏感，TTL 较短
         caches.add(new CaffeineCache(
-                StaticCacheNames.SUPPLIER_AUTH_CACHE,
+                CacheNames.SUPPLIER_AUTH_CACHE,
                 Caffeine.newBuilder()
                         .maximumSize(5_000)
                         .expireAfterWrite(Duration.ofDays(30))
@@ -118,7 +118,7 @@ public class CacheConfig {
 
         // 供应商FTP配置缓存：中等变更频率
         caches.add(new CaffeineCache(
-                StaticCacheNames.SUPPLIER_AUTH_FTP,
+                CacheNames.SUPPLIER_AUTH_FTP,
                 Caffeine.newBuilder()
                         .maximumSize(2_000)
                         .expireAfterWrite(Duration.ofDays(30))
@@ -128,7 +128,7 @@ public class CacheConfig {
 
         // 系统配置缓存：读多写少
         caches.add(new CaffeineCache(
-                StaticCacheNames.SYSTEM_CONFIG,
+                CacheNames.SYSTEM_CONFIG,
                 Caffeine.newBuilder()
                         .maximumSize(10_000)
                         .expireAfterWrite(Duration.ofDays(30))
@@ -136,7 +136,25 @@ public class CacheConfig {
                         .build()
         ));
 
+        // 系统用户缓存：读多写少，认证相关，TTL适中
+        caches.add(new CaffeineCache(
+                CacheNames.USER,
+                Caffeine.newBuilder()
+                        .maximumSize(1_000)
+                        .expireAfterWrite(Duration.ofHours(6))
+                        .recordStats()
+                        .build()
+        ));
 
+        // 系统应用缓存：读多写少，认证相关，TTL适中
+        caches.add(new CaffeineCache(
+                CacheNames.APP,
+                Caffeine.newBuilder()
+                        .maximumSize(1_000)
+                        .expireAfterWrite(Duration.ofHours(6))
+                        .recordStats()
+                        .build()
+        ));
 
         SimpleCacheManager mgr = new SimpleCacheManager();
         mgr.setCaches(caches);

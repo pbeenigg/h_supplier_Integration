@@ -31,6 +31,7 @@ public class R<T> implements Serializable {
      */
     public static final int FAIL = 500;
 
+
     /**
      * 消息状态码
      */
@@ -48,6 +49,12 @@ public class R<T> implements Serializable {
      */
     @NotEmpty
     private T data;
+
+    /**
+     * 时间戳
+     */
+    @NotEmpty
+    private Long timestamp;
 
     public static <T> R<T> ok() {
         return restResult(null, SUCCESS, "操作成功");
@@ -111,6 +118,7 @@ public class R<T> implements Serializable {
         r.setCode(code);
         r.setData(data);
         r.setMsg(msg);
+        r.setTimestamp(System.currentTimeMillis());
         return r;
     }
 

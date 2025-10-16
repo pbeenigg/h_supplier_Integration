@@ -1,6 +1,7 @@
 package com.heytrip.hotel.supplier.service;
 
 import cn.hutool.core.util.StrUtil;
+import com.heytrip.hotel.supplier.constant.CacheNames;
 import com.heytrip.hotel.supplier.entity.App;
 import com.heytrip.hotel.supplier.entity.User;
 import com.heytrip.hotel.supplier.exception.BusinessException;
@@ -8,6 +9,9 @@ import com.heytrip.hotel.supplier.repository.UserRepository;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,6 +41,7 @@ public class UserService {
     /**
      * 用户登录验证
      */
+    @Cacheable(value = CacheNames.USER, key = "#userName + ':auth'", unless = "#result.isEmpty()")
     public Optional<User> authenticateUser(String userName, String password) {
         logger.debug("用户登录验证，用户名: {}", userName);
 
@@ -74,6 +79,7 @@ public class UserService {
     /**
      * 根据用户名查找用户
      */
+    @Cacheable(value = CacheNames.USER, key = "#userName", unless = "#result.isEmpty()")
     public Optional<User> findByUserName(String userName) {
         logger.debug("查找用户，用户名: {}", userName);
         return userRepository.findByUserName(userName);
@@ -82,6 +88,7 @@ public class UserService {
     /**
      * 根据appId查找用户
      */
+    @Cacheable(value = CacheNames.USER, key = "'app:' + #appId", unless = "#result.isEmpty()")
     public Optional<User> findByAppId(String appId) {
         logger.debug("根据appId查找用户，appId: {}", appId);
         return userRepository.findByAppId(appId);
@@ -91,6 +98,7 @@ public class UserService {
      * 创建新用户（同时创建关联的应用）
      */
     @Transactional
+    @CachePut(value = CacheNames.USER, key = "#userName")
     public User createUser(String userName, String password, String userNick,
                           String sex, Integer timeout, String createBy) {
         logger.info("创建新用户，用户名: {}, 创建人: {}", userName, createBy);
@@ -134,6 +142,7 @@ public class UserService {
      * 更新用户信息
      */
     @Transactional
+    @CacheEvict(value = CacheNames.USER, allEntries = true)
     public User updateUser(Long userId, String userNick, String sex, Integer timeout, String updateBy) {
         logger.info("更新用户信息，用户ID: {}, 更新人: {}", userId, updateBy);
 
@@ -169,6 +178,7 @@ public class UserService {
      * 修改用户密码
      */
     @Transactional
+    @CacheEvict(value = CacheNames.USER, allEntries = true)
     public void changePassword(Long userId, String oldPassword, String newPassword, String updateBy) {
         logger.info("修改用户密码，用户ID: {}, 更新人: {}", userId, updateBy);
 
@@ -203,6 +213,7 @@ public class UserService {
      * 重置用户密码（管理员操作）
      */
     @Transactional
+    @CacheEvict(value = CacheNames.USER, allEntries = true)
     public void resetPassword(Long userId, String newPassword, String updateBy) {
         logger.info("重置用户密码，用户ID: {}, 更新人: {}", userId, updateBy);
 
@@ -230,6 +241,7 @@ public class UserService {
      * 删除用户（同时删除关联的应用）
      */
     @Transactional
+    @CacheEvict(value = CacheNames.USER, allEntries = true)
     public void deleteUser(Long userId, String deleteBy) {
         logger.info("删除用户，用户ID: {}, 删除人: {}", userId, deleteBy);
 

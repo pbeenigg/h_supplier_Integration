@@ -1,12 +1,16 @@
 package com.heytrip.hotel.supplier.service;
 
 import cn.hutool.core.util.StrUtil;
+import com.heytrip.hotel.supplier.constant.CacheNames;
 import com.heytrip.hotel.supplier.entity.App;
 import com.heytrip.hotel.supplier.exception.BusinessException;
 import com.heytrip.hotel.supplier.repository.AppRepository;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +35,7 @@ public class AppService {
     /**
      * 根据appId查找应用
      */
+    @Cacheable(value = CacheNames.APP, key = "#appId", unless = "#result.isEmpty()")
     public Optional<App> findByAppId(String appId) {
         logger.debug("查找应用，appId: {}", appId);
         return appRepository.findByAppId(appId);
@@ -60,6 +65,7 @@ public class AppService {
     /**
      * 获取应用的密钥信息（用于签名验证）
      */
+    @Cacheable(value = CacheNames.APP, key = "#appId + ':secret'", unless = "#result.isEmpty()")
     public Optional<String> getSecretKey(String appId) {
         return findByAppId(appId).map(App::getSecretKey);
     }
@@ -68,6 +74,7 @@ public class AppService {
      * 创建新应用
      */
     @Transactional
+    @CachePut(value = CacheNames.APP, key = "#appId")
     public App createApp(String appId, String secretKey, String encryptionKey,
                         Integer rateLimit, Integer timeout, String createBy) {
         logger.info("创建新应用，appId: {}, 创建人: {}", appId, createBy);
@@ -101,6 +108,7 @@ public class AppService {
      * 自动生成应用（为用户创建时使用）
      */
     @Transactional
+    @CachePut(value = CacheNames.APP, key = "#result.appId")
     public App generateAppForUser(String userName, String createBy) {
         logger.info("为用户生成应用，用户名: {}, 创建人: {}", userName, createBy);
 
@@ -118,6 +126,7 @@ public class AppService {
      * 更新应用信息
      */
     @Transactional
+    @CacheEvict(value = CacheNames.APP, allEntries = true)
     public App updateApp(String appId, Integer rateLimit, Integer timeout, String updateBy) {
         logger.info("更新应用信息，appId: {}, 更新人: {}", appId, updateBy);
 
@@ -149,6 +158,7 @@ public class AppService {
      * 删除应用
      */
     @Transactional
+    @CacheEvict(value = CacheNames.APP, allEntries = true)
     public void deleteApp(String appId, String deleteBy) {
         logger.info("删除应用，appId: {}, 删除人: {}", appId, deleteBy);
 

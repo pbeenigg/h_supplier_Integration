@@ -2,6 +2,7 @@ package com.heytrip.hotel.supplier.filter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.heytrip.hotel.supplier.config.Config;
+import com.heytrip.hotel.supplier.dto.R;
 import com.heytrip.hotel.supplier.service.AppService;
 import com.heytrip.hotel.supplier.utils.SignUtil;
 import jakarta.annotation.Resource;
@@ -18,7 +19,6 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -231,13 +231,7 @@ public class SecurityFilter extends OncePerRequestFilter {
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
 
-        Map<String, Object> errorResponse = Map.of(
-                "code", 401,
-                "message", message,
-                "timestamp", System.currentTimeMillis()
-        );
-
-        String jsonResponse = objectMapper.writeValueAsString(errorResponse);
+        String jsonResponse = objectMapper.writeValueAsString( R.fail(401,message));
         response.getWriter().write(jsonResponse);
         response.getWriter().flush();
     }

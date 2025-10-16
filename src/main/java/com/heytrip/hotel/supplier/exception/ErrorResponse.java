@@ -1,9 +1,8 @@
 package com.heytrip.hotel.supplier.exception;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import lombok.Data;
 
-import java.time.LocalDateTime;
 import java.util.Map;
 
 /**
@@ -12,15 +11,14 @@ import java.util.Map;
  * @author  Pax
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@Data
 public class ErrorResponse {
     
     private Integer code;
-    private String message;
+    private String msg;
     private String supplierName;
     private Map<String, String> details;
-    
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private LocalDateTime timestamp;
+    private Long timestamp;
     
     // 默认构造函数
     public ErrorResponse() {}
@@ -38,8 +36,8 @@ public class ErrorResponse {
             return this;
         }
         
-        public Builder message(String message) {
-            errorResponse.message = message;
+        public Builder msg(String msg) {
+            errorResponse.msg = msg;
             return this;
         }
         
@@ -53,7 +51,7 @@ public class ErrorResponse {
             return this;
         }
         
-        public Builder timestamp(LocalDateTime timestamp) {
+        public Builder timestamp(Long timestamp) {
             errorResponse.timestamp = timestamp;
             return this;
         }
@@ -63,54 +61,5 @@ public class ErrorResponse {
         }
     }
     
-    // Getters and Setters
-    public Integer getCode() {
-        return code;
-    }
-    
-    public void setCode(Integer code) {
-        this.code = code;
-    }
-    
-    public String getMessage() {
-        return message;
-    }
-    
-    public void setMessage(String message) {
-        this.message = message;
-    }
-    
-    public String getSupplierName() {
-        return supplierName;
-    }
-    
-    public void setSupplierName(String supplierName) {
-        this.supplierName = supplierName;
-    }
-    
-    public Map<String, String> getDetails() {
-        return details;
-    }
-    
-    public void setDetails(Map<String, String> details) {
-        this.details = details;
-    }
-    
-    public LocalDateTime getTimestamp() {
-        return timestamp;
-    }
-    
-    public void setTimestamp(LocalDateTime timestamp) {
-        this.timestamp = timestamp;
-    }
-    
-    @Override
-    public String toString() {
-        return "ErrorResponse{" +
-                "code=" + code +
-                ", message='" + message + '\'' +
-                ", supplierName='" + supplierName + '\'' +
-                ", timestamp=" + timestamp +
-                '}';
-    }
+
 }

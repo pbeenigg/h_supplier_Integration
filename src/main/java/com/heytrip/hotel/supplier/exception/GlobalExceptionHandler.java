@@ -15,7 +15,6 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
-import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -50,9 +49,9 @@ public class GlobalExceptionHandler {
         
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .code(e.getCode())
-                .message(e.getMessage())
+                .msg(e.getMessage())
                 .supplierName(e.getSupplierName())
-                .timestamp(LocalDateTime.now())
+                .timestamp(System.currentTimeMillis())
                 .build();
         
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(errorResponse);
@@ -72,9 +71,9 @@ public class GlobalExceptionHandler {
         
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .code(400)
-                .message("Validation failed")
+                .msg("Validation failed")
                 .details(fieldErrors)
-                .timestamp(LocalDateTime.now())
+                .timestamp(System.currentTimeMillis())
                 .build();
         
         return ResponseEntity.badRequest().body(errorResponse);
@@ -94,9 +93,9 @@ public class GlobalExceptionHandler {
         
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .code(400)
-                .message("Parameter binding failed")
+                .msg("Parameter binding failed")
                 .details(fieldErrors)
-                .timestamp(LocalDateTime.now())
+                .timestamp(System.currentTimeMillis())
                 .build();
         
         return ResponseEntity.badRequest().body(errorResponse);
@@ -117,9 +116,9 @@ public class GlobalExceptionHandler {
 
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .code(400)
-                .message("Constraint validation failed")
+                .msg("Constraint validation failed")
                 .details(violations)
-                .timestamp(LocalDateTime.now())
+                .timestamp(System.currentTimeMillis())
                 .build();
 
         return ResponseEntity.badRequest().body(errorResponse);
@@ -137,8 +136,8 @@ public class GlobalExceptionHandler {
         
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .code(400)
-                .message(message)
-                .timestamp(LocalDateTime.now())
+                .msg(message)
+                .timestamp(System.currentTimeMillis())
                 .build();
         
         return ResponseEntity.badRequest().body(errorResponse);
@@ -153,8 +152,8 @@ public class GlobalExceptionHandler {
         
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .code(e.getRawStatusCode())
-                .message("External service error: " + e.getMessage())
-                .timestamp(LocalDateTime.now())
+                .msg("External service error: " + e.getMessage())
+                .timestamp(System.currentTimeMillis())
                 .build();
         
         return ResponseEntity.status(e.getStatusCode()).body(errorResponse);
@@ -169,8 +168,8 @@ public class GlobalExceptionHandler {
         
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .code(400)
-                .message(e.getMessage())
-                .timestamp(LocalDateTime.now())
+                .msg(e.getMessage())
+                .timestamp(System.currentTimeMillis())
                 .build();
         
         return ResponseEntity.badRequest().body(errorResponse);
@@ -185,8 +184,8 @@ public class GlobalExceptionHandler {
         
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .code(500)
-                .message("Internal server error")
-                .timestamp(LocalDateTime.now())
+                .msg("Internal server error")
+                .timestamp(System.currentTimeMillis())
                 .build();
         
         return ResponseEntity.internalServerError().body(errorResponse);
@@ -201,8 +200,8 @@ public class GlobalExceptionHandler {
         
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .code(500)
-                .message("An unexpected error occurred")
-                .timestamp(LocalDateTime.now())
+                .msg("An unexpected error occurred")
+                .timestamp(System.currentTimeMillis())
                 .build();
         
         return ResponseEntity.internalServerError().body(errorResponse);

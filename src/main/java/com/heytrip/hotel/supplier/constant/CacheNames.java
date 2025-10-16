@@ -3,8 +3,8 @@ package com.heytrip.hotel.supplier.constant;
 /**
  * 静态数据缓存名称常量
  */
-public final class StaticCacheNames {
-    private StaticCacheNames() {
+public final class CacheNames {
+    private CacheNames() {
     }
 
     // 国家
@@ -29,6 +29,11 @@ public final class StaticCacheNames {
     // 供应商FTP配置缓存
     public static final String SUPPLIER_AUTH_FTP = "supplier:supplier:ftp";
 
+
+    // 系统用户缓存
+    public static final String USER = "system:user";
+    // 系统应用缓存
+    public static final String APP = "system:app";
     // 系统配置缓存
     public static final String SYSTEM_CONFIG = "system:config";
 
