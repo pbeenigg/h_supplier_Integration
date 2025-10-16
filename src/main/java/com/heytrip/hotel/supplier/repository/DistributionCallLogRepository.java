@@ -2,6 +2,7 @@ package com.heytrip.hotel.supplier.repository;
 
 import com.heytrip.hotel.supplier.entity.DistributionCallLog;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -16,7 +17,7 @@ import java.util.List;
  * @since 1.0.0
  */
 @Repository
-public interface DistributionCallLogRepository extends JpaRepository<DistributionCallLog, Long> {
+public interface DistributionCallLogRepository extends JpaRepository<DistributionCallLog, Long>, JpaSpecificationExecutor<DistributionCallLog> {
 
     /**
      * 根据traceId查询日志
