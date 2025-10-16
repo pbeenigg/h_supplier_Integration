@@ -120,13 +120,16 @@ app:
       - /swagger-ui/**
       - /v1/api-docs/**
       - /swagger-ui.html
+      - /auth/login
+      - /auth/logout
       #- /suppliers/**
     authenticated-patterns: # 需要认证的路径模式
       - /pax/**
-      - /common/**
       - /config/**
       - /suppliers/**
       - /cache/**
+      - /auth/user/**
+      - /admin/**
 
   # API日志配置
   api-log:

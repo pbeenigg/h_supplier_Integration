@@ -1,13 +1,13 @@
-package com.heytrip.hotel.supplier.controller;
+package com.heytrip.hotel.supplier.controller.system;
 
 import com.heytrip.hotel.supplier.adapter.SupplierAdapterManager;
+import com.heytrip.hotel.supplier.dto.R;
 import com.heytrip.hotel.supplier.entity.SupplierConfig;
 import com.heytrip.hotel.supplier.repository.SupplierConfigRepository;
 import com.heytrip.hotel.supplier.utils.AuthHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -42,25 +42,19 @@ public class SuppliersController {
      * @return 启用的供应商列表
      */
     @GetMapping("/suppliers")
-    public ResponseEntity<Map<String, Object>> getEnabledSuppliers() {
+    public R<Map<String, Object>> getEnabledSuppliers() {
         logger.info("Getting enabled suppliers list");
         
         try {
             List<String> suppliers = supplierAdapterManager.getEnabledSuppliers();
             Map<String, Object> response = Map.of(
                     "suppliers", suppliers,
-                    "count", suppliers.size(),
-                    "message", "Success"
+                    "count", suppliers.size()
             );
-            return ResponseEntity.ok(response);
+            return R.ok("获取启用供应商列表成功", response);
         } catch (Exception e) {
             logger.error("Failed to get enabled suppliers", e);
-            Map<String, Object> errorResponse = Map.of(
-                    "suppliers", List.of(),
-                    "count", 0,
-                    "message", "Failed to get suppliers: " + e.getMessage()
-            );
-            return ResponseEntity.internalServerError().body(errorResponse);
+            return R.fail("获取启用供应商列表失败: " + e.getMessage());
         }
     }
     
@@ -71,16 +65,16 @@ public class SuppliersController {
      * @return 供应商配置信息
      */
     @GetMapping("/suppliers/{supplierName}/config")
-    public ResponseEntity<SupplierConfig> getSupplierConfig(@PathVariable String supplierName) {
+    public R<SupplierConfig> getSupplierConfig(@PathVariable String supplierName) {
         logger.info("Getting config for supplier: {}", supplierName);
         
         try {
             return supplierConfigRepository.findBySupplierNameAndIsActive(supplierName, true)
-                    .map(ResponseEntity::ok)
-                    .orElse(ResponseEntity.notFound().build());
+                    .map(config -> R.ok("获取供应商配置成功", config))
+                    .orElse(R.fail("供应商配置不存在: " + supplierName));
         } catch (Exception e) {
-            logger.error("Failed to get supplier config for: {}", supplierName, e);
-            return ResponseEntity.internalServerError().build();
+            logger.error("Failed to get supplier config for: " + supplierName, e);
+            return R.fail("获取供应商配置失败: " + e.getMessage());
         }
     }
     
@@ -91,7 +85,7 @@ public class SuppliersController {
      * @return 供应商健康状态
      */
     @GetMapping("/suppliers/{supplierName}/health")
-    public ResponseEntity<Map<String, Object>> checkSupplierHealth(@PathVariable String supplierName) {
+    public R<Map<String, Object>> checkSupplierHealth(@PathVariable String supplierName) {
         logger.info("Checking health for supplier: {}", supplierName);
         
         // 记录认证信息（用于调试）
@@ -107,18 +101,11 @@ public class SuppliersController {
                     "status", (healthy != null && healthy) ? "UP" : "DOWN",
                     "timestamp", System.currentTimeMillis()
             );
-            return ResponseEntity.ok(response);
-            
+            return R.ok("供应商健康检查完成", response);
+
         } catch (Exception error) {
             logger.error("Health check failed for supplier: {}", supplierName, error);
-            Map<String, Object> errorResponse = Map.of(
-                    "supplierName", supplierName,
-                    "healthy", false,
-                    "status", "ERROR",
-                    "error", error.getMessage(),
-                    "timestamp", System.currentTimeMillis()
-            );
-            return ResponseEntity.internalServerError().body(errorResponse);
+            return R.fail("供应商健康检查失败: " + error.getMessage());
         }
     }
 
@@ -128,7 +115,7 @@ public class SuppliersController {
      * @return 各供应商健康状态列表
      */
     @GetMapping("/suppliers/health")
-    public ResponseEntity<Map<String, Object>> checkAllSuppliersHealth() {
+    public R<Map<String, Object>> checkAllSuppliersHealth() {
         logger.info("Checking health for all suppliers");
 
         try {
@@ -154,19 +141,11 @@ public class SuppliersController {
                     "unhealthyCount", healthStatuses.size() - healthyCount,
                     "timestamp", System.currentTimeMillis()
             );
-            return ResponseEntity.ok(response);
+            return R.ok("所有供应商健康检查完成", response);
 
         } catch (Exception error) {
             logger.error("Health check failed for all suppliers", error);
-            Map<String, Object> errorResponse = Map.of(
-                    "suppliers", List.of(),
-                    "totalCount", 0,
-                    "healthyCount", 0,
-                    "unhealthyCount", 0,
-                    "error", error.getMessage(),
-                    "timestamp", System.currentTimeMillis()
-            );
-            return ResponseEntity.internalServerError().body(errorResponse);
+            return R.fail("所有供应商健康检查失败: " + error.getMessage());
         }
     }
 
@@ -175,7 +154,7 @@ public class SuppliersController {
      * 获取API版本信息
      */
     @GetMapping("/version")
-    public ResponseEntity<Map<String, Object>> getApiVersion() {
+    public R<Map<String, Object>> getApiVersion() {
         logger.info("Getting API version info");
 
         Map<String, Object> response = Map.of(
@@ -186,7 +165,7 @@ public class SuppliersController {
                 "supportedFormats", List.of("JSON"),
                 "documentation", "/swagger-ui.html"
         );
-        return ResponseEntity.ok(response);
+        return R.ok("获取API版本信息成功", response);
     }
 
 }

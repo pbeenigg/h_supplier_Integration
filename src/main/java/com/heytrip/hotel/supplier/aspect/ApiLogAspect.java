@@ -198,7 +198,7 @@ public class ApiLogAspect {
         logData.setApiEndpoint(request.getRequestURI());
         logData.setHttpMethod(request.getMethod());
         logData.setBusinessType(apiLog.businessType());
-        logData.setClientIp(ApiLogExtractUtil.getClientIp(request));
+        logData.setClientIp(HeyUtil.getClientIp(request));
         logData.setUserAgent(request.getHeader("User-Agent"));
         logData.setRecordOrderDetail(apiLog.recordOrderDetail());
 
@@ -618,6 +618,10 @@ public class ApiLogAspect {
             case "HttpClientErrorException":
                 errorCode = "HTTP_CLIENT_ERROR";
                 errorMessage = "HTTP客户端错误: " + (errorMessage != null ? errorMessage : "请求失败");
+                break;
+            case "WebClientRequestException":
+                errorCode = "HTTP_CLIENT_REQUEST_ERROR";
+                errorMessage = "HTTP客户端请求错误: " + (errorMessage != null ? errorMessage : "请求失败");
                 break;
 
             case "ConnectTimeoutException":

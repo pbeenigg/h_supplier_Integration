@@ -1,14 +1,14 @@
-package com.heytrip.hotel.supplier.controller;
+package com.heytrip.hotel.supplier.controller.system;
 
 import com.heytrip.hotel.supplier.config.CacheEvictor;
 import com.heytrip.hotel.supplier.constant.StaticCacheNames;
+import com.heytrip.hotel.supplier.dto.R;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.caffeine.CaffeineCache;
-import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
@@ -44,10 +44,10 @@ public class CacheController {
      * 说明：由于 key 中包含 supplierId 与 supplierCode，最简单可靠的是清空整个 cache
      */
     @PostMapping("/evict/static/all")
-    public ResponseEntity<Map<String, Object>> evictAllStatic(@RequestHeader(name = "X-Operator", required = false) String operator) {
+    public R<Void> evictAllStatic(@RequestHeader(name = "X-Operator", required = false) String operator) {
         cacheEvictor.evictAllStaticCaches();
         log.info("[CacheAdmin] 全量清理静态缓存 by {}", op(operator));
-        return ResponseEntity.ok(Map.of("success", true));
+        return R.ok("全量清理静态缓存成功");
     }
 
     /**
@@ -55,12 +55,12 @@ public class CacheController {
      * 说明：由于 key 中包含 supplierId 与 supplierCode，最简单可靠的是清空整个 cache
      */
     @PostMapping("/evict/static/by-supplier")
-    public ResponseEntity<Map<String, Object>> evictStaticBySupplier(@RequestHeader(name = "X-Operator", required = false) String operator,
-                                                                     @RequestParam Long supplierId,
-                                                                     @RequestParam String supplierCode) {
+    public R<Void> evictStaticBySupplier(@RequestHeader(name = "X-Operator", required = false) String operator,
+                                         @RequestParam Long supplierId,
+                                         @RequestParam String supplierCode) {
         cacheEvictor.evictStaticBySupplier(supplierId, supplierCode);
         log.info("[CacheAdmin] 按供应商清理静态缓存 supplierId={}, supplierCode={} by {}", supplierId, supplierCode, op(operator));
-        return ResponseEntity.ok(Map.of("success", true));
+        return R.ok("按供应商清理静态缓存成功");
     }
 
     /**
@@ -68,11 +68,11 @@ public class CacheController {
      * 说明：由于我们使用的 key 都是简单字符串，因此直接传递即可
      */
     @PostMapping("/evict/by-name")
-    public ResponseEntity<Map<String, Object>> evictByName(@RequestHeader(name = "X-Operator", required = false) String operator,
-                                                           @RequestParam String cacheName) {
+    public R<Void> evictByName(@RequestHeader(name = "X-Operator", required = false) String operator,
+                               @RequestParam String cacheName) {
         cacheEvictor.evictByCacheName(cacheName);
         log.info("[CacheAdmin] 清空缓存 cacheName={} by {}", cacheName, op(operator));
-        return ResponseEntity.ok(Map.of("success", true));
+        return R.ok("清空缓存成功");
     }
 
     /**
@@ -80,32 +80,32 @@ public class CacheController {
      * 说明：由于我们使用的 key 都是简单字符串，因此直接传递即可
      */
     @PostMapping("/evict/by-key")
-    public ResponseEntity<Map<String, Object>> evictByKey(@RequestHeader(name = "X-Operator", required = false) String operator,
-                                                          @RequestParam String cacheName,
-                                                          @RequestParam String key) {
+    public R<Void> evictByKey(@RequestHeader(name = "X-Operator", required = false) String operator,
+                              @RequestParam String cacheName,
+                              @RequestParam String key) {
         cacheEvictor.evictByCacheNameAndKey(cacheName, key);
         log.info("[CacheAdmin] 清理缓存项 cacheName={}, key={} by {}", cacheName, key, op(operator));
-        return ResponseEntity.ok(Map.of("success", true));
+        return R.ok("清理缓存项成功");
     }
 
     /**
      * 清理供应商配置类缓存
      */
     @PostMapping("/evict/supplier-config/all")
-    public ResponseEntity<Map<String, Object>> evictSupplierConfig(@RequestHeader(name = "X-Operator", required = false) String operator) {
+    public R<Void> evictSupplierConfig(@RequestHeader(name = "X-Operator", required = false) String operator) {
         cacheEvictor.evictSupplierConfigCaches();
         log.info("[CacheAdmin] 清理供应商配置类缓存 by {}", op(operator));
-        return ResponseEntity.ok(Map.of("success", true));
+        return R.ok("清理供应商配置类缓存成功");
     }
 
     /**
      * 清理系统配置缓存
      */
     @PostMapping("/evict/system-config")
-    public ResponseEntity<Map<String, Object>> evictSystemConfig(@RequestHeader(name = "X-Operator", required = false) String operator) {
+    public R<Void> evictSystemConfig(@RequestHeader(name = "X-Operator", required = false) String operator) {
         cacheEvictor.evictSystemConfig();
         log.info("[CacheAdmin] 清理系统配置缓存 by {}", op(operator));
-        return ResponseEntity.ok(Map.of("success", true));
+        return R.ok("清理系统配置缓存成功");
     }
 
     /**
@@ -116,7 +116,7 @@ public class CacheController {
      * @return
      */
     @GetMapping("/stats")
-    public ResponseEntity<Map<String, Object>> stats() {
+    public R<List<Map<String, Object>>> stats() {
         List<Map<String, Object>> list = new ArrayList<>();
         Collection<String> names = knownCacheNames();
         for (String name : names) {
@@ -136,7 +136,7 @@ public class CacheController {
             }
             list.add(row);
         }
-        return ResponseEntity.ok(Map.of("success", true, "data", list));
+        return R.ok("缓存统计查询成功", list);
     }
 
     /**
@@ -150,11 +150,11 @@ public class CacheController {
      * @return
      */
     @GetMapping("/keys")
-    public ResponseEntity<Map<String, Object>> listKeys(@RequestParam String cacheName,
-                                                        @RequestParam(required = false) String prefix) {
+    public R<List<String>> listKeys(@RequestParam String cacheName,
+                                    @RequestParam(required = false) String prefix) {
         Cache cache = cacheManager.getCache(cacheName);
         if (!(cache instanceof CaffeineCache caffeineCache)) {
-            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "当前缓存实现不支持列出Key"));
+            return R.fail("当前缓存实现不支持列出Key");
         }
         var map = caffeineCache.getNativeCache().asMap();
         List<String> keys = map.keySet().stream()
@@ -163,7 +163,7 @@ public class CacheController {
                 .sorted()
                 .limit(1000)
                 .collect(Collectors.toList());
-        return ResponseEntity.ok(Map.of("success", true, "data", keys));
+        return R.ok("缓存Key列表查询成功", keys);
     }
 
 
@@ -174,15 +174,15 @@ public class CacheController {
      * @return
      */
     @GetMapping("/get")
-    public ResponseEntity<Map<String, Object>> getValue(@RequestParam String cacheName,
-                                                        @RequestParam String key) {
+    public R<Object> getValue(@RequestParam String cacheName,
+                              @RequestParam String key) {
         Cache cache = cacheManager.getCache(cacheName);
         if (cache == null) {
-            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "缓存不存在"));
+            return R.fail("缓存不存在");
         }
         Cache.ValueWrapper wrapper = cache.get(key);
         Object value = wrapper != null ? wrapper.get() : null;
-        return ResponseEntity.ok(Map.of("success", true, "data", value));
+        return R.ok("缓存值获取成功", value);
     }
 
     // ============== 辅助工具 ==============

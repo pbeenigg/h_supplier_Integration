@@ -4,6 +4,7 @@ import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.util.StrUtil;
 import com.heytrip.common.enums.XEnumCurrency;
 import com.heytrip.hotel.supplier.dto.qtech.req.QTechSearchRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
@@ -250,6 +251,35 @@ public class HeyUtil {
         }
     }
 
+
+
+    /**
+     * 从HTTP请求中提取客户端IP
+     */
+    public static String getClientIp(HttpServletRequest request) {
+        String ip = request.getHeader("X-Forwarded-For");
+        if (StringUtils.hasText(ip) && !"unknown".equalsIgnoreCase(ip)) {
+            // 多级代理的情况，取第一个IP
+            return ip.split(",")[0].trim();
+        }
+
+        ip = request.getHeader("X-Real-IP");
+        if (StringUtils.hasText(ip) && !"unknown".equalsIgnoreCase(ip)) {
+            return ip;
+        }
+
+        ip = request.getHeader("Proxy-Client-IP");
+        if (StringUtils.hasText(ip) && !"unknown".equalsIgnoreCase(ip)) {
+            return ip;
+        }
+
+        ip = request.getHeader("WL-Proxy-Client-IP");
+        if (StringUtils.hasText(ip) && !"unknown".equalsIgnoreCase(ip)) {
+            return ip;
+        }
+
+        return request.getRemoteAddr();
+    }
 
 
 

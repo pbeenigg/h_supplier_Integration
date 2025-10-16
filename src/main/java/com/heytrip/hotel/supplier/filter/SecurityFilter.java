@@ -2,6 +2,7 @@ package com.heytrip.hotel.supplier.filter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.heytrip.hotel.supplier.config.Config;
+import com.heytrip.hotel.supplier.service.AppService;
 import com.heytrip.hotel.supplier.utils.SignUtil;
 import jakarta.annotation.Resource;
 import jakarta.servlet.FilterChain;
@@ -18,6 +19,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * MD5签名认证过滤器
@@ -38,6 +40,9 @@ public class SecurityFilter extends OncePerRequestFilter {
 
     @Resource
     private Config CONFIG;
+
+    @Resource
+    private AppService appService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -160,20 +165,59 @@ public class SecurityFilter extends OncePerRequestFilter {
 
     /**
      * 验证AppId
+     * 首先尝试从数据库验证，如果失败则回退到配置文件验证（向后兼容）
      */
     private boolean validateAppId(String appId) {
-        return CONFIG.getAuthorization().getAppId().equals(appId);
+        // 优先从数据库验证
+        if (appService.validateApp(appId)) {
+            logger.debug("数据库应用验证通过，appId: {}", appId);
+            return true;
+        }
+
+        // 回退到配置文件验证（向后兼容）
+        boolean configValid = CONFIG.getAuthorization().getAppId().equals(appId);
+        if (configValid) {
+            logger.debug("配置文件应用验证通过，appId: {}", appId);
+        } else {
+            logger.warn("应用验证失败，appId: {}", appId);
+        }
+
+        return configValid;
     }
 
     /**
      * 验证MD5签名
+     * 首先尝试使用数据库中的密钥验证，如果失败则回退到配置文件验证（向后兼容）
      */
     private boolean validateSignature(String appId, String timestamp, String signature) {
         try {
-            String expectedSignature = SignUtil.generateSignature(appId, timestamp, CONFIG.getAuthorization().getSecretKey());
-            return expectedSignature.equalsIgnoreCase(signature);
+            // 优先尝试数据库中的密钥
+            Optional<String> secretKeyOpt = appService.getSecretKey(appId);
+            if (secretKeyOpt.isPresent()) {
+                String expectedSignature = SignUtil.generateSignature(appId, timestamp, secretKeyOpt.get());
+                if (expectedSignature.equalsIgnoreCase(signature)) {
+                    logger.debug("数据库密钥签名验证通过，appId: {}", appId);
+                    return true;
+                }
+            }
+
+            // 回退到配置文件验证（向后兼容）
+            if (CONFIG.getAuthorization().getAppId().equals(appId)) {
+                String expectedSignature = SignUtil.generateSignature(appId, timestamp, CONFIG.getAuthorization().getSecretKey());
+                boolean configValid = expectedSignature.equalsIgnoreCase(signature);
+                if (configValid) {
+                    logger.debug("配置文件密钥签名验证通过，appId: {}", appId);
+                } else {
+                    logger.warn("签名验证失败，appId: {}", appId);
+                }
+                return configValid;
+            }
+
+            logger.warn("无法找到应用的密钥信息，appId: {}", appId);
+            return false;
+
         } catch (Exception e) {
-            logger.error("验证签名时出错", e);
+            logger.error("验证签名时出错，appId: {}", appId, e);
             return false;
         }
     }

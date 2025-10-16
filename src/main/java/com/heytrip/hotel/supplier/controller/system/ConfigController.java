@@ -1,6 +1,7 @@
-package com.heytrip.hotel.supplier.controller;
+package com.heytrip.hotel.supplier.controller.system;
 
 import com.heytrip.hotel.supplier.adapter.SupplierAdapterManager;
+import com.heytrip.hotel.supplier.dto.R;
 import com.heytrip.hotel.supplier.entity.SystemConfig;
 import com.heytrip.hotel.supplier.repository.SupplierConfigRepository;
 import com.heytrip.hotel.supplier.repository.SystemConfigRepository;
@@ -11,7 +12,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -50,7 +50,7 @@ public class ConfigController {
      * 获取系统配置列表
      */
     @GetMapping("/system-config")
-    public ResponseEntity<Map<String, Object>> getSystemConfigs(
+    public R<Map<String, Object>> getSystemConfigs(
             @RequestParam(required = false) String configType,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
@@ -73,23 +73,13 @@ public class ConfigController {
             response.put("size", configs.getSize());
             response.put("timestamp", LocalDateTime.now());
 
-            return ResponseEntity.ok(response);
+            return R.ok("系统配置查询成功", response);
 
         } catch (IllegalArgumentException e) {
-            Map<String, Object> errorResponse = Map.of(
-                    "error", "Invalid parameter value",
-                    "message", e.getMessage(),
-                    "timestamp", LocalDateTime.now()
-            );
-            return ResponseEntity.status(400).body(errorResponse);
+            return R.fail("参数值无效: " + e.getMessage());
         } catch (Exception e) {
             logger.error("Failed to get system configs", e);
-            Map<String, Object> errorResponse = Map.of(
-                    "error", "Failed to retrieve system configs",
-                    "message", e.getMessage(),
-                    "timestamp", LocalDateTime.now()
-            );
-            return ResponseEntity.status(500).body(errorResponse);
+            return R.fail("获取系统配置失败: " + e.getMessage());
         }
     }
 
@@ -97,34 +87,19 @@ public class ConfigController {
      * 获取指定系统配置详情
      */
     @GetMapping("/system-config/{configId}")
-    public ResponseEntity<Map<String, Object>> getSystemConfigDetail(@PathVariable Long configId) {
+    public R<SystemConfig> getSystemConfigDetail(@PathVariable Long configId) {
         try {
             Optional<SystemConfig> configOpt = systemConfigRepository.findById(configId);
             if (configOpt.isEmpty()) {
-                Map<String, Object> errorResponse = Map.of(
-                        "error", "System config not found",
-                        "configId", configId,
-                        "timestamp", LocalDateTime.now()
-                );
-                return ResponseEntity.status(404).body(errorResponse);
+                return R.fail("系统配置不存在，ID: " + configId);
             }
 
             SystemConfig config = configOpt.get();
-            Map<String, Object> response = new HashMap<>();
-            response.put("config", config);
-            response.put("timestamp", LocalDateTime.now());
-
-            return ResponseEntity.ok(response);
+            return R.ok("系统配置详情查询成功", config);
 
         } catch (Exception e) {
             logger.error("Failed to get system config detail for config: " + configId, e);
-            Map<String, Object> errorResponse = Map.of(
-                    "error", "Failed to retrieve system config detail",
-                    "configId", configId,
-                    "message", e.getMessage(),
-                    "timestamp", LocalDateTime.now()
-            );
-            return ResponseEntity.status(500).body(errorResponse);
+            return R.fail("获取系统配置详情失败: " + e.getMessage());
         }
     }
 
@@ -132,34 +107,19 @@ public class ConfigController {
      * 根据配置键获取系统配置
      */
     @GetMapping("/system-config/key/{configKey}")
-    public ResponseEntity<Map<String, Object>> getSystemConfigByKey(@PathVariable String configKey) {
+    public R<SystemConfig> getSystemConfigByKey(@PathVariable String configKey) {
         try {
             Optional<SystemConfig> configOpt = systemConfigRepository.findByConfigKey(configKey);
             if (configOpt.isEmpty()) {
-                Map<String, Object> errorResponse = Map.of(
-                        "error", "System config not found",
-                        "configKey", configKey,
-                        "timestamp", LocalDateTime.now()
-                );
-                return ResponseEntity.status(404).body(errorResponse);
+                return R.fail("系统配置不存在，配置键: " + configKey);
             }
 
             SystemConfig config = configOpt.get();
-            Map<String, Object> response = new HashMap<>();
-            response.put("config", config);
-            response.put("timestamp", LocalDateTime.now());
-
-            return ResponseEntity.ok(response);
+            return R.ok("系统配置查询成功", config);
 
         } catch (Exception e) {
             logger.error("Failed to get system config by key: " + configKey, e);
-            Map<String, Object> errorResponse = Map.of(
-                    "error", "Failed to retrieve system config by key",
-                    "configKey", configKey,
-                    "message", e.getMessage(),
-                    "timestamp", LocalDateTime.now()
-            );
-            return ResponseEntity.status(500).body(errorResponse);
+            return R.fail("根据配置键获取系统配置失败: " + e.getMessage());
         }
     }
 
@@ -167,17 +127,12 @@ public class ConfigController {
      * 创建新的系统配置
      */
     @PostMapping("/system-config")
-    public ResponseEntity<Map<String, Object>> createSystemConfig(@RequestBody SystemConfig config) {
+    public R<SystemConfig> createSystemConfig(@RequestBody SystemConfig config) {
         try {
             // 检查配置键是否已存在
             Optional<SystemConfig> existingConfig = systemConfigRepository.findByConfigKey(config.getConfigKey());
             if (existingConfig.isPresent()) {
-                Map<String, Object> errorResponse = Map.of(
-                        "error", "Config key already exists",
-                        "configKey", config.getConfigKey(),
-                        "timestamp", LocalDateTime.now()
-                );
-                return ResponseEntity.status(409).body(errorResponse);
+                return R.fail("配置键已存在: " + config.getConfigKey());
             }
 
             // 设置创建时间
@@ -185,22 +140,11 @@ public class ConfigController {
             config.setUpdatedAt(LocalDateTime.now());
 
             SystemConfig savedConfig = systemConfigRepository.save(config);
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("config", savedConfig);
-            response.put("message", "System config created successfully");
-            response.put("timestamp", LocalDateTime.now());
-
-            return ResponseEntity.status(201).body(response);
+            return R.ok("系统配置创建成功", savedConfig);
 
         } catch (Exception e) {
             logger.error("Failed to create system config", e);
-            Map<String, Object> errorResponse = Map.of(
-                    "error", "Failed to create system config",
-                    "message", e.getMessage(),
-                    "timestamp", LocalDateTime.now()
-            );
-            return ResponseEntity.status(500).body(errorResponse);
+            return R.fail("创建系统配置失败: " + e.getMessage());
         }
     }
 
@@ -208,18 +152,13 @@ public class ConfigController {
      * 更新系统配置
      */
     @PutMapping("/system-config/{configId}")
-    public ResponseEntity<Map<String, Object>> updateSystemConfig(
+    public R<SystemConfig> updateSystemConfig(
             @PathVariable Long configId,
             @RequestBody SystemConfig configUpdate) {
         try {
             Optional<SystemConfig> configOpt = systemConfigRepository.findById(configId);
             if (configOpt.isEmpty()) {
-                Map<String, Object> errorResponse = Map.of(
-                        "error", "System config not found",
-                        "configId", configId,
-                        "timestamp", LocalDateTime.now()
-                );
-                return ResponseEntity.status(404).body(errorResponse);
+                return R.fail("系统配置不存在，ID: " + configId);
             }
 
             SystemConfig existingConfig = configOpt.get();
@@ -241,23 +180,11 @@ public class ConfigController {
             existingConfig.setUpdatedAt(LocalDateTime.now());
 
             SystemConfig savedConfig = systemConfigRepository.save(existingConfig);
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("config", savedConfig);
-            response.put("message", "System config updated successfully");
-            response.put("timestamp", LocalDateTime.now());
-
-            return ResponseEntity.ok(response);
+            return R.ok("系统配置更新成功", savedConfig);
 
         } catch (Exception e) {
             logger.error("Failed to update system config: " + configId, e);
-            Map<String, Object> errorResponse = Map.of(
-                    "error", "Failed to update system config",
-                    "configId", configId,
-                    "message", e.getMessage(),
-                    "timestamp", LocalDateTime.now()
-            );
-            return ResponseEntity.status(500).body(errorResponse);
+            return R.fail("更新系统配置失败: " + e.getMessage());
         }
     }
 
@@ -265,37 +192,19 @@ public class ConfigController {
      * 删除系统配置
      */
     @DeleteMapping("/system-config/{configId}")
-    public ResponseEntity<Map<String, Object>> deleteSystemConfig(@PathVariable Long configId) {
+    public R<Void> deleteSystemConfig(@PathVariable Long configId) {
         try {
             Optional<SystemConfig> configOpt = systemConfigRepository.findById(configId);
             if (configOpt.isEmpty()) {
-                Map<String, Object> errorResponse = Map.of(
-                        "error", "System config not found",
-                        "configId", configId,
-                        "timestamp", LocalDateTime.now()
-                );
-                return ResponseEntity.status(404).body(errorResponse);
+                return R.fail("系统配置不存在，ID: " + configId);
             }
 
             systemConfigRepository.deleteById(configId);
-
-            Map<String, Object> response = Map.of(
-                    "message", "System config deleted successfully",
-                    "configId", configId,
-                    "timestamp", LocalDateTime.now()
-            );
-
-            return ResponseEntity.ok(response);
+            return R.ok("系统配置删除成功");
 
         } catch (Exception e) {
             logger.error("Failed to delete system config: " + configId, e);
-            Map<String, Object> errorResponse = Map.of(
-                    "error", "Failed to delete system config",
-                    "configId", configId,
-                    "message", e.getMessage(),
-                    "timestamp", LocalDateTime.now()
-            );
-            return ResponseEntity.status(500).body(errorResponse);
+            return R.fail("删除系统配置失败: " + e.getMessage());
         }
     }
 
@@ -305,7 +214,7 @@ public class ConfigController {
      * 获取系统配置统计信息
      */
     @GetMapping("/stats")
-    public ResponseEntity<Map<String, Object>> getSystemConfigStats() {
+    public R<Map<String, Object>> getSystemConfigStats() {
         try {
             Map<String, Object> stats = new HashMap<>();
 
@@ -335,16 +244,11 @@ public class ConfigController {
 
             stats.put("timestamp", LocalDateTime.now());
 
-            return ResponseEntity.ok(stats);
+            return R.ok("系统配置统计信息获取成功", stats);
 
         } catch (Exception e) {
             logger.error("Failed to get system config stats", e);
-            Map<String, Object> errorResponse = Map.of(
-                    "error", "Failed to retrieve system config stats",
-                    "message", e.getMessage(),
-                    "timestamp", LocalDateTime.now()
-            );
-            return ResponseEntity.status(500).body(errorResponse);
+            return R.fail("获取系统配置统计信息失败: " + e.getMessage());
         }
     }
 
@@ -353,7 +257,7 @@ public class ConfigController {
      * 获取JSON类型配置
      */
     @GetMapping("/json/{configKey}")
-    public ResponseEntity<?> getJsonConfig(@PathVariable String configKey) {
+    public R<Map<String, Object>> getJsonConfig(@PathVariable String configKey) {
         try {
             Optional<SystemConfig> configOpt = systemConfigService.getConfigByKey(configKey);
             if (configOpt.isPresent()) {
@@ -366,31 +270,16 @@ public class ConfigController {
                     response.put("description", config.getDescription());
                     response.put("isActive", config.getIsActive());
                     response.put("timestamp", LocalDateTime.now());
-                    return ResponseEntity.ok(response);
+                    return R.ok("JSON配置获取成功", response);
                 } else {
-                    Map<String, Object> errorResponse = Map.of(
-                            "error", "配置类型不匹配",
-                            "message", "配置" + configKey + "不是JSON类型，实际类型: " + config.getConfigType(),
-                            "timestamp", LocalDateTime.now()
-                    );
-                    return ResponseEntity.status(400).body(errorResponse);
+                    return R.fail("配置类型不匹配，配置" + configKey + "不是JSON类型，实际类型: " + config.getConfigType());
                 }
             } else {
-                Map<String, Object> errorResponse = Map.of(
-                        "error", "配置不存在",
-                        "message", "未找到配置: " + configKey,
-                        "timestamp", LocalDateTime.now()
-                );
-                return ResponseEntity.status(404).body(errorResponse);
+                return R.fail("配置不存在，未找到配置: " + configKey);
             }
         } catch (Exception e) {
             logger.error("获取JSON配置失败: {}", configKey, e);
-            Map<String, Object> errorResponse = Map.of(
-                    "error", "获取JSON配置失败",
-                    "message", e.getMessage(),
-                    "timestamp", LocalDateTime.now()
-            );
-            return ResponseEntity.status(500).body(errorResponse);
+            return R.fail("获取JSON配置失败: " + e.getMessage());
         }
     }
 
@@ -398,38 +287,22 @@ public class ConfigController {
      * 设置JSON类型配置
      */
     @PostMapping("/json")
-    public ResponseEntity<?> setJsonConfig(@RequestBody Map<String, Object> request) {
+    public R<SystemConfig> setJsonConfig(@RequestBody Map<String, Object> request) {
         try {
             String configKey = (String) request.get("configKey");
             Object configValue = request.get("configValue");
             String description = (String) request.get("description");
 
             if (configKey == null || configValue == null) {
-                Map<String, Object> errorResponse = Map.of(
-                        "error", "参数缺失",
-                        "message", "configKey和configValue不能为空",
-                        "timestamp", LocalDateTime.now()
-                );
-                return ResponseEntity.status(400).body(errorResponse);
+                return R.fail("configKey和configValue不能为空");
             }
 
             SystemConfig savedConfig = systemConfigService.setJsonConfig(configKey, configValue, description);
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("config", savedConfig);
-            response.put("message", "JSON配置保存成功");
-            response.put("timestamp", LocalDateTime.now());
-
-            return ResponseEntity.ok(response);
+            return R.ok("JSON配置保存成功", savedConfig);
 
         } catch (Exception e) {
             logger.error("设置JSON配置失败", e);
-            Map<String, Object> errorResponse = Map.of(
-                    "error", "设置JSON配置失败",
-                    "message", e.getMessage(),
-                    "timestamp", LocalDateTime.now()
-            );
-            return ResponseEntity.status(500).body(errorResponse);
+            return R.fail("设置JSON配置失败: " + e.getMessage());
         }
     }
 
@@ -437,7 +310,7 @@ public class ConfigController {
      * 获取LIST类型配置
      */
     @GetMapping("/list/{configKey}")
-    public ResponseEntity<?> getListConfig(@PathVariable String configKey) {
+    public R<Map<String, Object>> getListConfig(@PathVariable String configKey) {
         try {
             Optional<List<String>> listOpt = systemConfigService.getListConfig(configKey);
             if (listOpt.isPresent()) {
@@ -446,33 +319,21 @@ public class ConfigController {
                 response.put("configType", "LIST");
                 response.put("configValue", listOpt.get());
                 response.put("timestamp", LocalDateTime.now());
-                return ResponseEntity.ok(response);
+                return R.ok("LIST配置获取成功", response);
             } else {
-                Map<String, Object> errorResponse = Map.of(
-                        "error", "配置不存在或类型不匹配",
-                        "message", "未找到LIST类型配置: " + configKey,
-                        "timestamp", LocalDateTime.now()
-                );
-                return ResponseEntity.status(404).body(errorResponse);
+                return R.fail("未找到LIST类型配置: " + configKey);
             }
         } catch (Exception e) {
             logger.error("获取LIST配置失败: {}", configKey, e);
-            Map<String, Object> errorResponse = Map.of(
-                    "error", "获取LIST配置失败",
-                    "message", e.getMessage(),
-                    "timestamp", LocalDateTime.now()
-            );
-            return ResponseEntity.status(500).body(errorResponse);
+            return R.fail("获取LIST配置失败: " + e.getMessage());
         }
     }
 
     /**
      * 设置LIST类型配置
-     *
-     *
      */
     @PostMapping("/list")
-    public ResponseEntity<?> setListConfig(@RequestBody Map<String, Object> request) {
+    public R<SystemConfig> setListConfig(@RequestBody Map<String, Object> request) {
         try {
             String configKey = (String) request.get("configKey");
             @SuppressWarnings("unchecked")
@@ -480,31 +341,15 @@ public class ConfigController {
             String description = (String) request.get("description");
 
             if (configKey == null || configValue == null) {
-                Map<String, Object> errorResponse = Map.of(
-                        "error", "参数缺失",
-                        "message", "configKey和configValue不能为空",
-                        "timestamp", LocalDateTime.now()
-                );
-                return ResponseEntity.status(400).body(errorResponse);
+                return R.fail("configKey和configValue不能为空");
             }
 
             SystemConfig savedConfig = systemConfigService.setListConfig(configKey, configValue, description);
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("config", savedConfig);
-            response.put("message", "LIST配置保存成功");
-            response.put("timestamp", LocalDateTime.now());
-
-            return ResponseEntity.ok(response);
+            return R.ok("LIST配置保存成功", savedConfig);
 
         } catch (Exception e) {
             logger.error("设置LIST配置失败", e);
-            Map<String, Object> errorResponse = Map.of(
-                    "error", "设置LIST配置失败",
-                    "message", e.getMessage(),
-                    "timestamp", LocalDateTime.now()
-            );
-            return ResponseEntity.status(500).body(errorResponse);
+            return R.fail("设置LIST配置失败: " + e.getMessage());
         }
     }
 
@@ -512,7 +357,7 @@ public class ConfigController {
      * 获取ENCRYPTED类型配置（自动解密）
      */
     @GetMapping("/encrypted/{configKey}")
-    public ResponseEntity<?> getEncryptedConfig(@PathVariable String configKey) {
+    public R<Map<String, Object>> getEncryptedConfig(@PathVariable String configKey) {
         try {
             Optional<String> encryptedValueOpt = systemConfigService.getEncryptedConfig(configKey);
             if (encryptedValueOpt.isPresent()) {
@@ -522,23 +367,13 @@ public class ConfigController {
                 response.put("configValue", encryptedValueOpt.get());
                 response.put("message", "配置值已自动解密");
                 response.put("timestamp", LocalDateTime.now());
-                return ResponseEntity.ok(response);
+                return R.ok("加密配置获取成功", response);
             } else {
-                Map<String, Object> errorResponse = Map.of(
-                        "error", "配置不存在或类型不匹配",
-                        "message", "未找到ENCRYPTED类型配置: " + configKey,
-                        "timestamp", LocalDateTime.now()
-                );
-                return ResponseEntity.status(404).body(errorResponse);
+                return R.fail("未找到ENCRYPTED类型配置: " + configKey);
             }
         } catch (Exception e) {
             logger.error("获取ENCRYPTED配置失败: {}", configKey, e);
-            Map<String, Object> errorResponse = Map.of(
-                    "error", "获取ENCRYPTED配置失败",
-                    "message", e.getMessage(),
-                    "timestamp", LocalDateTime.now()
-            );
-            return ResponseEntity.status(500).body(errorResponse);
+            return R.fail("获取ENCRYPTED配置失败: " + e.getMessage());
         }
     }
 
@@ -546,19 +381,14 @@ public class ConfigController {
      * 设置ENCRYPTED类型配置（自动加密）
      */
     @PostMapping("/encrypted")
-    public ResponseEntity<?> setEncryptedConfig(@RequestBody Map<String, Object> request) {
+    public R<Map<String, Object>> setEncryptedConfig(@RequestBody Map<String, Object> request) {
         try {
             String configKey = (String) request.get("configKey");
             String configValue = (String) request.get("configValue");
             String description = (String) request.get("description");
 
             if (configKey == null || configValue == null) {
-                Map<String, Object> errorResponse = Map.of(
-                        "error", "参数缺失",
-                        "message", "configKey和configValue不能为空",
-                        "timestamp", LocalDateTime.now()
-                );
-                return ResponseEntity.status(400).body(errorResponse);
+                return R.fail("configKey和configValue不能为空");
             }
 
             SystemConfig savedConfig = systemConfigService.setEncryptedConfig(configKey, configValue, description);
@@ -577,16 +407,11 @@ public class ConfigController {
             response.put("message", "ENCRYPTED配置保存成功，配置值已自动加密");
             response.put("timestamp", LocalDateTime.now());
 
-            return ResponseEntity.ok(response);
+            return R.ok("加密配置保存成功", response);
 
         } catch (Exception e) {
             logger.error("设置ENCRYPTED配置失败", e);
-            Map<String, Object> errorResponse = Map.of(
-                    "error", "设置ENCRYPTED配置失败",
-                    "message", e.getMessage(),
-                    "timestamp", LocalDateTime.now()
-            );
-            return ResponseEntity.status(500).body(errorResponse);
+            return R.fail("设置ENCRYPTED配置失败: " + e.getMessage());
         }
     }
 
@@ -597,33 +422,25 @@ public class ConfigController {
      * @return 验证结果
      */
     @PostMapping("/validate")
-    public ResponseEntity<?> validateConfigValue(@RequestBody Map<String, Object> request) {
+    public R<Map<String, Object>> validateConfigValue(@RequestBody Map<String, Object> request) {
         try {
             String configValue = (String) request.get("configValue");
             String configTypeStr = (String) request.get("configType");
 
             if (configValue == null || configTypeStr == null) {
-                Map<String, Object> errorResponse = Map.of(
-                        "error", "参数缺失",
-                        "message", "configValue和configType不能为空",
-                        "timestamp", LocalDateTime.now()
-                );
-                return ResponseEntity.status(400).body(errorResponse);
+                return R.fail("configValue和configType不能为空");
             }
 
             SystemConfig.ConfigType configType;
             try {
                 configType = SystemConfig.ConfigType.valueOf(configTypeStr.toUpperCase());
             } catch (IllegalArgumentException e) {
-                Map<String, Object> errorResponse = Map.of(
-                        "error", "无效的配置类型",
-                        "message", "不支持的配置类型: " + configTypeStr,
-                        "availableTypes", Arrays.stream(SystemConfig.ConfigType.values())
-                                .map(SystemConfig.ConfigType::name)
-                                .collect(Collectors.toList()),
-                        "timestamp", LocalDateTime.now()
-                );
-                return ResponseEntity.status(400).body(errorResponse);
+                Map<String, Object> errorData = new HashMap<>();
+                errorData.put("message", "不支持的配置类型: " + configTypeStr);
+                errorData.put("availableTypes", Arrays.stream(SystemConfig.ConfigType.values())
+                        .map(SystemConfig.ConfigType::name)
+                        .collect(Collectors.toList()));
+                return R.fail("无效的配置类型", errorData);
             }
 
             boolean isValid = systemConfigService.validateConfigValue(configValue, configType);
@@ -635,16 +452,11 @@ public class ConfigController {
             response.put("message", isValid ? "配置值格式正确" : "配置值格式不正确");
             response.put("timestamp", LocalDateTime.now());
 
-            return ResponseEntity.ok(response);
+            return R.ok("配置值验证完成", response);
 
         } catch (Exception e) {
             logger.error("验证配置值失败", e);
-            Map<String, Object> errorResponse = Map.of(
-                    "error", "验证配置值失败",
-                    "message", e.getMessage(),
-                    "timestamp", LocalDateTime.now()
-            );
-            return ResponseEntity.status(500).body(errorResponse);
+            return R.fail("验证配置值失败: " + e.getMessage());
         }
     }
 
@@ -654,7 +466,7 @@ public class ConfigController {
      * @return 支持的配置类型列表
      */
     @GetMapping("/types")
-    public ResponseEntity<?> getConfigTypes() {
+    public R<Map<String, Object>> getConfigTypes() {
         try {
             List<Map<String, String>> configTypes = Arrays.stream(SystemConfig.ConfigType.values())
                     .map(type -> Map.of(
@@ -669,16 +481,11 @@ public class ConfigController {
             response.put("totalTypes", configTypes.size());
             response.put("timestamp", LocalDateTime.now());
 
-            return ResponseEntity.ok(response);
+            return R.ok("配置类型获取成功", response);
 
         } catch (Exception e) {
             logger.error("获取配置类型失败", e);
-            Map<String, Object> errorResponse = Map.of(
-                    "error", "获取配置类型失败",
-                    "message", e.getMessage(),
-                    "timestamp", LocalDateTime.now()
-            );
-            return ResponseEntity.status(500).body(errorResponse);
+            return R.fail("获取配置类型失败: " + e.getMessage());
         }
     }
 }

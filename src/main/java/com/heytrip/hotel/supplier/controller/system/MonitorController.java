@@ -1,9 +1,10 @@
-package com.heytrip.hotel.supplier.controller;
+package com.heytrip.hotel.supplier.controller.system;
 
 import cn.hutool.core.util.StrUtil;
 import com.heytrip.hotel.supplier.adapter.SupplierAdapterManager;
 import com.heytrip.hotel.supplier.client.HttpClientService;
 import com.heytrip.hotel.supplier.config.Config;
+import com.heytrip.hotel.supplier.dto.R;
 import com.heytrip.hotel.supplier.entity.ApiCallLog;
 import com.heytrip.hotel.supplier.entity.SupplierConfig;
 import com.heytrip.hotel.supplier.entity.SupplierHealthLog;
@@ -21,7 +22,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
@@ -71,7 +71,7 @@ public class MonitorController implements HealthIndicator {
      * 系统健康检查
      */
     @GetMapping("/health")
-    public ResponseEntity<Map<String, Object>> healthCheck() {
+    public R<Map<String, Object>> healthCheck() {
         logger.info("Performing system health check");
         
         Map<String, Object> health = new HashMap<>();
@@ -110,23 +110,23 @@ public class MonitorController implements HealthIndicator {
                     "status", "UP"
             ));
             
+            return R.ok("系统健康检查成功", health);
+
         } catch (Exception e) {
             logger.error("Health check failed", e);
             health.put("status", "DOWN");
             health.put("error", e.getMessage());
-            return ResponseEntity.status(503).body(health);
+            return R.fail("系统健康检查失败: " + e.getMessage());
         }
-        
-        return ResponseEntity.ok(health);
     }
-    
+
     /**
      * 获取系统统计信息
      */
     @GetMapping("/stats")
-    public ResponseEntity<Map<String, Object>> getSystemStats() {
+    public R<Map<String, Object>> getSystemStats() {
         logger.info("Getting system statistics");
-        
+
         try {
             Map<String, Object> stats = new HashMap<>();
 
@@ -139,7 +139,7 @@ public class MonitorController implements HealthIndicator {
                     "failed", totalApiCalls - successfulCalls,
                     "successRate", totalApiCalls > 0 ? (double) successfulCalls / totalApiCalls * 100 : 0.0
             ));
-            
+
             // 供应商统计
             long totalSuppliers = supplierConfigRepository.countAllSuppliers();
             long activeSuppliers = supplierConfigRepository.countActiveSuppliers();
@@ -150,7 +150,7 @@ public class MonitorController implements HealthIndicator {
                     "enabled", supplierAdapterManager.getEnabledSuppliers().size(),
                     "list", supplierAdapterManager.getEnabledSuppliers()
             ));
-            
+
             // 系统配置统计
             long totalConfigs = systemConfigRepository.countAllConfigs();
             long activeConfigs = systemConfigRepository.countActiveConfigs();
@@ -160,26 +160,28 @@ public class MonitorController implements HealthIndicator {
                     "active", activeConfigs,
                     "encrypted", encryptedConfigs
             ));
-            
+
             stats.put("timestamp", LocalDateTime.now());
-            
-            return ResponseEntity.ok(stats);
-            
+
+            return R.ok(stats);
+
         } catch (Exception e) {
             logger.error("Failed to get system statistics", e);
             Map<String, Object> errorStats = Map.of(
                     "error", "Failed to retrieve statistics: " + e.getMessage(),
                     "timestamp", LocalDateTime.now()
             );
-            return ResponseEntity.internalServerError().body(errorStats);
+            return R.fail(errorStats);
         }
     }
+
+
     
     /**
      * 获取供应商性能指标
      */
     @GetMapping("/metrics/suppliers")
-    public Mono<ResponseEntity<Map<String, Object>>> getSupplierMetrics() {
+    public Mono<R<Map<String, Object>>> getSupplierMetrics() {
         logger.info("Getting supplier performance metrics");
         
         return supplierAdapterManager.checkAllSuppliersHealth()
@@ -215,15 +217,11 @@ public class MonitorController implements HealthIndicator {
                             "timestamp", LocalDateTime.now()
                     );
                     
-                    return ResponseEntity.ok(response);
+                    return R.ok("供应商性能指标获取成功", response);
                 })
                 .onErrorResume(error -> {
                     logger.error("Failed to get supplier metrics", error);
-                    Map<String, Object> errorResponse = Map.of(
-                            "error", "Failed to retrieve supplier metrics: " + error.getMessage(),
-                            "timestamp", LocalDateTime.now()
-                    );
-                    return Mono.just(ResponseEntity.internalServerError().body(errorResponse));
+                    return Mono.just(R.fail("获取供应商性能指标失败: " + error.getMessage()));
                 });
     }
     
@@ -231,7 +229,7 @@ public class MonitorController implements HealthIndicator {
      * 获取系统性能指标
      */
     @GetMapping("/metrics/performance")
-    public ResponseEntity<Map<String, Object>> getPerformanceMetrics() {
+    public R<Map<String, Object>> getPerformanceMetrics() {
         logger.info("Getting system performance metrics");
         
         try {
@@ -254,15 +252,11 @@ public class MonitorController implements HealthIndicator {
                     "timestamp", LocalDateTime.now()
             );
             
-            return ResponseEntity.ok(metrics);
-            
+            return R.ok("系统性能指标获取成功", metrics);
+
         } catch (Exception e) {
             logger.error("Failed to get performance metrics", e);
-            Map<String, Object> errorResponse = Map.of(
-                    "error", "Failed to retrieve performance metrics: " + e.getMessage(),
-                    "timestamp", LocalDateTime.now()
-            );
-            return ResponseEntity.internalServerError().body(errorResponse);
+            return R.fail("获取系统性能指标失败: " + e.getMessage());
         }
     }
     
@@ -270,7 +264,7 @@ public class MonitorController implements HealthIndicator {
      * 系统就绪检查
      */
     @GetMapping("/ready")
-    public ResponseEntity<Map<String, Object>> readinessCheck() {
+    public R<Map<String, Object>> readinessCheck() {
         logger.info("Performing readiness check");
         
         try {
@@ -280,30 +274,21 @@ public class MonitorController implements HealthIndicator {
             // 检查至少有一个供应商可用
             boolean hasEnabledSuppliers = !supplierAdapterManager.getEnabledSuppliers().isEmpty();
             
+            Map<String, Object> response = Map.of(
+                    "status", hasEnabledSuppliers ? "READY" : "NOT_READY",
+                    "message", hasEnabledSuppliers ? "Service is ready to accept requests" : "No suppliers available",
+                    "timestamp", LocalDateTime.now()
+            );
+
             if (hasEnabledSuppliers) {
-                Map<String, Object> response = Map.of(
-                        "status", "READY",
-                        "message", "Service is ready to accept requests",
-                        "timestamp", LocalDateTime.now()
-                );
-                return ResponseEntity.ok(response);
+                return R.ok("系统就绪检查成功", response);
             } else {
-                Map<String, Object> response = Map.of(
-                        "status", "NOT_READY",
-                        "message", "No suppliers available",
-                        "timestamp", LocalDateTime.now()
-                );
-                return ResponseEntity.status(503).body(response);
+                return R.fail("系统未就绪: 没有可用的供应商");
             }
             
         } catch (Exception e) {
             logger.error("Readiness check failed", e);
-            Map<String, Object> response = Map.of(
-                    "status", "NOT_READY",
-                    "message", "Service is not ready: " + e.getMessage(),
-                    "timestamp", LocalDateTime.now()
-            );
-            return ResponseEntity.status(503).body(response);
+            return R.fail("系统就绪检查失败: " + e.getMessage());
         }
     }
     
@@ -313,16 +298,11 @@ public class MonitorController implements HealthIndicator {
      * 获取指定供应商的详细健康状态
      */
     @GetMapping("/supplier-health/{supplierId}")
-    public ResponseEntity<Map<String, Object>> getSupplierHealthDetail(@PathVariable Long supplierId) {
+    public R<Map<String, Object>> getSupplierHealthDetail(@PathVariable Long supplierId) {
         try {
             Optional<SupplierConfig> supplierOpt = supplierConfigRepository.findById(supplierId);
             if (supplierOpt.isEmpty()) {
-                Map<String, Object> errorResponse = Map.of(
-                        "error", "Supplier not found",
-                        "supplierId", supplierId,
-                        "timestamp", LocalDateTime.now()
-                );
-                return ResponseEntity.status(404).body(errorResponse);
+                return R.fail("供应商不存在，ID: " + supplierId);
             }
 
             SupplierConfig supplier = supplierOpt.get();
@@ -364,17 +344,11 @@ public class MonitorController implements HealthIndicator {
             healthDetail.put("statistics", statistics);
             healthDetail.put("timestamp", LocalDateTime.now());
 
-            return ResponseEntity.ok(healthDetail);
+            return R.ok("供应商健康详情获取成功", healthDetail);
 
         } catch (Exception e) {
             logger.error("Failed to get supplier health detail for supplier: " + supplierId, e);
-            Map<String, Object> errorResponse = Map.of(
-                    "error", "Failed to retrieve supplier health detail",
-                    "supplierId", supplierId,
-                    "message", e.getMessage(),
-                    "timestamp", LocalDateTime.now()
-            );
-            return ResponseEntity.status(500).body(errorResponse);
+            return R.fail("获取供应商健康详情失败: " + e.getMessage());
         }
     }
 
@@ -426,14 +400,10 @@ public class MonitorController implements HealthIndicator {
      * @return 包含认证头部信息的响应
      */
     @GetMapping("/gen-auth")
-    public ResponseEntity<Map<String, Object>> generateAuthHeaders(@RequestParam(required = false) String customTimestamp) {
+    public R<Map<String, Object>> generateAuthHeaders(@RequestParam(required = false) String customTimestamp) {
         ///  生产环境禁用此接口   dev:开发环境可用  prod：生产环境禁用
         if (!HeyUtil.isDebugEnvironment()) {
-            Map<String, Object> errorResponse = Map.of(
-                    "error", "此接口仅在开发环境中可用",
-                    "timestamp", LocalDateTime.now()
-            );
-            return ResponseEntity.status(403).body(errorResponse);
+            return R.fail("此接口仅在开发环境中可用");
         }
 
         try {
@@ -492,16 +462,11 @@ public class MonitorController implements HealthIndicator {
             
             logger.info("Generated auth headers for development - AppId: {}, Timestamp: {}", appId, timestamp);
             
-            return ResponseEntity.ok(response);
-            
+            return R.ok("认证头部生成成功", response);
+
         } catch (Exception e) {
             logger.error("Failed to generate auth headers", e);
-            Map<String, Object> errorResponse = Map.of(
-                    "error", "Failed to generate auth headers",
-                    "message", e.getMessage(),
-                    "timestamp", LocalDateTime.now()
-            );
-            return ResponseEntity.status(500).body(errorResponse);
+            return R.fail("生成认证头部失败: " + e.getMessage());
         }
     }
 
@@ -514,14 +479,10 @@ public class MonitorController implements HealthIndicator {
      * @return 验证结果
      */
     @GetMapping("/validate-auth")
-    public ResponseEntity<Map<String, Object>> validateAuthHeaders(@RequestParam("appId") String appIdParam, @RequestParam("timestamp") String timestampParam, @RequestParam("signature") String signatureParam) {
+    public R<Map<String, Object>> validateAuthHeaders(@RequestParam("appId") String appIdParam, @RequestParam("timestamp") String timestampParam, @RequestParam("signature") String signatureParam) {
         ///  生产环境禁用此接口   dev:开发环境可用  prod：生产环境禁用
         if (!HeyUtil.isDebugEnvironment()) {
-            Map<String, Object> errorResponse = Map.of(
-                    "error", "此接口仅在开发环境中可用",
-                    "timestamp", LocalDateTime.now()
-            );
-            return ResponseEntity.status(403).body(errorResponse);
+            return R.fail("此接口仅在开发环境中可用");
         }
         try {
             Map<String, Object> response = new HashMap<>();
@@ -579,6 +540,7 @@ public class MonitorController implements HealthIndicator {
             if (overallValid) {
                 response.put("message", "认证头部验证通过");
                 response.put("status", "VALID");
+                return R.ok("认证头部验证成功", response);
             } else {
                 response.put("message", "认证头部验证失败");
                 response.put("status", "INVALID");
@@ -590,20 +552,12 @@ public class MonitorController implements HealthIndicator {
                 if (!signatureValid) errors.add("签名验证失败");
                 
                 response.put("errors", errors);
+                return R.fail("认证头部验证失败", response);
             }
-            
-            logger.info("Validated auth headers - AppId: {}, Valid: {}", appIdParam, overallValid);
-            
-            return ResponseEntity.ok(response);
-            
+
         } catch (Exception e) {
             logger.error("Failed to validate auth headers", e);
-            Map<String, Object> errorResponse = Map.of(
-                    "error", "Failed to validate auth headers",
-                    "message", e.getMessage(),
-                    "timestamp", LocalDateTime.now()
-            );
-            return ResponseEntity.status(500).body(errorResponse);
+            return R.fail("验证认证头部失败: " + e.getMessage());
         }
     }
 
@@ -614,35 +568,29 @@ public class MonitorController implements HealthIndicator {
      * 获取HTTP客户端监控指标
      */
     @GetMapping("/httpClient/metrics")
-    public Map<String, Object> httpClientMetrics() {
-        Map<String, Object> result = new HashMap<>();
-        result.put("status", "success");
-        result.put("message", "HTTP客户端监控指标");
-        result.put("data", httpClientService.getMetrics());
-        result.put("availablePermits", httpClientService.getAvailablePermits());
-        result.put("healthy", httpClientService.isHealthy());
-        result.put("timestamp", System.currentTimeMillis());
-        return result;
+    public R<Map<String, Object>> httpClientMetrics() {
+        Map<String, Object> data = new HashMap<>();
+        data.put("metrics", httpClientService.getMetrics());
+        data.put("availablePermits", httpClientService.getAvailablePermits());
+        data.put("healthy", httpClientService.isHealthy());
+        data.put("timestamp", System.currentTimeMillis());
+        return R.ok("HTTP客户端监控指标获取成功", data);
     }
 
     /**
      * HTTP客户端重置监控指标
      */
     @PostMapping("/httpClient/reset")
-    public Map<String, Object> httpClientResetMetrics() {
+    public R<Void> httpClientResetMetrics() {
         httpClientService.resetMetrics();
-        Map<String, Object> result = new HashMap<>();
-        result.put("status", "success");
-        result.put("message", "监控指标已重置");
-        result.put("timestamp", System.currentTimeMillis());
-        return result;
+        return R.ok("监控指标已重置");
     }
 
     /**
      * HTTP客户端健康检查
      */
     @GetMapping("/httpClient/health")
-    public Map<String, Object> httpClientHealthCheck() {
+    public R<Map<String, Object>> httpClientHealthCheck() {
         boolean healthy = httpClientService.isHealthy();
         int availablePermits = httpClientService.getAvailablePermits();
 
@@ -653,7 +601,12 @@ public class MonitorController implements HealthIndicator {
         result.put("maxPermits", 50);
         result.put("utilizationRate", String.format("%.2f%%", (50 - availablePermits) / 50.0 * 100));
         result.put("timestamp", System.currentTimeMillis());
-        return result;
+
+        if (healthy) {
+            return R.ok("HTTP客户端健康检查成功", result);
+        } else {
+            return R.fail("HTTP客户端健康检查异常", result);
+        }
     }
 
 }

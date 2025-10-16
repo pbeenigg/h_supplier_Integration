@@ -1,4 +1,4 @@
-package com.heytrip.hotel.supplier.controller;
+package com.heytrip.hotel.supplier.controller.supp;
 
 import com.heytrip.common.apiservice.ISupplierApiService;
 import com.heytrip.common.request.XSupplierCheckRequest;

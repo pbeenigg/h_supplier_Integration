@@ -25,33 +25,7 @@ public class ApiLogExtractUtil {
     private static final Logger logger = LoggerFactory.getLogger(ApiLogExtractUtil.class);
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
-    /**
-     * 从HTTP请求中提取客户端IP
-     */
-    public static String getClientIp(HttpServletRequest request) {
-        String ip = request.getHeader("X-Forwarded-For");
-        if (StringUtils.hasText(ip) && !"unknown".equalsIgnoreCase(ip)) {
-            // 多级代理的情况，取第一个IP
-            return ip.split(",")[0].trim();
-        }
 
-        ip = request.getHeader("X-Real-IP");
-        if (StringUtils.hasText(ip) && !"unknown".equalsIgnoreCase(ip)) {
-            return ip;
-        }
-
-        ip = request.getHeader("Proxy-Client-IP");
-        if (StringUtils.hasText(ip) && !"unknown".equalsIgnoreCase(ip)) {
-            return ip;
-        }
-
-        ip = request.getHeader("WL-Proxy-Client-IP");
-        if (StringUtils.hasText(ip) && !"unknown".equalsIgnoreCase(ip)) {
-            return ip;
-        }
-
-        return request.getRemoteAddr();
-    }
 
     /**
      * 将请求头转换为JSON字符串
