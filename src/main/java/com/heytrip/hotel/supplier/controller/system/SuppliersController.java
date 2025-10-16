@@ -9,13 +9,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Suppliers
@@ -87,9 +86,6 @@ public class SuppliersController {
     @GetMapping("/suppliers/{supplierName}/health")
     public R<Map<String, Object>> checkSupplierHealth(@PathVariable String supplierName) {
         logger.info("Checking health for supplier: {}", supplierName);
-        
-        // 记录认证信息（用于调试）
-        AuthHelper.logAuthInfo("supplier-health-check-" + supplierName);
         
         try {
             // 同步调用供应商健康检查
@@ -168,4 +164,94 @@ public class SuppliersController {
         return R.ok("获取API版本信息成功", response);
     }
 
+    /**
+     * 修改供应商信息
+     *
+     * @param request 供应商信息修改请求
+     * @return 修改结果
+     */
+    @PutMapping("/suppliers")
+    public R<String> updateSupplierInfo(@RequestBody Map<String, Object> request) {
+        logger.info("Updating supplier info: {}", request);
+
+        try {
+            String supplierName = (String) request.get("supplierName");
+            Boolean isActive = (Boolean) request.get("isActive");
+            String updateBy = AuthHelper.getCurrentUser(); // 获取当前登录用户作为更新者
+
+            if (supplierName == null || supplierName.trim().isEmpty()) {
+                return R.fail("供应商名称不能为空");
+            }
+
+            Optional<SupplierConfig> configOpt = supplierConfigRepository.findBySupplierName(supplierName);
+            if (configOpt.isEmpty()) {
+                return R.fail("供应商不存在: " + supplierName);
+            }
+
+            SupplierConfig config = configOpt.get();
+            if (isActive != null) {
+                config.setIsActive(isActive);
+            }
+
+            // 记录更新操作信息
+            logger.info("供应商 {} 状态更新为: {}, 操作用户: {}", supplierName, isActive, updateBy);
+
+            supplierConfigRepository.save(config);
+
+            return R.ok("供应商信息修改成功");
+        } catch (Exception e) {
+            logger.error("Failed to update supplier info", e);
+            return R.fail("修改供应商信息失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 修改指定供应商的配置信息
+     *
+     * @param supplierName 供应商名称
+     * @param request 配置修改请求
+     * @return 修改结果
+     */
+    @PutMapping("/suppliers/{supplierName}/config")
+    public R<SupplierConfig> updateSupplierConfig(@PathVariable String supplierName,
+                                                   @RequestBody Map<String, Object> request) {
+        logger.info("Updating config for supplier: {}, request: {}", supplierName, request);
+
+        try {
+            Optional<SupplierConfig> configOpt = supplierConfigRepository.findBySupplierName(supplierName);
+            if (configOpt.isEmpty()) {
+                return R.fail("供应商配置不存在: " + supplierName);
+            }
+
+            SupplierConfig config = configOpt.get();
+            String updateBy = AuthHelper.getCurrentUser(); // 获取当前登录用户作为更新者
+
+            // 更新配置参数（使用实际存在的字段）
+            if (request.containsKey("authConfig")) {
+                config.setAuthConfig((String) request.get("authConfig"));
+            }
+            if (request.containsKey("ftpConfig")) {
+                config.setFtpConfig((String) request.get("ftpConfig"));
+            }
+            if (request.containsKey("retryCount")) {
+                config.setRetryCount((Integer) request.get("retryCount"));
+            }
+            if (request.containsKey("isActive")) {
+                config.setIsActive((Boolean) request.get("isActive"));
+            }
+            if (request.containsKey("priority")) {
+                config.setPriority((Integer) request.get("priority"));
+            }
+
+            // 记录更新操作信息
+            logger.info("供应商 {} 配置更新, 操作用户: {}", supplierName, updateBy);
+
+            SupplierConfig savedConfig = supplierConfigRepository.save(config);
+
+            return R.ok("供应商配置修改成功", savedConfig);
+        } catch (Exception e) {
+            logger.error("Failed to update supplier config for: " + supplierName, e);
+            return R.fail("修改供应商配置失败: " + e.getMessage());
+        }
+    }
 }

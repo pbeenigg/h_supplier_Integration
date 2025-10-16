@@ -2,6 +2,7 @@ package com.heytrip.hotel.supplier.filter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.heytrip.hotel.supplier.config.Config;
+import com.heytrip.hotel.supplier.constant.HeaderNames;
 import com.heytrip.hotel.supplier.dto.R;
 import com.heytrip.hotel.supplier.service.AppService;
 import com.heytrip.hotel.supplier.utils.SignUtil;
@@ -32,10 +33,6 @@ public class SecurityFilter extends OncePerRequestFilter {
 
     private static final Logger logger = LoggerFactory.getLogger(SecurityFilter.class);
 
-    private static final String HEADER_APP_ID = "app";
-    private static final String HEADER_TIMESTAMP = "timestamp";
-    private static final String HEADER_SIGNATURE = "sign";
-
     private static final long MAX_TIME_SKEW_SECONDS = 300; // 5分钟时间偏差
 
     @Resource
@@ -65,9 +62,9 @@ public class SecurityFilter extends OncePerRequestFilter {
                 return;
             }
 
-            String appId = request.getHeader(HEADER_APP_ID);
-            String timestamp = request.getHeader(HEADER_TIMESTAMP);
-            String signature = request.getHeader(HEADER_SIGNATURE);
+            String appId = request.getHeader(HeaderNames.HEADER_APP_ID);
+            String timestamp = request.getHeader(HeaderNames.HEADER_TIMESTAMP);
+            String signature = request.getHeader(HeaderNames.HEADER_SIGNATURE);
 
             // 验证时间戳
             if (!validateTimestamp(timestamp)) {
@@ -138,9 +135,9 @@ public class SecurityFilter extends OncePerRequestFilter {
      * 验证认证头部是否存在
      */
     private boolean validateAuthHeaders(HttpServletRequest request) {
-        String appId = request.getHeader(HEADER_APP_ID);
-        String timestamp = request.getHeader(HEADER_TIMESTAMP);
-        String signature = request.getHeader(HEADER_SIGNATURE);
+        String appId = request.getHeader(HeaderNames.HEADER_APP_ID);
+        String timestamp = request.getHeader(HeaderNames.HEADER_TIMESTAMP);
+        String signature = request.getHeader(HeaderNames.HEADER_SIGNATURE);
 
         return appId != null && !appId.trim().isEmpty() &&
                 timestamp != null && !timestamp.trim().isEmpty() &&

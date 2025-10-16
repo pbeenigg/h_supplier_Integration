@@ -88,25 +88,7 @@ public class CacheController {
         return R.ok("清理缓存项成功");
     }
 
-    /**
-     * 清理供应商配置类缓存
-     */
-    @PostMapping("/evict/supplier-config/all")
-    public R<Void> evictSupplierConfig(@RequestHeader(name = "X-Operator", required = false) String operator) {
-        cacheEvictor.evictSupplierConfigCaches();
-        log.info("[CacheAdmin] 清理供应商配置类缓存 by {}", op(operator));
-        return R.ok("清理供应商配置类缓存成功");
-    }
 
-    /**
-     * 清理系统配置缓存
-     */
-    @PostMapping("/evict/system-config")
-    public R<Void> evictSystemConfig(@RequestHeader(name = "X-Operator", required = false) String operator) {
-        cacheEvictor.evictSystemConfig();
-        log.info("[CacheAdmin] 清理系统配置缓存 by {}", op(operator));
-        return R.ok("清理系统配置缓存成功");
-    }
 
     /**
      * 列出缓存统计（仅支持 CaffeineCache）

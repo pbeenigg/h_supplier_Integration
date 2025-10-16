@@ -4,11 +4,15 @@ import cn.hutool.core.util.StrUtil;
 import com.heytrip.hotel.supplier.dto.R;
 import com.heytrip.hotel.supplier.entity.User;
 import com.heytrip.hotel.supplier.service.UserService;
+import com.heytrip.hotel.supplier.utils.AuthHelper;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -49,6 +53,14 @@ public class AuthController {
 
             User user = userOpt.get();
 
+            // 设置用户信息到Spring Security Context
+            UsernamePasswordAuthenticationToken authentication =
+                new UsernamePasswordAuthenticationToken(user.getUserName(), null, new ArrayList<>());
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+
+            // 设置用户信息到Request属性，供AuthHelper使用
+            AuthHelper.setCurrentUser(user.getUserName());
+
             // 构建登录成功响应
             Map<String, Object> loginResponse = new HashMap<>();
             loginResponse.put("userId", user.getUserId());
@@ -62,7 +74,7 @@ public class AuthController {
 
         } catch (Exception e) {
             logger.error("用户登录失败", e);
-            return  R.fail("登录失败: " + e.getMessage());
+            return R.fail("登录失败: " + e.getMessage());
         }
     }
 
