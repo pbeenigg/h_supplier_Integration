@@ -9,6 +9,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfigurationSource;
 
 /**
  * 安全配置类
@@ -23,6 +24,9 @@ public class SecurityConfig {
     @Resource
     private Config config;
     
+    @Resource
+    private CorsConfigurationSource corsConfigurationSource;
+
     @Bean
     public SecurityFilter securityFilter() {
         return new SecurityFilter();
@@ -31,6 +35,9 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         return http
+            // 启用CORS支持
+            .cors(cors -> cors.configurationSource(corsConfigurationSource))
+
             // 禁用CSRF保护
             .csrf(csrf -> csrf.disable())
             

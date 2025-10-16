@@ -67,6 +67,7 @@ public class AuthController {
             loginResponse.put("userName", user.getUserName());
             loginResponse.put("userNick", user.getUserNick());
             loginResponse.put("appId", user.getAppId());
+            loginResponse.put("secretKey", user.getApp().getSecretKey());
             loginResponse.put("loginTime", System.currentTimeMillis());
 
             logger.info("用户登录成功，用户名: {}, appId: {}", userName, user.getAppId());
@@ -119,18 +120,36 @@ public class AuthController {
         logger.info("用户修改密码请求");
 
         try {
-            Long userId = Long.valueOf(changeRequest.get("userId").toString());
+            // 从当前认证信息获取用户ID，如果传入userId则验证权限
+            String currentUser = AuthHelper.getCurrentUser();
+            Long userId = changeRequest.containsKey("userId") ?
+                Long.valueOf(changeRequest.get("userId").toString()) : null;
+
             String oldPassword = (String) changeRequest.get("oldPassword");
             String newPassword = (String) changeRequest.get("newPassword");
-            String updateBy = (String) changeRequest.get("updateBy");
 
             if (StrUtil.isBlank(oldPassword) || StrUtil.isBlank(newPassword)) {
                 return R.fail("原密码和新密码不能为空");
             }
 
-            userService.changePassword(userId, oldPassword, newPassword, updateBy);
+            // 密码强度验证
+            if (newPassword.length() < 6) {
+                return R.fail("新密码长度不能少于6位");
+            }
 
-            logger.info("用户密码修改成功，用户ID: {}", userId);
+            // 如果没有传入userId，则通过当前用户名获取
+            if (userId == null) {
+                Optional<User> currentUserOpt = userService.findByUserName(currentUser);
+                if (currentUserOpt.isEmpty()) {
+                    return R.fail("当前用户不存在");
+                }
+                userId = currentUserOpt.get().getUserId();
+            }
+
+            // 执行密码修改
+            userService.changePassword(userId, oldPassword, newPassword, currentUser);
+
+            logger.info("用户密码修改成功，用户ID: {}, 操作用户: {}", userId, currentUser);
             return R.ok("密码修改成功");
 
         } catch (Exception e) {
@@ -143,14 +162,34 @@ public class AuthController {
      * 用户退出登录
      */
     @PostMapping("/logout")
-    public R<Void> logout(@RequestBody Map<String, String> logoutRequest) {
+    public R<Void> logout(@RequestBody(required = false) Map<String, String> logoutRequest) {
         logger.info("用户退出登录");
 
         try {
-            String userName = logoutRequest.get("userName");
-            logger.info("用户退出登录，用户名: {}", userName);
+            // 获取当前登录用户
+            String currentUser = AuthHelper.getCurrentUser();
 
-            // 这里可以添加清理会话等逻辑
+            // 如果请求中包含用户名，验证是否与当前用户一致
+            if (logoutRequest != null && logoutRequest.containsKey("userName")) {
+                String requestUserName = logoutRequest.get("userName");
+                if (!currentUser.equals(requestUserName) && !"system".equals(currentUser)) {
+                    logger.warn("退出登录用户名不匹配，当前用户: {}, 请求用户: {}", currentUser, requestUserName);
+                    return R.fail("用户验证失败");
+                }
+            }
+
+            // 清理Spring Security Context
+            SecurityContextHolder.clearContext();
+
+            // 记录退出日志
+            logger.info("用户退出登录成功，用户名: {}", currentUser);
+
+            // 这里可以添加更多清理逻辑：
+            // 1. 清理用户相关缓存
+            // 2. 记录退出日志到数据库
+            // 3. 清理用户Session相关信息
+            // 4. 通知其他服务用户已退出
+
             return R.ok("退出登录成功");
 
         } catch (Exception e) {

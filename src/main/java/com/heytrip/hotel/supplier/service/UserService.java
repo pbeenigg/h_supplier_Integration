@@ -41,14 +41,14 @@ public class UserService {
     /**
      * 用户登录验证
      */
-    @Cacheable(value = CacheNames.USER, key = "#userName + ':auth'", unless = "#result.isEmpty()")
+    @Cacheable(value = CacheNames.USER, key = "#userName + ':auth'", unless = "#result == null")
     public Optional<User> authenticateUser(String userName, String password) {
         logger.debug("用户登录验证，用户名: {}", userName);
 
         Optional<User> userOpt = userRepository.findByUserNameWithApp(userName);
         if (userOpt.isEmpty()) {
             logger.warn("用户不存在，用户名: {}", userName);
-            return Optional.empty();
+            throw  new BasicException("用户不存在: " + userName);
         }
 
         User user = userOpt.get();
@@ -57,19 +57,19 @@ public class UserService {
         if (user.isExpired()) {
             logger.warn("用户已过期，用户名: {}, 创建时间: {}, 超时时间: {}小时",
                        userName, user.getCreateAt(), user.getTimeout());
-            return Optional.empty();
+           throw new BasicException("用户已过期: " + userName);
         }
 
         // 验证密码
         if (!passwordEncoder.matches(password, user.getPassword())) {
             logger.warn("密码验证失败，用户名: {}", userName);
-            return Optional.empty();
+            throw new BasicException("用户名或密码错误");
         }
 
         // 验证关联的应用是否有效
         if (!appService.validateApp(user.getAppId())) {
             logger.warn("用户关联的应用无效，用户名: {}, appId: {}", userName, user.getAppId());
-            return Optional.empty();
+          throw new BasicException("用户关联的应用无效: " + userName);
         }
 
         logger.info("用户登录验证成功，用户名: {}, appId: {}", userName, user.getAppId());
@@ -79,7 +79,7 @@ public class UserService {
     /**
      * 根据用户名查找用户
      */
-    @Cacheable(value = CacheNames.USER, key = "#userName", unless = "#result.isEmpty()")
+    @Cacheable(value = CacheNames.USER, key = "#userName", unless = "#result == null")
     public Optional<User> findByUserName(String userName) {
         logger.debug("查找用户，用户名: {}", userName);
         return userRepository.findByUserName(userName);
@@ -88,7 +88,7 @@ public class UserService {
     /**
      * 根据appId查找用户
      */
-    @Cacheable(value = CacheNames.USER, key = "'app:' + #appId", unless = "#result.isEmpty()")
+    @Cacheable(value = CacheNames.USER, key = "'app:' + #appId", unless = "#result == null")
     public Optional<User> findByAppId(String appId) {
         logger.debug("根据appId查找用户，appId: {}", appId);
         return userRepository.findByAppId(appId);
@@ -208,6 +208,7 @@ public class UserService {
         userRepository.save(user);
         logger.info("用户密码修改成功，用户ID: {}", userId);
     }
+
 
     /**
      * 重置用户密码（管理员操作）
