@@ -548,19 +548,28 @@ public class HttpClientService {
         try {
             if (headersJson == null) return null;
             Map<?,?> map = MAPPER.readValue(headersJson, Map.class);
-            Object ua = map.get("User-Agent");
-            if (ua == null) ua = map.get("user-agent");
-            if (ua instanceof String) return (String) ua;
-            if (ua instanceof java.util.List<?> list && !list.isEmpty()) return String.valueOf(list.get(0));
-            return ua != null ? String.valueOf(ua) : null;
+
+            // 支持多种 User-Agent 头名称变体
+            String[] userAgentKeys = {"User-Agent", "user-agent", "USER-AGENT", "UserAgent", "useragent"};
+
+            for (String key : userAgentKeys) {
+                Object ua = map.get(key);
+                if (ua != null) {
+                    if (ua instanceof String) return (String) ua;
+                    if (ua instanceof java.util.List<?> list && !list.isEmpty()) return String.valueOf(list.get(0));
+                    return String.valueOf(ua);
+                }
+            }
+            return null;
         } catch (Exception e) {
+            logger.warn("[extractUserAgent] 提取User-Agent失败, headersJson: {}", headersJson, e);
             return null;
         }
     }
 
     /**
      * 从 HTTP 头中解析客户端 IP 地址
-     * 支持常见的代理头：X-Forwarded-For, X-Real-IP
+     * 支持常见的代理头和客户端IP头
      * @param headersJson
      * @return
      */
@@ -568,20 +577,41 @@ public class HttpClientService {
         try {
             if (headersJson == null) return null;
             Map<?,?> map = MAPPER.readValue(headersJson, Map.class);
-            String[] keys = new String[]{"X-Forwarded-For","x-forwarded-for","X-Real-IP","x-real-ip"};
-            for (String k : keys) {
-                Object v = map.get(k);
+
+            // 按优先级检查各种客户端IP头
+            String[] ipHeaders = {
+                "X-Forwarded-For", "x-forwarded-for",
+                "X-Real-IP", "x-real-ip",
+                "Client-IP", "client-ip",
+                "X-Client-IP", "x-client-ip",
+                "X-Originating-IP", "x-originating-ip",
+                "CF-Connecting-IP", "cf-connecting-ip",
+                "True-Client-IP", "true-client-ip"
+            };
+
+            for (String headerKey : ipHeaders) {
+                Object v = map.get(headerKey);
                 if (v == null) continue;
+
                 String val;
-                if (v instanceof java.util.List<?> list && !list.isEmpty()) val = String.valueOf(list.get(0));
-                else val = String.valueOf(v);
-                if (val != null && !val.isEmpty()) {
+                if (v instanceof java.util.List<?> list && !list.isEmpty()) {
+                    val = String.valueOf(list.get(0));
+                } else {
+                    val = String.valueOf(v);
+                }
+
+                if (val != null && !val.isEmpty() && !"unknown".equalsIgnoreCase(val)) {
+                    // 处理多个IP的情况（用逗号分隔，取第一个）
                     int comma = val.indexOf(',');
-                    return comma > 0 ? val.substring(0, comma).trim() : val.trim();
+                    String clientIp = comma > 0 ? val.substring(0, comma).trim() : val.trim();
+                    if (!clientIp.isEmpty() && !"unknown".equalsIgnoreCase(clientIp)) {
+                        return clientIp;
+                    }
                 }
             }
             return null;
         } catch (Exception e) {
+            logger.warn("[resolveClientIp] 提取Client-IP失败, headersJson: {}", headersJson, e);
             return null;
         }
     }
