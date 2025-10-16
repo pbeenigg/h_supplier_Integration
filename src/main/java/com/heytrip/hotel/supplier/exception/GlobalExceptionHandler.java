@@ -5,7 +5,6 @@ import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
@@ -31,31 +30,33 @@ public class GlobalExceptionHandler {
     private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
     
     /**
-     * 处理业务异常
+     * 处理供应商业务异常
      */
-    @ExceptionHandler(BusinessException.class)
-    public Result handleBusinessException(BusinessException e) {
-        logger.error("Business 处理业务异常: code={}, bizCode={} ,message={}", e.getCode(), e.getBizCode(),e.getMessage());
+    @ExceptionHandler(SupplierException.class)
+    public Result handleSupplierException(SupplierException e) {
+        logger.error("Business 处理业务异常: supplierName={}, code={}, bizCode={} ,message={}",e.getSupplierName(), e.getCode(), e.getBizCode(),e.getMessage());
         Result  result =new Result(e.getCode(),e.getBizCode(), e.getMessage(),"",e.getData(),null);
         return result;
     }
-    
+
+
     /**
-     * 处理供应商异常
+     * 处理通用系统异常
      */
-    @ExceptionHandler(SupplierException.class)
-    public ResponseEntity<ErrorResponse> handleSupplierException(SupplierException e) {
-        logger.error("Supplier exception: {}", e.getMessage(), e);
-        
+    @ExceptionHandler(BasicException.class)
+    public ResponseEntity<ErrorResponse> handleBasicException(BasicException e) {
+        logger.warn("系统异常: {}", e.getMessage());
+
         ErrorResponse errorResponse = ErrorResponse.builder()
-                .code(e.getCode())
+                .code(500)
                 .msg(e.getMessage())
-                .supplierName(e.getSupplierName())
                 .timestamp(System.currentTimeMillis())
                 .build();
-        
-        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(errorResponse);
+
+        return ResponseEntity.badRequest().body(errorResponse);
     }
+    
+
     
     /**
      * 处理参数验证异常

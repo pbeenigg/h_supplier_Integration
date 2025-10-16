@@ -28,7 +28,7 @@ import com.heytrip.hotel.supplier.dto.qtech.resp.*;
 import com.heytrip.hotel.supplier.dto.supplier.SupplierAuth;
 import com.heytrip.hotel.supplier.entity.SupplierConfig;
 import com.heytrip.hotel.supplier.enums.QTechBookingStatusEnum;
-import com.heytrip.hotel.supplier.exception.BusinessException;
+import com.heytrip.hotel.supplier.exception.SupplierException;
 import com.heytrip.hotel.supplier.utils.HeyUtil;
 import com.heytrip.hotel.supplier.utils.MD5Util;
 import jakarta.annotation.PostConstruct;
@@ -200,7 +200,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             if (!request.isRoomDetailsValid()) {
                 String msg = request.getRoomDetailsValidationError();
                 logger.error("房间校验失败: {}", msg);
-                throw BusinessException.invalidParameter("数据校验失败: " + msg);
+                throw SupplierException.invalidParameter(getSafeSupplierName(),"数据校验失败: " + msg);
             }
 
             logger.debug("调用QTECH搜索API，目的地: {}, 入住: {}, 离店: {}",
@@ -213,7 +213,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
         } catch (Exception e) {
             logger.error("QTECH搜索请求失败", e);
-            return Mono.error(BusinessException.internalError("搜索请求失败: " + e.getMessage()));
+            return Mono.error(SupplierException.invalidParameter(getSafeSupplierName(),"搜索请求失败: " + e.getMessage()));
         }
     }
 
@@ -237,11 +237,11 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             return getCancellationPolicy(policyRequest)
                     .flatMap(policy -> {
                         if (policy == null || !"success".equalsIgnoreCase(policy.getMessage())) {
-                            return Mono.error(BusinessException.internalError("获取取消规则失败,无法进行预定"));
+                            return Mono.error(SupplierException.invalidParameter(getSafeSupplierName(),"获取取消规则失败,无法进行预定"));
                         }
 
                         if (policy == null || policy.getTotalBookingAmount() == null) {
-                            return Mono.error(BusinessException.internalError("获取取消规则失败,无法获取预定价格"));
+                            return Mono.error(SupplierException.invalidParameter(getSafeSupplierName(),"获取取消规则失败,无法获取预定价格"));
                         }
 
                         // 再次验证预定价格与取消规则中的价格一致
@@ -250,7 +250,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
                         QTechCancellationPolicyResponse.BookingAllowedInfo allowedInfo = policy.getBookingAllowedInfo();
                         if (allowedInfo == null || !"yes".equalsIgnoreCase(allowedInfo.getBookingAllowed())) {
-                            return Mono.error(BusinessException.internalError("当前房型不可预订"));
+                            return Mono.error(SupplierException.invalidParameter(getSafeSupplierName(),"当前房型不可预订"));
                         }
 
                         // 2. 执行预订
@@ -262,7 +262,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
         } catch (Exception e) {
             logger.error("QTECH预订请求构建失败", e);
-            return Mono.error(BusinessException.internalError("预订请求构建失败: " + e.getMessage()));
+            return Mono.error(SupplierException.invalidParameter(getSafeSupplierName(),"预订请求构建失败: " + e.getMessage()));
         }
     }
 
@@ -292,7 +292,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
         } catch (Exception e) {
             logger.error("QTECH酒店详情请求构建失败", e);
-            return Mono.error(BusinessException.internalError("酒店详情请求构建失败: " + e.getMessage()));
+            return Mono.error(SupplierException.invalidParameter(getSafeSupplierName(),"酒店详情请求构建失败: " + e.getMessage()));
         }
     }
 
@@ -318,11 +318,11 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
             return executeGetRequest(API_BASE_URL, endpoint, QTechBookingDetailResponse.class)
                     .doOnSuccess(result -> logger.info("QTECH预订详情获取完成，预订ID: {}", request.getBookingId()))
-                    .doOnError(e -> Mono.error(BusinessException.internalError("QTECH预订详情获取失败，预订ID: " + request.getBookingId() + "  Error:" + e.getMessage())));
+                    .doOnError(e -> Mono.error(SupplierException.invalidParameter(getSafeSupplierName(),"QTECH预订详情获取失败，预订ID: " + request.getBookingId() + "  Error:" + e.getMessage())));
 
         } catch (Exception e) {
             logger.error("QTECH预订详情请求构建失败", e);
-            return Mono.error(BusinessException.internalError("预订详情请求构建失败: " + e.getMessage()));
+            return Mono.error(SupplierException.invalidParameter(getSafeSupplierName(),"预订详情请求构建失败: " + e.getMessage()));
         }
     }
 
@@ -344,7 +344,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             return getCancellationCharges(chargesRequest)
                     .flatMap(chargesResult -> {
                         if (chargesResult == null || !"success".equalsIgnoreCase(chargesResult.getMessage())) {
-                            return Mono.error(BusinessException.internalError("获取取消费用失败"));
+                            return Mono.error(SupplierException.invalidParameter(getSafeSupplierName(),"获取取消费用失败"));
                         }
 
                         // 2. 执行取消
@@ -355,7 +355,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
         } catch (Exception e) {
             logger.error("QTECH取消请求构建失败", e);
-            return Mono.error(BusinessException.internalError("取消请求构建失败: " + e.getMessage()));
+            return Mono.error(SupplierException.invalidParameter(getSafeSupplierName(),"取消请求构建失败: " + e.getMessage()));
         }
     }
 
@@ -467,7 +467,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             QTechSearchRequest req = new QTechSearchRequest();
 
             if (input.getCheckInDate() == null || input.getCheckOutDate() == null) {
-                throw BusinessException.missingParameter("缺少入住或离店日期");
+                throw SupplierException.missingParameter(getSafeSupplierName(),"缺少入住或离店日期");
             }
 
             // 日期格式转换 yyyy-MM-dd -> dd/MM/yyyy
@@ -479,7 +479,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             req.setHotelIds(hotelIds);
             if (StrUtil.isBlank(req.getHotelIds())) {
                 logger.warn("[AsianOverlandAdapter.getPrice] 输入缺少酒店ID，无法报价");
-                throw BusinessException.missingParameter("输入缺少酒店ID，无法报价");
+                throw SupplierException.missingParameter(getSafeSupplierName(),"输入缺少酒店ID，无法报价");
             }
             // 币种，默认 USD
             req.setSelCurrency(StrUtil.isBlank(input.getCurrency()) ? "USD" : input.getCurrency());
@@ -493,7 +493,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                             req.setSelNationality(country);
                             req.setCountryOfResidence(country);
                         } else {
-                            throw BusinessException.invalidParameter("酒店ID无效，无法获取酒店信息");
+                            throw SupplierException.invalidParameter(getSafeSupplierName(),"酒店ID无效，无法获取酒店信息");
                         }
                     });
 
@@ -502,7 +502,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             req.setRoomDetails(details);
             req.setNumberOfRooms(details != null ? details.size() : 0);
             if (details.size() != input.getRoomNum()) {
-                throw BusinessException.invalidParameter("房间数与入住信息不匹配");
+                throw SupplierException.invalidParameter(getSafeSupplierName(),"房间数与入住信息不匹配");
             }
             // 可根据需要设置静态信息、limit、availableonly 等
             req.setAvailableonly(1);
@@ -511,16 +511,16 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             // 2. 调用 QTECH 搜索
             QTechSearchResponse resp = this.searchHotels(req)
                     .doOnError(e -> logger.error("[AsianOverlandAdapter.getPrice] 酒店搜索失败:{}", e.getMessage()))
-                    .onErrorMap(e -> BusinessException.internalError("[AsianOverlandAdapter.getPrice] 酒店搜索失败:" + e.getMessage()))
+                    .onErrorMap(e -> SupplierException.invalidParameter(getSafeSupplierName(),"[AsianOverlandAdapter.getPrice] 酒店搜索失败:" + e.getMessage()))
                     .block();
 
             if (resp == null) {
                 logger.warn("[AsianOverlandAdapter.getPrice] QTECH无响应，返回空结果");
-                throw BusinessException.internalError("酒店搜索失败无响应");
+                throw SupplierException.invalidParameter(getSafeSupplierName(),"酒店搜索失败无响应");
             }
             if (!"success".equalsIgnoreCase(resp.getMessage())) {
                 logger.warn("[AsianOverlandAdapter.getPrice] QTECH返回非成功: message={}, info={}", resp.getMessage(), resp.getMessageInfo());
-                throw BusinessException.internalError("酒店搜索失败:" + resp.getMessage());
+                throw SupplierException.invalidParameter(getSafeSupplierName(),"酒店搜索失败:" + resp.getMessage());
             }
 
             // 3. 将 QTechSearchResponse 转换为 List<XRoom> - 使用共用转换方法
@@ -561,7 +561,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             }
         } catch (Exception ex) {
             logger.error("[AsianOverlandAdapter.getPrice] 获取报价失败", ex);
-            throw BusinessException.internalError("获取报价失败: " + ex.getMessage());
+            throw SupplierException.invalidParameter(getSafeSupplierName(),"获取报价失败: " + ex.getMessage());
         }
     }
 
@@ -580,14 +580,14 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             req.setCheckoutDate(input.getCheckOutDate().format(HeyUtil.DATE_FORMATTER_DDMMYYYY));
 
             if (input.getCheckInDate() == null || input.getCheckOutDate() == null) {
-                throw BusinessException.missingParameter("缺少入住或离店日期");
+                throw SupplierException.missingParameter(getSafeSupplierName(),"缺少入住或离店日期");
             }
 
             // 酒店ID - 兼容单酒店和多酒店参数
             String hotelIds = mergeHotelIds(input.getHotelId(), input.getHotelIds());
             req.setHotelIds(hotelIds);
             if (StrUtil.isBlank(req.getHotelIds())) {
-                throw BusinessException.missingParameter("输入缺少酒店ID，无法报价");
+                throw SupplierException.missingParameter(getSafeSupplierName(),"输入缺少酒店ID，无法报价");
             }
 
             // 币种，默认 USD
@@ -609,7 +609,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             req.setRoomDetails(details);
             req.setNumberOfRooms(details != null ? details.size() : 0);
             if (details.size() != input.getRoomNum()) {
-                throw BusinessException.invalidParameter("房间数与入住信息不匹配");
+                throw SupplierException.invalidParameter(getSafeSupplierName(),"房间数与入住信息不匹配");
             }
             // 可根据需要设置静态信息、limit、availableonly 等
             req.setAvailableonly(1);
@@ -618,12 +618,12 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             // 2. 调用 QTECH 搜索
             QTechSearchResponse response = this.searchHotels(req)
                     .doOnError(e -> logger.error("[AsianOverlandAdapter.getPrices] 酒店搜索失败:{}", e.getMessage()))
-                    .onErrorMap(e -> BusinessException.internalError("[AsianOverlandAdapter.getPrices] 酒店搜索失败:" + e.getMessage()))
+                    .onErrorMap(e -> SupplierException.invalidParameter(getSafeSupplierName(),"[AsianOverlandAdapter.getPrices] 酒店搜索失败:" + e.getMessage()))
                     .block();
 
             if (response == null || !"success".equalsIgnoreCase(response.getMessage())) {
                 logger.warn("[AsianOverlandAdapter.getPrices] QTECH无响应，返回空结果");
-                throw BusinessException.internalError("酒店搜索失败无响应或返回非成功");
+                throw SupplierException.invalidParameter(getSafeSupplierName(),"酒店搜索失败无响应或返回非成功");
             }
 
             // 3. 将 QTechSearchResponse 转换为 Map<String, List<XRoom>>  格式： 酒店ID, 房型列表
@@ -653,7 +653,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
         } catch (Exception e) {
             logger.error("[AsianOverlandAdapter.getPriceOrig] 获取原始报价失败", e);
-            throw BusinessException.internalError("获取原始报价失败: " + e.getMessage());
+            throw SupplierException.invalidParameter(getSafeSupplierName(),"获取原始报价失败: " + e.getMessage());
         }
     }
 
@@ -685,36 +685,36 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
         searchRequest.setCheckoutDate(input.getCheckOutDate().format(HeyUtil.DATE_FORMATTER_DDMMYYYY));
 
         if (input.getCheckInDate() == null || input.getCheckOutDate() == null) {
-            throw BusinessException.missingParameter("缺少入住或离店日期");
+            throw SupplierException.missingParameter(getSafeSupplierName(),"缺少入住或离店日期");
         }
         if (!input.getCheckOutDate().isAfter(input.getCheckInDate())) {
-            throw BusinessException.invalidParameter("离店日期必须晚于入住日期");
+            throw SupplierException.invalidParameter(getSafeSupplierName(),"离店日期必须晚于入住日期");
         }
         if (input.getCheckOutDate().isAfter(input.getCheckInDate().plusDays(30))) {
-            throw BusinessException.invalidParameter("每笔预订的夜数不能超过30晚");
+            throw SupplierException.invalidParameter(getSafeSupplierName(),"每笔预订的夜数不能超过30晚");
         }
         if (input.getCheckInDate().isAfter(LocalDateTime.now().plusDays(365))) {
-            throw BusinessException.invalidParameter("服务日期不应超过未来365天");
+            throw SupplierException.invalidParameter(getSafeSupplierName(),"服务日期不应超过未来365天");
         }
         if (StrUtil.isBlank(input.getDistributorOrderId())) {
-            throw BusinessException.invalidParameter("缺少分销商订单号");
+            throw SupplierException.invalidParameter(getSafeSupplierName(),"缺少分销商订单号");
         }
         if (StrUtil.isBlank(input.getHotelId())) {
-            throw BusinessException.invalidParameter("缺少酒店ID");
+            throw SupplierException.invalidParameter(getSafeSupplierName(),"缺少酒店ID");
         }
         if (input.getRoomNum() <= 0 || input.getRoomNum() > 5) {
-            throw BusinessException.invalidParameter("房间数必须在1到5之间");
+            throw SupplierException.invalidParameter(getSafeSupplierName(),"房间数必须在1到5之间");
         }
         if (input.getOccupancy() == null || input.getOccupancy().isEmpty()) {
-            throw BusinessException.invalidParameter("缺少入住信息");
+            throw SupplierException.invalidParameter(getSafeSupplierName(),"缺少入住信息");
         }
         if (StrUtil.isBlank(input.getCurrency())) {
-            throw BusinessException.invalidParameter("缺少币种");
+            throw SupplierException.invalidParameter(getSafeSupplierName(),"缺少币种");
         }
 
         searchRequest.setHotelIds(input.getHotelId());
         if (StrUtil.isBlank(searchRequest.getHotelIds())) {
-            throw BusinessException.invalidParameter("输入缺少酒店ID，无法报价");
+            throw SupplierException.invalidParameter(getSafeSupplierName(),"输入缺少酒店ID，无法报价");
         }
         // 币种，默认 USD
         searchRequest.setSelCurrency(StrUtil.isBlank(input.getCurrency()) ? "USD" : input.getCurrency());
@@ -728,7 +728,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                         searchRequest.setSelNationality(country);
                         searchRequest.setCountryOfResidence(country);
                     } else {
-                        throw BusinessException.invalidParameter("酒店ID无效，无法获取酒店信息");
+                        throw SupplierException.invalidParameter(getSafeSupplierName(),"酒店ID无效，无法获取酒店信息");
                     }
                 });
 
@@ -737,7 +737,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
         searchRequest.setRoomDetails(roomDetails);
         searchRequest.setNumberOfRooms(roomDetails != null ? roomDetails.size() : 0);
         if (roomDetails.size() != input.getRoomNum()) {
-            throw BusinessException.invalidParameter("房间数与入住信息不匹配");
+            throw SupplierException.invalidParameter(getSafeSupplierName(),"房间数与入住信息不匹配");
         }
         // 可根据需要设置静态信息、limit、availableonly 等
         searchRequest.setAvailableonly(1);
@@ -746,7 +746,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
         // 2. 调用 QTECH 搜索
         QTechSearchResponse searchResponse = this.searchHotels(searchRequest)
                 .doOnError(e -> logger.error("[AsianOverlandAdapter.createOrder] 酒店搜索失败:{}", e.getMessage()))
-                .onErrorMap(e -> BusinessException.internalError("[AsianOverlandAdapter.createOrder] 酒店搜索失败:" + e.getMessage()))
+                .onErrorMap(e -> SupplierException.invalidParameter(getSafeSupplierName(),"[AsianOverlandAdapter.createOrder] 酒店搜索失败:" + e.getMessage()))
                 .block();
 
         if (searchResponse != null && searchResponse.getMessage().equalsIgnoreCase("success")) {
@@ -760,7 +760,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                     .filter(h -> input.getHotelId().equals(h.getHotelId()))
                     .findFirst();
             if (targetHotelOpt.isEmpty()) {
-                throw BusinessException.notFound("返回酒店列表中不包含请求的酒店ID: " + input.getHotelId());
+                throw SupplierException.notFound(getSafeSupplierName(),"返回酒店列表中不包含请求的酒店ID: " + input.getHotelId());
             }
 
             // 使用共用的转换方法
@@ -769,7 +769,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
             if (xRooms.isEmpty()) {
                 logger.warn("[AsianOverlandAdapter.createOrder] 酒店{}转换后无有效房型数据", targetHotel.getHotelId());
-                throw BusinessException.notFound("无有效房型数据");
+                throw SupplierException.notFound(getSafeSupplierName(),"无有效房型数据");
             }
             logger.info("[AsianOverlandAdapter.createOrder] 单酒店报价完成，酒店:{} 返回:{}个房型,总价:{}", targetHotel.getHotelId(), xRooms.size(), targetHotel.getTotalCharges());
 
@@ -777,24 +777,24 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             /// 获取搜索唯一标识（后边调用取消规则接口需要用到） 每个搜索唯一ID只能用于一次预订，并且从搜索时间起20分钟内有效
             String searchUniqueId = searchResponse.getSearchUniqueId();
             if (StrUtil.isBlank(input.getRoomId())) {
-                throw BusinessException.missingParameter("缺少房型ID");
+                throw SupplierException.missingParameter(getSafeSupplierName(),"缺少房型ID");
             }
 
             // 找到匹配的房型（input.getRoomId() = room.getRoomId()）
             XRoom matchedRoom = xRooms.stream().parallel()
                     .filter(r -> input.getRoomId().equals(r.getRoomId()))
                     .findFirst()
-                    .orElseThrow(() -> BusinessException.internalError("未找到匹配的房型: " + input.getRoomId()));
+                    .orElseThrow(() -> SupplierException.invalidParameter(getSafeSupplierName(),"未找到匹配的房型: " + input.getRoomId()));
 
             // 校验币种一致性
             if (!input.getCurrency().equalsIgnoreCase(targetHotel.getRateCurrencyCode())) {
-                throw BusinessException.invalidParameter("预订币种与报价币种不一致，无法预订");
+                throw SupplierException.invalidParameter(getSafeSupplierName(),"预订币种与报价币种不一致，无法预订");
             }
 
             //从房型扩展信息里获取 房型唯一标识（sectionUniqueId）和 房间类型ID（classUniqueId）
             QTechSearchResponse.RoomRateExt roomRateExt = JSONUtil.toBean(matchedRoom.getExt(), QTechSearchResponse.RoomRateExt.class);
             if (roomRateExt == null || StrUtil.isBlank(roomRateExt.getSectionUniqueId()) || CollUtil.isEmpty(roomRateExt.getClassUniqueId())) {
-                throw BusinessException.internalError("所预定的房型扩展信息缺失，无法预定");
+                throw SupplierException.invalidParameter(getSafeSupplierName(),"所预定的房型扩展信息缺失，无法预定");
             }
 
             // 设置预定价格 - 实现价格判断和设置逻辑
@@ -822,7 +822,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
         } else {
             logger.warn("[AsianOverlandAdapter.createOrder] QTECH返回非成功: message={}, info={}", searchResponse != null ? searchResponse.getMessage() : "null", searchResponse != null ? searchResponse.getMessageInfo() : "null");
-            throw BusinessException.internalError("预订失败，无法获取预定酒店信息");
+            throw SupplierException.invalidParameter(getSafeSupplierName(),"预订失败，无法获取预定酒店信息");
         }
     }
 
@@ -842,20 +842,20 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
         // 1. 获取取消费用
         QTechGetCancellationChargesRequest chargesRequest = new QTechGetCancellationChargesRequest();
         if (StrUtil.isBlank(input.getSupplierOrderId())) {
-            throw BusinessException.invalidParameter("缺少供应商订单号，无法取消订单");
+            throw SupplierException.invalidParameter(getSafeSupplierName(),"缺少供应商订单号，无法取消订单");
         }
         chargesRequest.setBookingId(input.getSupplierOrderId());
 
 
         QTechCancellationChargesResponse chargesResponse = this.getCancellationCharges(chargesRequest)
-                .timeout(Duration.ofSeconds(60), Mono.error(BusinessException.internalError("[AsianOverlandAdapter.cancelOrder] 获取取消费用超时")))
+                .timeout(Duration.ofSeconds(60), Mono.error(SupplierException.invalidParameter(getSafeSupplierName(),"[AsianOverlandAdapter.cancelOrder] 获取取消费用超时")))
                 .doOnError(e -> logger.error("[AsianOverlandAdapter.cancelOrder] 获取取消费用失败:{}", e.getMessage()))
                 .block();
 
         // 2. 检查取消费用响应
         if (chargesResponse == null || !"success".equalsIgnoreCase(chargesResponse.getMessage())) {
             logger.error("[AsianOverlandAdapter.cancelOrder] 获取取消费用失败，响应: {}", chargesResponse);
-            throw BusinessException.internalError("取消失败",
+            throw SupplierException.invalidParameter(getSafeSupplierName(),"取消失败",
                     buildCancelFailedResponse(input.getSupplierOrderId(), "获取取消费用失败"));
         }
 
@@ -863,7 +863,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
         if (!"yes".equalsIgnoreCase(chargesResponse.getAllowCancel())) {
             logger.warn("[AsianOverlandAdapter.cancelOrder] 订单不允许取消，allowCancel: {}, message: {}",
                     chargesResponse.getAllowCancel(), chargesResponse.getMessageInfo());
-            throw BusinessException.internalError(chargesResponse.getMessageInfo(),
+            throw SupplierException.invalidParameter(getSafeSupplierName(),chargesResponse.getMessageInfo(),
                     buildCancelNotAllowedResponse(input.getSupplierOrderId(), chargesResponse.getMessageInfo()));
         }
 
@@ -875,15 +875,15 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
         cancelRequest.setBookingId(input.getSupplierOrderId());
 
         QTechCancellationResponse cancellationResponse = this.cancelBooking(cancelRequest)
-                .timeout(Duration.ofSeconds(60), Mono.error(BusinessException.internalError("[AsianOverlandAdapter.cancelOrder] 取消预订超时")))
+                .timeout(Duration.ofSeconds(60), Mono.error(SupplierException.invalidParameter(getSafeSupplierName(),"[AsianOverlandAdapter.cancelOrder] 取消预订超时")))
                 .doOnError(e -> logger.error("[AsianOverlandAdapter.cancelOrder] 取消预订失败:{}", e.getMessage()))
-                .onErrorMap(e -> BusinessException.internalError("[AsianOverlandAdapter.cancelOrder] 取消预订失败:" + e.getMessage()))
+                .onErrorMap(e -> SupplierException.invalidParameter(getSafeSupplierName(),"[AsianOverlandAdapter.cancelOrder] 取消预订失败:" + e.getMessage()))
                 .block();
 
         // 5. 检查取消响应
         if (cancellationResponse == null || !"success".equalsIgnoreCase(cancellationResponse.getMessage())) {
             logger.error("[AsianOverlandAdapter.cancelOrder] 取消预订失败，响应: {}", cancellationResponse);
-            throw BusinessException.internalError("取消失败",
+            throw SupplierException.invalidParameter(getSafeSupplierName(),"取消失败",
                     buildCancelFailedResponse(input.getSupplierOrderId(), "取消预订失败"));
         }
 
@@ -914,19 +914,19 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             // 支持通过分销商订单号查询
             detailRequest.setAgentRefNo(distributorOrderId);
         } else {
-            throw BusinessException.invalidParameter("缺少供应商订单号和分销商订单号，无法查询订单");
+            throw SupplierException.invalidParameter(getSafeSupplierName(),"缺少供应商订单号和分销商订单号，无法查询订单");
         }
 
         QTechBookingDetailResponse detailResponse = this.getBookingDetail(detailRequest)
                 .timeout(Duration.ofSeconds(60))
                 .doOnError(e -> logger.error("[AsianOverlandAdapter.queryOrder] 获取预订详情失败:{}", e.getMessage()))
-                .onErrorMap(e -> BusinessException.internalError("[AsianOverlandAdapter.queryOrder] 获取预订详情失败:" + e.getMessage()))
+                .onErrorMap(e -> SupplierException.invalidParameter(getSafeSupplierName(),"[AsianOverlandAdapter.queryOrder] 获取预订详情失败:" + e.getMessage()))
                 .block();
 
         // 2. 检查响应
         if (detailResponse == null || !"success".equalsIgnoreCase(detailResponse.getMessage())) {
             logger.error("[AsianOverlandAdapter.queryOrder] 获取订单详情失败，响应: {}", detailResponse);
-            throw BusinessException.internalError("查询失败"
+            throw SupplierException.invalidParameter(getSafeSupplierName(),"查询失败"
                     , buildQueryFailedResponse(distributorOrderId, supplierOrderId, "获取订单详情失败"));
         }
 
@@ -956,7 +956,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
         req.setHotelIds(hotelIds);
         if (StrUtil.isBlank(req.getHotelIds())) {
             logger.warn("[AsianOverlandAdapter.getPriceOrig] 输入缺少酒店ID，无法报价");
-            throw BusinessException.invalidParameter("输入缺少酒店ID，无法报价");
+            throw SupplierException.invalidParameter(getSafeSupplierName(),"输入缺少酒店ID，无法报价");
         }
 
         // 币种，默认 USD
@@ -978,7 +978,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
         req.setRoomDetails(details);
         req.setNumberOfRooms(details != null ? details.size() : 0);
         if (details.size() != input.getRoomNum()) {
-            throw BusinessException.invalidParameter("房间数与入住信息不匹配");
+            throw SupplierException.invalidParameter(getSafeSupplierName(),"房间数与入住信息不匹配");
         }
         // 可根据需要设置静态信息、limit、availableonly 等
         req.setAvailableonly(1);
@@ -987,8 +987,8 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
         // 2. 调用 QTECH 搜索
         QTechSearchResponse response = this.searchHotels(req)
                 .doOnError(e -> logger.error("[AsianOverlandAdapter.getPrice] 酒店搜索失败:{}", e.getMessage()))
-                .onErrorMap(e -> BusinessException.internalError("[AsianOverlandAdapter.getPriceOrig] 获取原始报价失败:" + e.getMessage()))
-                .timeout(Duration.ofSeconds(90), Mono.error(BusinessException.internalError("[AsianOverlandAdapter.getPriceOrig] 获取原始报价超时")))
+                .onErrorMap(e -> SupplierException.invalidParameter(getSafeSupplierName(),"[AsianOverlandAdapter.getPriceOrig] 获取原始报价失败:" + e.getMessage()))
+                .timeout(Duration.ofSeconds(90), Mono.error(SupplierException.invalidParameter(getSafeSupplierName(),"[AsianOverlandAdapter.getPriceOrig] 获取原始报价超时")))
                 .block();
 
         if (response != null && response.getMessage().equalsIgnoreCase("success")) {
@@ -1029,10 +1029,10 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             QTechSearchRequest req = new QTechSearchRequest();
 
             if (input.getCheckInDate() == null || input.getCheckOutDate() == null) {
-                throw BusinessException.missingParameter("缺少入住或离店日期");
+                throw SupplierException.missingParameter(getSafeSupplierName(),"缺少入住或离店日期");
             }
             if (!input.getCheckOutDate().isAfter(input.getCheckInDate())) {
-                throw BusinessException.invalidParameter("离店日期必须晚于入住日期");
+                throw SupplierException.invalidParameter(getSafeSupplierName(),"离店日期必须晚于入住日期");
             }
             // 日期格式转换 yyyy-MM-dd -> dd/MM/yyyy
             req.setCheckinDate(input.getCheckInDate().format(HeyUtil.DATE_FORMATTER_DDMMYYYY));
@@ -1043,7 +1043,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             req.setHotelIds(hotelIds);
             if (StrUtil.isBlank(req.getHotelIds())) {
                 logger.warn("[AsianOverlandAdapter.orderCheck] 输入缺少酒店ID，无法报价");
-                throw BusinessException.invalidParameter("输入缺少酒店ID");
+                throw SupplierException.invalidParameter(getSafeSupplierName(),"输入缺少酒店ID");
             }
 
             // 币种，默认 USD
@@ -1064,7 +1064,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             req.setRoomDetails(details);
             req.setNumberOfRooms(details != null ? details.size() : 0);
             if (details.size() != input.getRoomNum()) {
-                throw BusinessException.invalidParameter("房间数与入住信息不匹配");
+                throw SupplierException.invalidParameter(getSafeSupplierName(),"房间数与入住信息不匹配");
             }
             // 可根据需要设置静态信息、limit、availableonly 等
             req.setAvailableonly(1);
@@ -1073,22 +1073,22 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             // 2. 调用 QTECH 搜索
             QTechSearchResponse searchResponse = this.searchHotels(req)
                     .doOnError(e -> logger.error("[AsianOverlandAdapter.orderCheck] 酒店搜索失败:{}", e.getMessage()))
-                    .onErrorMap(e -> BusinessException.internalError("[AsianOverlandAdapter.orderCheck] 酒店搜索失败:" + e.getMessage()))
+                    .onErrorMap(e -> SupplierException.invalidParameter(getSafeSupplierName(),"[AsianOverlandAdapter.orderCheck] 酒店搜索失败:" + e.getMessage()))
                     .block();
 
             if (searchResponse == null) {
                 logger.warn("[AsianOverlandAdapter.orderCheck] QTECH无响应，返回空结果");
-                throw BusinessException.internalError("QTECH接口无响应");
+                throw SupplierException.invalidParameter(getSafeSupplierName(),"QTECH接口无响应");
             }
             if (!"success".equalsIgnoreCase(searchResponse.getMessage())) {
                 logger.warn("[AsianOverlandAdapter.orderCheck] QTECH返回非成功: message={}, info={}", searchResponse.getMessage(), searchResponse.getMessageInfo());
-                throw BusinessException.internalError("QTECH返回非成功: " + searchResponse.getMessage());
+                throw SupplierException.invalidParameter(getSafeSupplierName(),"QTECH返回非成功: " + searchResponse.getMessage());
             }
 
             List<QTechSearchResponse.Hotel> hotelList = searchResponse.getHotelList();
             if (hotelList == null || hotelList.isEmpty()) {
                 logger.warn("[AsianOverlandAdapter.orderCheck] 返回成功但无酒店数据");
-                throw BusinessException.internalError("返回成功但无酒店数据");
+                throw SupplierException.invalidParameter(getSafeSupplierName(),"返回成功但无酒店数据");
             }
 
             // 仅处理指定酒店ID的报价
@@ -1097,7 +1097,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                     .findFirst();
             if (targetHotelOpt.isEmpty()) {
                 logger.warn("[AsianOverlandAdapter.orderCheck] 返回酒店列表中不包含请求的酒店ID: {}", input.getHotelId());
-                throw BusinessException.notFound("返回酒店列表中不包含请求的酒店ID: " + input.getHotelId());
+                throw SupplierException.notFound(getSafeSupplierName(),"返回酒店列表中不包含请求的酒店ID: " + input.getHotelId());
             }
 
             // 使用共用的转换方法
@@ -1106,7 +1106,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
             if (xRooms.isEmpty()) {
                 logger.warn("[AsianOverlandAdapter.orderCheck] 酒店{}转换后无有效房型数据", targetHotel.getHotelId());
-                throw BusinessException.notFound("无有效房型数据");
+                throw SupplierException.notFound(getSafeSupplierName(),"无有效房型数据");
             }
             logger.info("[AsianOverlandAdapter.orderCheck] 单酒店报价完成，酒店:{} 返回:{}个房型,总价:{}", targetHotel.getHotelId(), xRooms.size(), targetHotel.getTotalCharges());
 
@@ -1114,19 +1114,19 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             /// 获取搜索唯一标识（后边调用取消规则接口需要用到） 每个搜索唯一ID只能用于一次预订，并且从搜索时间起20分钟内有效
             String searchUniqueId = searchResponse.getSearchUniqueId();
             if (StrUtil.isBlank(input.getRoomId())) {
-                throw BusinessException.missingParameter("缺少房型ID");
+                throw SupplierException.missingParameter(getSafeSupplierName(),"缺少房型ID");
             }
 
             // 找到匹配的房型（input.getRoomId() = room.getRoomId()）
             XRoom matchedRoom = xRooms.stream().parallel()
                     .filter(r -> input.getRoomId().equals(r.getRoomId()))
                     .findFirst()
-                    .orElseThrow(() -> BusinessException.internalError("未找到匹配的房型: " + input.getRoomId()));
+                    .orElseThrow(() -> SupplierException.invalidParameter(getSafeSupplierName(),"未找到匹配的房型: " + input.getRoomId()));
 
             //从房型扩展信息里获取 房型唯一标识（sectionUniqueId）和 房间类型ID（classUniqueId）
             QTechSearchResponse.RoomRateExt roomRateExt = JSONUtil.toBean(matchedRoom.getExt(), QTechSearchResponse.RoomRateExt.class);
             if (roomRateExt == null || StrUtil.isBlank(roomRateExt.getSectionUniqueId()) || CollUtil.isEmpty(roomRateExt.getClassUniqueId())) {
-                throw BusinessException.internalError("所预定的房型扩展信息缺失，无法预定");
+                throw SupplierException.invalidParameter(getSafeSupplierName(),"所预定的房型扩展信息缺失，无法预定");
             }
 
             // 3. 调用取消规则接口获取最新的预定价格和取消规则
@@ -1137,17 +1137,17 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
             QTechCancellationPolicyResponse policyResponse = getCancellationPolicy(policyRequest)
                     .doOnError(e -> logger.error("[AsianOverlandAdapter.orderCheck] 获取酒店取消规则失败:" + e.getMessage()))
-                    .onErrorMap(e -> BusinessException.internalError("[AsianOverlandAdapter.orderCheck] 获取酒店取消规则失败:" + e.getMessage()))
+                    .onErrorMap(e -> SupplierException.invalidParameter(getSafeSupplierName(),"[AsianOverlandAdapter.orderCheck] 获取酒店取消规则失败:" + e.getMessage()))
                     .block();
 
             if (policyResponse == null) {
                 logger.warn("[AsianOverlandAdapter.orderCheck] 取消规则接口无响应");
-                throw BusinessException.internalError("取消规则接口无响应");
+                throw SupplierException.invalidParameter(getSafeSupplierName(),"取消规则接口无响应");
             }
             if (!"success".equalsIgnoreCase(policyResponse.getMessage())) {
                 logger.warn("[AsianOverlandAdapter.orderCheck] 取消规则接口返回非成功: message={}, info={}",
                         policyResponse.getMessage(), policyResponse.getMessageInfo());
-                throw BusinessException.internalError("取消规则接口返回非成功: " + policyResponse.getMessage());
+                throw SupplierException.invalidParameter(getSafeSupplierName(),"取消规则接口返回非成功: " + policyResponse.getMessage());
             }
 
             // 4. 验证预订允许状态
@@ -1155,7 +1155,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             if (bookingInfo == null || !"yes".equalsIgnoreCase(bookingInfo.getBookingAllowed())) {
                 String reason = bookingInfo != null ? bookingInfo.getMessage() : "未知原因";
                 logger.warn("[AsianOverlandAdapter.orderCheck] 房型不允许预订: {}", reason);
-                throw BusinessException.invalidParameter("房型不允许预订: " + reason);
+                throw SupplierException.invalidParameter(getSafeSupplierName(),"房型不允许预订: " + reason);
             }
 
             // 5. 退订状态
@@ -1173,7 +1173,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
                 ///  后续可以根据业务需求调整 目前改为不阻断验单查询，  直接返回最新价格给渠道，由渠道决定是否继续预订
                 ///  后期还可以在这里做个价格变动的监控统计， 方便统计出价格波动较大的酒店
-               // throw BusinessException.invalidParameter("价格发生变化，搜索价格: " + searchTotalPrice + ", 最新价格: " + policyTotalPrice);
+               // throw SupplierException.invalidParameter(getSafeSupplierName(),"价格发生变化，搜索价格: " + searchTotalPrice + ", 最新价格: " + policyTotalPrice);
             }
 
             // 8. 生成createKey
@@ -1200,7 +1200,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
         } catch (Exception e) {
             logger.error("[AsianOverlandAdapter.orderCheck] 订单校验失败", e);
-            throw BusinessException.internalError("订单校验失败: " + e.getMessage());
+            throw SupplierException.invalidParameter(getSafeSupplierName(),"订单校验失败: " + e.getMessage());
         }
     }
 
@@ -1248,7 +1248,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             req.setRoomDetails(details);
             req.setNumberOfRooms(details != null ? details.size() : 0);
             if (details.size() != input.getRoomNum()) {
-                throw BusinessException.invalidParameter("房间数与入住信息不匹配");
+                throw SupplierException.invalidParameter(getSafeSupplierName(),"房间数与入住信息不匹配");
             }
             // 可根据需要设置静态信息、limit、availableonly 等
             req.setAvailableonly(1);
@@ -1257,7 +1257,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             // 2. 调用 QTECH 搜索接口
             QTechSearchResponse searchResponse = this.searchHotels(req)
                     .doOnError(e -> logger.error("[AsianOverlandAdapter.orderCheckOrg] 酒店搜索失败:{}", e.getMessage()))
-                    .onErrorMap(e -> BusinessException.internalError("[AsianOverlandAdapter.orderCheckOrg] 酒店搜索失败:" + e.getMessage()))
+                    .onErrorMap(e -> SupplierException.invalidParameter(getSafeSupplierName(),"[AsianOverlandAdapter.orderCheckOrg] 酒店搜索失败:" + e.getMessage()))
                     .block();
 
             // 3. 如果有搜索响应，添加到结果中
@@ -1273,7 +1273,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                             .filter(h -> input.getHotelId().equals(h.getHotelId()))
                             .findFirst();
                     if (targetHotelOpt.isEmpty()) {
-                        throw BusinessException.notFound("返回酒店列表中不包含请求的酒店ID: " + input.getHotelId());
+                        throw SupplierException.notFound(getSafeSupplierName(),"返回酒店列表中不包含请求的酒店ID: " + input.getHotelId());
                     }
 
                     // 使用共用的转换方法
@@ -1281,25 +1281,25 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                     List<XRoom> xRooms = convertHotelToXRooms(targetHotel, input.getCheckInDate(), input.getCheckOutDate(), input.getRoomNum());
 
                     if (xRooms.isEmpty()) {
-                        throw BusinessException.notFound("无有效房型数据");
+                        throw SupplierException.notFound(getSafeSupplierName(),"无有效房型数据");
                     }
                     logger.info("[AsianOverlandAdapter.orderCheck] 单酒店报价完成，酒店:{} 返回:{}个房型,总价:{}", targetHotel.getHotelId(), xRooms.size(), targetHotel.getTotalCharges());
 
                     String searchUniqueId = searchResponse.getSearchUniqueId();
                     logger.info("[AsianOverlandAdapter.orderCheckOrg] 获取到searchUniqueId: {}, 继续调用取消规则接口", searchUniqueId);
                     if (StrUtil.isBlank(input.getRoomId())) {
-                        throw BusinessException.invalidParameter("缺少房型ID");
+                        throw SupplierException.invalidParameter(getSafeSupplierName(),"缺少房型ID");
                     }
                     // 找到匹配的房型（input.getRoomId() = room.getRoomId()）
                     XRoom matchedRoom = xRooms.stream().parallel()
                             .filter(r -> input.getRoomId().equals(r.getRoomId()))
                             .findFirst()
-                            .orElseThrow(() -> BusinessException.internalError("未找到匹配的房型: " + input.getRoomId()));
+                            .orElseThrow(() -> SupplierException.invalidParameter(getSafeSupplierName(),"未找到匹配的房型: " + input.getRoomId()));
 
                     //从房型扩展信息里获取 房型唯一标识（sectionUniqueId）和 房间类型ID（classUniqueId）
                     QTechSearchResponse.RoomRateExt roomRateExt = JSONUtil.toBean(matchedRoom.getExt(), QTechSearchResponse.RoomRateExt.class);
                     if (roomRateExt == null || StrUtil.isBlank(roomRateExt.getSectionUniqueId()) || CollUtil.isEmpty(roomRateExt.getClassUniqueId())) {
-                        throw BusinessException.internalError("所预定的房型扩展信息缺失，无法预定");
+                        throw SupplierException.invalidParameter(getSafeSupplierName(),"所预定的房型扩展信息缺失，无法预定");
                     }
 
                     // 调用取消规则接口
@@ -1310,7 +1310,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
                     QTechCancellationPolicyResponse policyResponse = getCancellationPolicy(policyRequest)
                             .doOnError(e -> logger.error("[AsianOverlandAdapter.orderCheckOrg] 获取取消规则失败:{}", e.getMessage()))
-                            .onErrorMap(e -> BusinessException.internalError("[AsianOverlandAdapter.orderCheckOrg] 获取取消规则失败:" + e.getMessage()))
+                            .onErrorMap(e -> SupplierException.invalidParameter(getSafeSupplierName(),"[AsianOverlandAdapter.orderCheckOrg] 获取取消规则失败:" + e.getMessage()))
                             .block();
 
                     // 5. 如果有取消规则响应，添加到结果中
@@ -1374,7 +1374,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             req.setHotelIds(hotelId);
             if (StrUtil.isBlank(req.getHotelIds())) {
                 logger.warn("[AsianOverlandAdapter.getHotelRoomOrigContent] 缺少酒店ID");
-                throw BusinessException.invalidParameter("缺少酒店ID");
+                throw SupplierException.invalidParameter(getSafeSupplierName(),"缺少酒店ID");
             }
 
 
@@ -1397,8 +1397,8 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             // 调用 QTECH 搜索
             QTechSearchResponse response = this.searchHotels(req)
                     .doOnError(e -> logger.error("[AsianOverlandAdapter.getHotelRoomOrigContent] 酒店搜索失败:{}", e.getMessage()))
-                    .onErrorMap(e -> BusinessException.internalError("[AsianOverlandAdapter.getHotelRoomOrigContent] 获取原始报价失败:" + e.getMessage()))
-                    .timeout(Duration.ofSeconds(90), Mono.error(BusinessException.internalError("[AsianOverlandAdapter.getHotelRoomOrigContent] 获取原始报价超时")))
+                    .onErrorMap(e -> SupplierException.invalidParameter(getSafeSupplierName(),"[AsianOverlandAdapter.getHotelRoomOrigContent] 获取原始报价失败:" + e.getMessage()))
+                    .timeout(Duration.ofSeconds(90), Mono.error(SupplierException.invalidParameter(getSafeSupplierName(),"[AsianOverlandAdapter.getHotelRoomOrigContent] 获取原始报价超时")))
                     .block();
 
 
@@ -1415,18 +1415,18 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
                 QTechHotelDetailResponse detailResponse = this.getHotelDetail(detailRequest)
                         .doOnError(e -> logger.error("[AsianOverlandAdapter.getHotelRoomOrigContent] 获取酒店详情失败:{}", e.getMessage()))
-                        .onErrorMap(e -> BusinessException.internalError("[AsianOverlandAdapter.getHotelRoomOrigContent] 获取酒店详情失败:" + e.getMessage()))
-                        .timeout(Duration.ofSeconds(60), Mono.error(BusinessException.internalError("[AsianOverlandAdapter.getHotelRoomOrigContent] 获取酒店详情超时")))
+                        .onErrorMap(e -> SupplierException.invalidParameter(getSafeSupplierName(),"[AsianOverlandAdapter.getHotelRoomOrigContent] 获取酒店详情失败:" + e.getMessage()))
+                        .timeout(Duration.ofSeconds(60), Mono.error(SupplierException.invalidParameter(getSafeSupplierName(),"[AsianOverlandAdapter.getHotelRoomOrigContent] 获取酒店详情超时")))
                         .block();
 
                 return detailResponse; // 返回原始响应对象
             } else {
-                throw BusinessException.internalError("获取原始数据失败: 供应商返回失败状态");
+                throw SupplierException.invalidParameter(getSafeSupplierName(),"获取原始数据失败: 供应商返回失败状态");
             }
 
         } catch (Exception e) {
             logger.error("[AsianOverlandAdapter.getHotelRoomOrigContent] 获取原始报价失败", e);
-            throw BusinessException.internalError("获取原始数据失败: " + e.getMessage());
+            throw SupplierException.invalidParameter(getSafeSupplierName(),"获取原始数据失败: " + e.getMessage());
         }
     }
 
@@ -1452,9 +1452,9 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
         // 1. 提交预定请求，设置超时时间为8秒
         QTechReservationResponse reservationResponse = this.bookHotel(reservationRequest)
-                .timeout(Duration.ofSeconds(180), Mono.error(BusinessException.internalError("预定接口调用超时")))
+                .timeout(Duration.ofSeconds(180), Mono.error(SupplierException.invalidParameter(getSafeSupplierName(),"预定接口调用超时")))
                 .doOnError(e -> logger.error("预定接口调用失败: {}", e.getMessage()))
-                .onErrorMap(e -> BusinessException.internalError("[AsianOverlandAdapter.executeBookingWithTimeoutAndPolling] 预定接口调用失败:" + e.getMessage()))
+                .onErrorMap(e -> SupplierException.invalidParameter(getSafeSupplierName(),"[AsianOverlandAdapter.executeBookingWithTimeoutAndPolling] 预定接口调用失败:" + e.getMessage()))
                 .block();
 
         // 2. 检查预定响应
@@ -1469,7 +1469,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                     reservationResponse != null ? reservationResponse.getMessageInfo() : "null",
                     reservationResponse != null ? reservationResponse.getMessage() : "null");
 
-            throw BusinessException.internalError("预定接口响应失败:" + reservationResponse.getMessageInfo());
+            throw SupplierException.invalidParameter(getSafeSupplierName(),"预定接口响应失败:" + reservationResponse.getMessageInfo());
         }
 
 
@@ -1491,14 +1491,14 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
                 // 如果是需要继续轮询的状态，返回处理中状态
                 if (shouldContinuePolling(currentStatus)) {
-                    throw BusinessException.internalError("预定失败", buildPendingOrderResponse(agentRefNo, reservationRequest, input));
+                    throw SupplierException.invalidParameter(getSafeSupplierName(),"预定失败", buildPendingOrderResponse(agentRefNo, reservationRequest, input));
                 } else {
                     // 如果是最终状态但之前判断有误，直接构建响应
-                    throw BusinessException.internalError("预定失败", buildOrderResponseFromDetail(finalDetailResponse));
+                    throw SupplierException.invalidParameter(getSafeSupplierName(),"预定失败", buildOrderResponseFromDetail(finalDetailResponse));
                 }
             } else {
                 logger.warn("[AsianOverlandAdapter.executeBookingWithTimeoutAndPolling] 订单详情轮询失败，返回预定中状态，订单号: {}", agentRefNo);
-                throw BusinessException.internalError("预定失败", buildPendingOrderResponse(agentRefNo, reservationRequest, input));
+                throw SupplierException.invalidParameter(getSafeSupplierName(),"预定失败", buildPendingOrderResponse(agentRefNo, reservationRequest, input));
             }
         }
     }
@@ -1522,9 +1522,9 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                 detailRequest.setBookingId(agentRefNo);
 
                 QTechBookingDetailResponse detailResponse = this.getBookingDetail(detailRequest)
-                        .timeout(Duration.ofSeconds(10), Mono.error(BusinessException.internalError("订单详情接口调用超时")))
+                        .timeout(Duration.ofSeconds(10), Mono.error(SupplierException.invalidParameter(getSafeSupplierName(),"订单详情接口调用超时")))
                         .doOnError(e -> logger.error("[AsianOverlandAdapter.pollBookingDetails] 订单详情接口调用失败:{}", e.getMessage()))
-                        .onErrorMap(e -> BusinessException.internalError("[AsianOverlandAdapter.pollBookingDetails] 订单详情接口调用失败:" + e.getMessage()))
+                        .onErrorMap(e -> SupplierException.invalidParameter(getSafeSupplierName(),"[AsianOverlandAdapter.pollBookingDetails] 订单详情接口调用失败:" + e.getMessage()))
                         .block();
 
                 if (detailResponse != null && isBookingDetailFinalStatus(detailResponse)) {
@@ -1772,7 +1772,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             BigDecimal loss = supplierPrice.subtract(salePrice);
             logger.warn("[AsianOverlandAdapter.determineFinalBookingPrice] 价格亏损截断 - 销售价: {}, 供应商价: {}, 亏损: {}",
                     salePrice, supplierPrice, loss);
-            throw BusinessException.invalidParameter("价格亏损，无法预订 - 销售价: " + salePrice + ", 供应商价: " + supplierPrice + ", 亏损: " + loss);
+            throw SupplierException.invalidParameter(getSafeSupplierName(),"价格亏损，无法预订 - 销售价: " + salePrice + ", 供应商价: " + supplierPrice + ", 亏损: " + loss);
 
         } else if (comparison > 0) {
             // 情况2: SalePrice > 供应商价格 = 加价，不截断，用供应商最新价格预定
@@ -1944,7 +1944,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
         } catch (Exception e) {
             logger.error("[AsianOverlandAdapter.buildReservationRoomDetails] 构建房间明细失败", e);
-            throw BusinessException.internalError("构建预定房间明细失败");
+            throw SupplierException.invalidParameter(getSafeSupplierName(),"构建预定房间明细失败");
         }
     }
 
@@ -2011,7 +2011,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
             if (targetHotelPropList.isEmpty()) {
                 logger.warn("[AsianOverlandAdapter.convertHotelToXRooms] 酒店{}无Selection类型属性", hotel.getHotelId());
-                throw BusinessException.internalError("convertHotelToXRooms 转换酒店数据失败");
+                throw SupplierException.invalidParameter(getSafeSupplierName(),"convertHotelToXRooms 转换酒店数据失败");
             }
 
             // 遍历每个房型属性
@@ -2255,7 +2255,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
         } catch (Exception e) {
             logger.error("[AsianOverlandAdapter.convertHotelToXRooms] 转换酒店{}数据失败", hotel.getHotelId(), e);
-            throw BusinessException.internalError("convertHotelToXRooms 转换酒店数据失败");
+            throw SupplierException.invalidParameter(getSafeSupplierName(),"convertHotelToXRooms 转换酒店数据失败");
         }
 
     }

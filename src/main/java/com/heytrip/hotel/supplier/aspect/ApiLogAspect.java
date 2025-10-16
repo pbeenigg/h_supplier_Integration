@@ -7,7 +7,7 @@ import com.heytrip.hotel.supplier.annotation.ApiLog;
 import com.heytrip.hotel.supplier.config.ApiLogProperties;
 import com.heytrip.hotel.supplier.dto.ApiLogData;
 import com.heytrip.hotel.supplier.dto.OrderLogData;
-import com.heytrip.hotel.supplier.exception.BusinessException;
+import com.heytrip.hotel.supplier.exception.SupplierException;
 import com.heytrip.hotel.supplier.service.ApiLogService;
 import com.heytrip.hotel.supplier.utils.ApiLogExtractUtil;
 import com.heytrip.hotel.supplier.utils.HeyUtil;
@@ -582,8 +582,8 @@ public class ApiLogAspect {
         String errorMessage = exception.getMessage();
 
         // 如果已经是BusinessException，直接使用其错误信息
-        if (exception instanceof BusinessException) {
-            BusinessException bizEx = (BusinessException) exception;
+        if (exception instanceof SupplierException) {
+            SupplierException bizEx = (SupplierException) exception;
             errorCode = "BIZ_" + bizEx.getCode() + "_" + bizEx.getBizCode();
             return new ExceptionInfo(errorCode, errorMessage, bizEx.getData());
         }

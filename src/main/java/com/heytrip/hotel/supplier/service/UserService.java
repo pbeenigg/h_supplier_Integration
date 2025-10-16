@@ -4,7 +4,7 @@ import cn.hutool.core.util.StrUtil;
 import com.heytrip.hotel.supplier.constant.CacheNames;
 import com.heytrip.hotel.supplier.entity.App;
 import com.heytrip.hotel.supplier.entity.User;
-import com.heytrip.hotel.supplier.exception.BusinessException;
+import com.heytrip.hotel.supplier.exception.BasicException;
 import com.heytrip.hotel.supplier.repository.UserRepository;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
@@ -105,12 +105,12 @@ public class UserService {
 
         // 参数验证
         if (StrUtil.isBlank(userName) || StrUtil.isBlank(password)) {
-            throw new BusinessException("用户名和密码不能为空");
+            throw new BasicException("用户名和密码不能为空");
         }
 
         // 检查用户名是否已存在
         if (userRepository.existsByUserName(userName)) {
-            throw new BusinessException("用户名已存在: " + userName);
+            throw new BasicException("用户名已存在: " + userName);
         }
 
         // 设置默认值
@@ -148,7 +148,7 @@ public class UserService {
 
         Optional<User> userOpt = userRepository.findById(userId);
         if (userOpt.isEmpty()) {
-            throw new BusinessException("用户不存在，ID: " + userId);
+            throw new BasicException("用户不存在，ID: " + userId);
         }
 
         User user = userOpt.get();
@@ -184,19 +184,19 @@ public class UserService {
 
         Optional<User> userOpt = userRepository.findById(userId);
         if (userOpt.isEmpty()) {
-            throw new BusinessException("用户不存在，ID: " + userId);
+            throw new BasicException("用户不存在，ID: " + userId);
         }
 
         User user = userOpt.get();
 
         // 验证旧密码
         if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
-            throw new BusinessException("原密码错误");
+            throw new BasicException("原密码错误");
         }
 
         // 参数验证
         if (StrUtil.isBlank(newPassword) || newPassword.length() < 6) {
-            throw new BusinessException("新密码不能为空且长度不能少于6位");
+            throw new BasicException("新密码不能为空且长度不能少于6位");
         }
 
         // 更新密码
@@ -219,12 +219,12 @@ public class UserService {
 
         Optional<User> userOpt = userRepository.findById(userId);
         if (userOpt.isEmpty()) {
-            throw new BusinessException("用户不存在，ID: " + userId);
+            throw new BasicException("用户不存在，ID: " + userId);
         }
 
         // 参数验证
         if (StrUtil.isBlank(newPassword) || newPassword.length() < 6) {
-            throw new BusinessException("新密码不能为空且长度不能少于6位");
+            throw new BasicException("新密码不能为空且长度不能少于6位");
         }
 
         User user = userOpt.get();
@@ -247,7 +247,7 @@ public class UserService {
 
         Optional<User> userOpt = userRepository.findById(userId);
         if (userOpt.isEmpty()) {
-            throw new BusinessException("用户不存在，ID: " + userId);
+            throw new BasicException("用户不存在，ID: " + userId);
         }
 
         User user = userOpt.get();

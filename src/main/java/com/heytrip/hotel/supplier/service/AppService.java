@@ -3,7 +3,7 @@ package com.heytrip.hotel.supplier.service;
 import cn.hutool.core.util.StrUtil;
 import com.heytrip.hotel.supplier.constant.CacheNames;
 import com.heytrip.hotel.supplier.entity.App;
-import com.heytrip.hotel.supplier.exception.BusinessException;
+import com.heytrip.hotel.supplier.exception.BasicException;
 import com.heytrip.hotel.supplier.repository.AppRepository;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
@@ -81,12 +81,12 @@ public class AppService {
 
         // 检查appId是否已存在
         if (appRepository.existsByAppId(appId)) {
-            throw new BusinessException("应用ID已存在: " + appId);
+            throw new BasicException("应用ID已存在: " + appId);
         }
 
         // 参数验证
         if (StrUtil.isBlank(appId) || StrUtil.isBlank(secretKey) || StrUtil.isBlank(encryptionKey)) {
-            throw new BusinessException("应用ID、密钥和加密密钥不能为空");
+            throw new BasicException("应用ID、密钥和加密密钥不能为空");
         }
 
         if (rateLimit == null || rateLimit <= 0) {
@@ -132,7 +132,7 @@ public class AppService {
 
         Optional<App> appOpt = findByAppId(appId);
         if (appOpt.isEmpty()) {
-            throw new BusinessException("应用不存在: " + appId);
+            throw new BasicException("应用不存在: " + appId);
         }
 
         App app = appOpt.get();
@@ -163,7 +163,7 @@ public class AppService {
         logger.info("删除应用，appId: {}, 删除人: {}", appId, deleteBy);
 
         if (!appRepository.existsByAppId(appId)) {
-            throw new BusinessException("应用不存在: " + appId);
+            throw new BasicException("应用不存在: " + appId);
         }
 
         appRepository.deleteById(appId);
