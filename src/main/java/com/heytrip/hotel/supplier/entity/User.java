@@ -1,5 +1,6 @@
 package com.heytrip.hotel.supplier.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.Comment;
@@ -75,6 +76,7 @@ public class User {
     // 一对一关联App实体（可选，用于查询时的便利性）
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "app_id", referencedColumnName = "app_id", insertable = false, updatable = false)
+    @JsonIgnore
     private App app;
 
     // 构造函数

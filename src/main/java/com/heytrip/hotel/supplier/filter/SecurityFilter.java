@@ -33,7 +33,8 @@ public class SecurityFilter extends OncePerRequestFilter {
 
     private static final Logger logger = LoggerFactory.getLogger(SecurityFilter.class);
 
-    private static final long MAX_TIME_SKEW_SECONDS = 300; // 5分钟时间偏差
+
+    private static final long MAX_TIME_SKEW_SECONDS = 600; // 10分钟时间偏差
 
     @Resource
     private Config CONFIG;

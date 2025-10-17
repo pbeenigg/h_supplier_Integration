@@ -113,6 +113,11 @@ public class CacheController {
                 row.put("hitRate", stats.hitRate());
                 row.put("evictionCount", stats.evictionCount());
                 row.put("loadCount", stats.loadCount());
+                row.put("loadSuccessCount", stats.loadSuccessCount());
+                row.put("loadFailureCount", stats.loadFailureCount());
+                row.put("totalLoadTime", stats.totalLoadTime());
+                row.put("averageLoadPenalty", stats.averageLoadPenalty());
+                row.put("type", "CaffeineCache");
             } else {
                 row.put("type", cache != null ? cache.getClass().getSimpleName() : "null");
             }

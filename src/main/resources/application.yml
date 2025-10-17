@@ -130,6 +130,7 @@ app:
       - /cache/**
       - /auth/user/**
       - /admin/**
+      - /logs/**
 
   # API日志配置
   api-log:

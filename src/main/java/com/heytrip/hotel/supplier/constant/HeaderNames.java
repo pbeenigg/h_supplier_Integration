@@ -1,5 +1,9 @@
 package com.heytrip.hotel.supplier.constant;
 
+
+/**
+ * 请求头名称常量
+ */
 public final class HeaderNames {
 
     /**

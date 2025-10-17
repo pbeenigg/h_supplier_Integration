@@ -1,5 +1,6 @@
 package com.heytrip.hotel.supplier.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.Comment;
@@ -36,7 +37,11 @@ public class ApiCallLog {
     @Column(name = "supplier_id")
     @Comment("供应商ID，关联supplier_config表")
     private Long supplierId;
-    
+
+    @Transient
+    @Comment("供应商编码，仅用于数据转换，不持久化到数据库")
+    private String supplierCode;
+
     /**
      * 链路追踪ID，用于分布式追踪
      */
@@ -136,17 +141,17 @@ public class ApiCallLog {
     private Boolean isSuccess = false;
     
     /**
-     * 业务类型：search、booking、cancel等
+     * 业务类型：HTTP_CLIENT,  Webservice等
      */
     @Column(name = "business_type", length = 100)
-    @Comment("业务类型：search、booking、cancel等")
+    @Comment("业务类型：httpClient,  WebService等")
     private String businessType;
     
     /**
      * 调用渠道：API、WEB、MOBILE等
      */
     @Column(name = "channel", length = 50)
-    @Comment("调用渠道：API、WEB、MOBILE等")
+    @Comment("调用渠道：api、MOBILE等")
     private String channel;
     
     /**
@@ -209,6 +214,7 @@ public class ApiCallLog {
     // 关联供应商配置
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "supplier_id", insertable = false, updatable = false)
+    @JsonIgnore
     private SupplierConfig supplierConfig;
     
     // 默认构造函数

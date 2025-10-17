@@ -4,9 +4,11 @@ import com.heytrip.hotel.supplier.dto.R;
 import com.heytrip.hotel.supplier.entity.ApiCallLog;
 import com.heytrip.hotel.supplier.entity.DistributionCallLog;
 import com.heytrip.hotel.supplier.entity.DistributionOrdersLog;
+import com.heytrip.hotel.supplier.entity.SyncLog;
 import com.heytrip.hotel.supplier.repository.ApiCallLogRepository;
 import com.heytrip.hotel.supplier.repository.DistributionCallLogRepository;
 import com.heytrip.hotel.supplier.repository.DistributionOrdersLogRepository;
+import com.heytrip.hotel.supplier.repository.SyncLogRepository;
 import jakarta.persistence.criteria.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,11 +25,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * 日志管理Controller
@@ -55,6 +53,9 @@ public class LogController {
     @Autowired
     private DistributionOrdersLogRepository distributionOrdersLogRepository;
 
+    @Autowired
+    private SyncLogRepository syncLogRepository;
+
     /**
      * 获取API调用日志
      *
@@ -74,8 +75,8 @@ public class LogController {
             @RequestParam(required = false) Long supplierId,
             @RequestParam(required = false) String traceId,
             @RequestParam(required = false) Boolean isSuccess,
-            @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") LocalDateTime startTime,
-            @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") LocalDateTime endTime,
+            @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") Date startTime,
+            @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") Date endTime,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
 
@@ -119,6 +120,12 @@ public class LogController {
 
             // 执行查询
             Page<ApiCallLog> pageResult = apiCallLogRepository.findAll(spec, pageable);
+
+            pageResult.getContent().forEach(log -> {
+                if(log.getSupplierConfig()!=null){
+                    log.setSupplierCode(log.getSupplierConfig().getSupplierCode());
+                }
+            });
 
             // 构建返回结果
             Map<String, Object> response = new HashMap<>();
@@ -167,8 +174,8 @@ public class LogController {
             @RequestParam(required = false) String distributionOrdersKey,
             @RequestParam(required = false) String checkInKey,
             @RequestParam(required = false) String checkOutKey,
-            @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") LocalDateTime startTime,
-            @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") LocalDateTime endTime,
+            @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") Date startTime,
+            @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") Date endTime,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
 
@@ -228,6 +235,13 @@ public class LogController {
             // 执行查询
             Page<DistributionCallLog> pageResult = distributionCallLogRepository.findAll(spec, pageable);
 
+            // 设置供应商代码
+            pageResult.getContent().forEach(log -> {
+               if(log.getSupplierConfig()!=null){
+                   log.setSupplierCode(log.getSupplierConfig().getSupplierCode());
+               }
+            });
+
             // 构建返回结果
             Map<String, Object> response = new HashMap<>();
             response.put("content", pageResult.getContent());
@@ -277,13 +291,14 @@ public class LogController {
             @RequestParam(required = false) String checkInKey,
             @RequestParam(required = false) String checkOutKey,
             @RequestParam(required = false) String supplierBookingKey,
-            @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") LocalDateTime startTime,
-            @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") LocalDateTime endTime,
+            @RequestParam(required = false ) @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss" ) Date startTime,
+            @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") Date endTime,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
 
         logger.info("Getting distribution orders logs with params: appId={}, supplierId={}, traceId={}, businessType={}, isSuccess={}, page={}, size={}",
                 appId, supplierId, traceId, businessType, isSuccess, page, size);
+
 
         try {
             // 验证分页参数
@@ -341,6 +356,13 @@ public class LogController {
             // 执行查询
             Page<DistributionOrdersLog> pageResult = distributionOrdersLogRepository.findAll(spec, pageable);
 
+            // 设置供应商代码
+            pageResult.getContent().forEach(log -> {
+                if(log.getSupplierConfig()!=null){
+                    log.setSupplierCode(log.getSupplierConfig().getSupplierCode());
+                }
+            });
+
             // 构建返回结果
             Map<String, Object> response = new HashMap<>();
             response.put("content", pageResult.getContent());
@@ -356,6 +378,99 @@ public class LogController {
         } catch (Exception e) {
             logger.error("Failed to get distribution orders logs", e);
             return R.fail("获取分销商订单日志失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 获取同步日志
+     *
+     * @param supplierId 供应商ID
+     * @param supplierCode 供应商代码
+     * @param businessType 业务类型（countries/cities/hotels/nationality/giata/all）
+     * @param fileName 文件名
+     * @param isSuccess 是否成功
+     * @param startTime 开始时间
+     * @param endTime 结束时间
+     * @param page 页码（从0开始）
+     * @param size 页大小
+     * @return 同步日志分页数据
+     */
+    @GetMapping("/sync")
+    public R<Map<String, Object>> getSyncLogs(
+            @RequestParam(required = false) Long supplierId,
+            @RequestParam(required = false) String supplierCode,
+            @RequestParam(required = false) String businessType,
+            @RequestParam(required = false) String fileName,
+            @RequestParam(required = false) Boolean isSuccess,
+            @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") Date startTime,
+            @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") Date endTime,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+
+        logger.info("Getting sync logs with params: supplierId={}, supplierCode={}, businessType={}, fileName={}, isSuccess={}, startTime={}, endTime={}, page={}, size={}",
+                supplierId, supplierCode, businessType, fileName, isSuccess, startTime, endTime, page, size);
+
+        try {
+            // 验证分页参数
+            size = Math.min(size, MAX_PAGE_SIZE);
+            if (size <= 0) size = DEFAULT_PAGE_SIZE;
+            if (page < 0) page = 0;
+
+            // 创建分页对象，按创建时间降序
+            Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+
+            // 构建查询条件
+            Specification<SyncLog> spec = (root, query, criteriaBuilder) -> {
+                List<Predicate> predicates = new ArrayList<>();
+
+                if (supplierId != null) {
+                    predicates.add(criteriaBuilder.equal(root.get("supplierId"), supplierId));
+                }
+                if (supplierCode != null && !supplierCode.trim().isEmpty()) {
+                    predicates.add(criteriaBuilder.equal(root.get("supplierCode"), supplierCode));
+                }
+                if (businessType != null && !businessType.trim().isEmpty()) {
+                    predicates.add(criteriaBuilder.equal(root.get("businessType"), businessType));
+                }
+                if (fileName != null && !fileName.trim().isEmpty()) {
+                    predicates.add(criteriaBuilder.like(root.get("fileName"), "%" + fileName + "%"));
+                }
+                if (isSuccess != null) {
+                    predicates.add(criteriaBuilder.equal(root.get("isSuccess"), isSuccess));
+                }
+                if (startTime != null) {
+                    predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("createdAt"), startTime));
+                }
+                if (endTime != null) {
+                    predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("createdAt"), endTime));
+                }
+
+                return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
+            };
+
+            // 执行查询
+            Page<SyncLog> pageResult = syncLogRepository.findAll(spec, pageable);
+            pageResult.getContent().forEach(log -> {
+                if(log.getSupplierConfig()!=null){
+                    log.setSupplierCode(log.getSupplierConfig().getSupplierCode());
+                }
+            });
+
+            // 构建返回结果
+            Map<String, Object> response = new HashMap<>();
+            response.put("content", pageResult.getContent());
+            response.put("totalElements", pageResult.getTotalElements());
+            response.put("totalPages", pageResult.getTotalPages());
+            response.put("currentPage", pageResult.getNumber());
+            response.put("pageSize", pageResult.getSize());
+            response.put("hasNext", pageResult.hasNext());
+            response.put("hasPrevious", pageResult.hasPrevious());
+
+            return R.ok("获取同步日志成功", response);
+
+        } catch (Exception e) {
+            logger.error("Failed to get sync logs", e);
+            return R.fail("获取同步日志失败: " + e.getMessage());
         }
     }
 }

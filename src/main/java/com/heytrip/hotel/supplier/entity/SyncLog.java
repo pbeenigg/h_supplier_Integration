@@ -1,5 +1,6 @@
 package com.heytrip.hotel.supplier.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.Comment;
@@ -82,4 +83,11 @@ public class SyncLog {
     @Column(name = "created_at", updatable = false)
     @Comment("创建时间")
     private LocalDateTime createdAt;
+
+    // 关联供应商配置
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "supplier_id", insertable = false, updatable = false)
+    @JsonIgnore
+    private SupplierConfig supplierConfig;
+
 }

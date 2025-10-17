@@ -435,8 +435,8 @@ public class HttpClientService {
             log.setResponseTimeMs(responseTime);
             log.setErrorMessage(errorMessage);
             log.setIsSuccess(statusCode >= 200 && statusCode < 300);
-            log.setBusinessType("api_call");
-            log.setChannel("HTTP_CLIENT");
+            log.setBusinessType("http_client");
+            log.setChannel("api");
 
             // 额外补充字段
             log.setRequestHeaders(requestHeadersJson);

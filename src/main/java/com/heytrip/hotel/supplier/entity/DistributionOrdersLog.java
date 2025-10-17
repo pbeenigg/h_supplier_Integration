@@ -1,6 +1,7 @@
 package com.heytrip.hotel.supplier.entity;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.Comment;
@@ -40,6 +41,10 @@ public class DistributionOrdersLog {
     @Column(name = "supplier_id")
     @Comment("供应商ID，关联supplier_config表")
     private Long supplierId;
+
+    @Transient
+    @Comment("供应商编码，仅用于数据转换，不持久化到数据库")
+    private String supplierCode;
 
     @Column(name = "trace_id", length = 100)
     @Comment("链路追踪ID，用于追踪请求链路")
@@ -143,6 +148,14 @@ public class DistributionOrdersLog {
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     @Comment("创建时间")
     private LocalDateTime createdAt;
+
+
+
+    // 关联供应商配置
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "supplier_id", insertable = false, updatable = false)
+    @JsonIgnore
+    private SupplierConfig supplierConfig;
 
     @PrePersist
     protected void onCreate() {

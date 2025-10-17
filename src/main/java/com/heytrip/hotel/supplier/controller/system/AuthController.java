@@ -69,6 +69,7 @@ public class AuthController {
             loginResponse.put("appId", user.getAppId());
             loginResponse.put("secretKey", user.getApp().getSecretKey());
             loginResponse.put("loginTime", System.currentTimeMillis());
+            loginResponse.put("timeout", user.getTimeout());
 
             logger.info("用户登录成功，用户名: {}, appId: {}", userName, user.getAppId());
             return R.ok("登录成功", loginResponse);

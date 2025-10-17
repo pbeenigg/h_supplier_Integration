@@ -26,7 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
-import static com.heytrip.hotel.supplier.constant.SyncBusinessTypeNames.*;
+import static com.heytrip.hotel.supplier.constant.SyncTypeNames.*;
 
 /**
  * 静态数据同步服务

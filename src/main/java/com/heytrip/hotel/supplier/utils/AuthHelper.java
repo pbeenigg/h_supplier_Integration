@@ -105,11 +105,11 @@ public class AuthHelper {
             }
 
             // 如果都没有，返回系统默认用户
-            return "system";
+            return "admin";
 
         } catch (Exception e) {
             logger.warn("获取当前用户时发生异常: {}", e.getMessage());
-            return "system";
+            return "admin";
         }
     }
 

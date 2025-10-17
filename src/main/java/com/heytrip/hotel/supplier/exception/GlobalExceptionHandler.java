@@ -133,7 +133,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleTypeMismatchException(MethodArgumentTypeMismatchException e) {
         logger.warn("类型不匹配: {}", e.getMessage());
 
-        String message = String.format("Invalid value '%s' for parameter '%s'. Expected type: %s",
+        String message = String.format("无效的值 '%s' 对于参数 '%s'。期望类型：%s",
                 e.getValue(), e.getName(), e.getRequiredType().getSimpleName());
 
         ErrorResponse errorResponse = ErrorResponse.builder()

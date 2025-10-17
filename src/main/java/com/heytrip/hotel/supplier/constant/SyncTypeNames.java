@@ -3,7 +3,7 @@ package com.heytrip.hotel.supplier.constant;
 /**
  * 同步业务类型名称常量
  */
-public final class SyncBusinessTypeNames {
+public final class SyncTypeNames {
 
 
     // 同步国家 - 静态文件

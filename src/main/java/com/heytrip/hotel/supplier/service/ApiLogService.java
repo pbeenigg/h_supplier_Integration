@@ -157,6 +157,10 @@ public class ApiLogService {
                     ordersLog.setGuests(HeyUtil.calculateTotalGuests(orderData.getOccupancy()));
                 }
 
+                if(StrUtil.isNotBlank(orderData.getSupplierBookingKey())){
+                    ordersLog.setBookingStatus("success");
+                }
+
                 ordersLog.setRooms(orderData.getRooms());
                 ordersLog.setCurrency(orderData.getCurrency());
                 ordersLog.setNational(orderData.getNational());

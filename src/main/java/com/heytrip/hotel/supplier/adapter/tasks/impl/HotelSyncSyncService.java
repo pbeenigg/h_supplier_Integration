@@ -38,7 +38,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import static com.heytrip.hotel.supplier.constant.SyncBusinessTypeNames.HOTEL_BOOKABLE;
+import static com.heytrip.hotel.supplier.constant.SyncTypeNames.HOTEL_BOOKABLE;
 import static java.util.stream.Collectors.*;
 
 /**

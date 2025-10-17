@@ -1,6 +1,7 @@
 package com.heytrip.hotel.supplier.entity;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.Comment;
@@ -16,11 +17,11 @@ import java.time.LocalDateTime;
  */
 @Entity
 @Table(name = "distribution_call_log", indexes = {
-    @Index(name = "idx_supplier_id", columnList = "supplier_id"),
-    @Index(name = "idx_is_success", columnList = "is_success"),
-    @Index(name = "idx_business_type", columnList = "business_type"),
-    @Index(name = "idx_trace_id", columnList = "trace_id"),
-    @Index(name = "idx_created_at", columnList = "created_at")
+        @Index(name = "idx_supplier_id", columnList = "supplier_id"),
+        @Index(name = "idx_is_success", columnList = "is_success"),
+        @Index(name = "idx_business_type", columnList = "business_type"),
+        @Index(name = "idx_trace_id", columnList = "trace_id"),
+        @Index(name = "idx_created_at", columnList = "created_at")
 })
 @Comment("分销商调用日志表")
 @Data
@@ -38,6 +39,12 @@ public class DistributionCallLog {
     @Column(name = "supplier_id")
     @Comment("供应商ID，关联supplier_config表")
     private Long supplierId;
+
+
+    @Transient
+    @Comment("供应商编码，仅用于数据转换，不持久化到数据库")
+    private String supplierCode;
+
 
     @Column(name = "trace_id", length = 100)
     @Comment("链路追踪ID，用于追踪请求链路")
@@ -78,7 +85,6 @@ public class DistributionCallLog {
     @Column(name = "response_body", columnDefinition = "LONGTEXT")
     @Comment("响应体内容")
     private String responseBody;
-
 
 
     @Column(name = "response_status")
@@ -133,6 +139,14 @@ public class DistributionCallLog {
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     @Comment("创建时间")
     private LocalDateTime createdAt;
+
+
+
+    // 关联供应商配置
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "supplier_id", insertable = false, updatable = false)
+    @JsonIgnore
+    private SupplierConfig supplierConfig;
 
     @PrePersist
     protected void onCreate() {
