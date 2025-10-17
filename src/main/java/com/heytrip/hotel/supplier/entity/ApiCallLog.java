@@ -97,6 +97,15 @@ public class ApiCallLog {
     @Column(name = "response_body", columnDefinition = "LONGTEXT")
     @Comment("响应体内容")
     private String responseBody;
+
+
+    @Column(name = "request_body_compressed")
+    @Comment("请求体是否压缩：1-已压缩，0-未压缩")
+    private Boolean requestBodyCompressed = false;
+
+    @Column(name = "response_body_compressed")
+    @Comment("响应体是否压缩：1-已压缩，0-未压缩")
+    private Boolean responseBodyCompressed = false;
     
     /**
      * HTTP响应状态码

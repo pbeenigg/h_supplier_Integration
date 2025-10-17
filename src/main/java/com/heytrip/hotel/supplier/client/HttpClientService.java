@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.heytrip.hotel.supplier.entity.ApiCallLog;
 import com.heytrip.hotel.supplier.exception.HttpClientException;
 import com.heytrip.hotel.supplier.repository.ApiCallLogRepository;
+import com.heytrip.hotel.supplier.utils.JsonCompressionUtil;
 import com.heytrip.hotel.supplier.utils.TraceIdHolder;
 import com.heytrip.hotel.supplier.utils.UrlUtil;
 import io.netty.channel.ChannelOption;
@@ -429,8 +430,60 @@ public class HttpClientService {
             log.setTraceId(traceId);
             log.setApiEndpoint(endpoint);
             log.setHttpMethod(method);
-            log.setRequestBody(requestData);
-            log.setResponseBody(responseData);
+
+            // 压缩阈值配置
+            final int COMPRESSION_THRESHOLD = 10000; // 10KB
+
+            // 处理请求体压缩
+            boolean requestBodyCompressed = false;
+            if (requestData != null && requestData.length() > COMPRESSION_THRESHOLD) {
+                try {
+                    String compressedRequest = JsonCompressionUtil.compressIfNeeded(
+                        requestData, COMPRESSION_THRESHOLD,
+                        JsonCompressionUtil.CompressionAlgorithm.GZIP, 6);
+
+                    if (compressedRequest.length() < requestData.length()) {
+                        log.setRequestBody(compressedRequest);
+                        requestBodyCompressed = true;
+                        logger.debug("请求体已压缩: 原长度={}, 压缩后长度={}",
+                                   requestData.length(), compressedRequest.length());
+                    } else {
+                        log.setRequestBody(requestData);
+                    }
+                } catch (Exception e) {
+                    logger.warn("请求体压缩失败，使用原始数据", e);
+                    log.setRequestBody(requestData);
+                }
+            } else {
+                log.setRequestBody(requestData);
+            }
+            log.setRequestBodyCompressed(requestBodyCompressed);
+
+            // 处理响应体压缩
+            boolean responseBodyCompressed = false;
+            if (responseData != null && responseData.length() > COMPRESSION_THRESHOLD) {
+                try {
+                    String compressedResponse = JsonCompressionUtil.compressIfNeeded(
+                        responseData, COMPRESSION_THRESHOLD,
+                        JsonCompressionUtil.CompressionAlgorithm.GZIP, 6);
+
+                    if (compressedResponse.length() < responseData.length()) {
+                        log.setResponseBody(compressedResponse);
+                        responseBodyCompressed = true;
+                        logger.debug("响应体已压缩: 原长度={}, 压缩后长度={}",
+                                   responseData.length(), compressedResponse.length());
+                    } else {
+                        log.setResponseBody(responseData);
+                    }
+                } catch (Exception e) {
+                    logger.warn("响应体压缩失败，使用原始数据", e);
+                    log.setResponseBody(responseData);
+                }
+            } else {
+                log.setResponseBody(responseData);
+            }
+            log.setResponseBodyCompressed(responseBodyCompressed);
+
             log.setResponseStatus(statusCode);
             log.setResponseTimeMs(responseTime);
             log.setErrorMessage(errorMessage);
