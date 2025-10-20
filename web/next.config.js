@@ -1,26 +1,22 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // 静态导出配置，用于Docker部署
-  output: 'export',
+  output: 'export',  // 静态导出配置，用于Docker部署
   trailingSlash: true,
   images: {
     unoptimized: true
   },
-  // 开发时的API重写（仅在dev模式下生效）
-  async rewrites() {
-    // 生产环境下由nginx处理API代理，这里只处理开发环境
-    if (process.env.NODE_ENV === 'development') {
-      return [
-        {
-          source: '/api/:path*',
-          destination: 'http://localhost:9090/:path*'
-        }
-      ]
-    }
-    return []
-  },
+  reactStrictMode: true,
+  // 生产环境优化配置
+  productionBrowserSourceMaps: false, // 生产环境不生成source map以减小包体积
+  compress: true, // 启用Gzip压缩
+  poweredByHeader: false, // 移除X-Powered-By头
+
+  // 构建优化
+  swcMinify: true, // 使用SWC进行代码压缩，比Terser更快
+
+  // 实验性功能配置（稳定版本）
   experimental: {
-    esmExternals: false
+    optimizePackageImports: ['lucide-react', '@radix-ui/react-dialog'], // 包导入优化
   }
 }
 

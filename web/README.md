@@ -100,7 +100,7 @@ web/
 - AppId 和密钥管理
 - 权限与限流配置
 
-### 4. 缓存管理
+### 4. 缓存管理 (`/cache`)
 - 清除全部静态缓存
 - 按名称清除指定缓存
 - 缓存统计信息展示
@@ -131,23 +131,21 @@ web/
 
 ### 开发环境
 ```bash
-# 安装依赖
-pnpm install
+# 开发环境
+pnpm run dev       # 开发服务器 (localhost:9091)
 
-# 启动开发服务器 (端口 9091)
-pnpm dev
+# 构建
+pnpm run build     # 构建静态文件到 out/
 
-# 代码检查
-pnpm lint
-```
+# 预览/生产
+pnpm run preview   # 预览构建结果 (localhost:9091) ✅ 已修复
+pnpm run prod      # 构建 + 生产服务器 (localhost:9091)
+pnpm run start     # 直接启动生产服务器 (localhost:9091)
 
-### 生产环境
-```bash
-# 构建项目
-pnpm build
+# 代码质量
+pnpm run lint      # ESLint 检查
+pnpm run type-check # TypeScript 类型检查
 
-# 启动生产服务器
-pnpm start
 ```
 
 ### 环境变量
