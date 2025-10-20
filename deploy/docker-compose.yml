@@ -2,6 +2,34 @@ version: "3.8"
 name: heytrip-supplier
 
 services:
+  # HeyTrip Supplier Integration Web Frontend
+  heytrip-web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      tags:
+        - "heytrip/web:${WEB_IMAGE_TAG:-latest}"
+        - "heytrip/web:${WEB_VERSION:-1.0.0}"
+    image: "heytrip/web:${WEB_IMAGE_TAG:-latest}"
+    container_name: heytrip-web
+    ports:
+      - "${WEB_HOST_PORT:-9091}:80"
+    volumes:
+      - ./logs/web:/var/log/nginx
+      - ./web/out:/usr/share/nginx/html
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - heytrip
+    profiles:
+      - "web"
+      - "full"
+
   # HeyTrip Supplier Integration Service (JAR包部署)
   heytrip-supplier:
     build:
@@ -62,10 +90,13 @@ services:
       start_period: 90s
     restart: unless-stopped
     networks:
-      - heytrip_backend
+      - heytrip
+    profiles:
+      - "backend"
+      - "full"
 
 
 networks:
-  heytrip_backend:
-    name: heytrip_backend
-    driver: bridge
+  heytrip:
+    name: heytrip
+    driver: host

@@ -66,7 +66,7 @@ ON DUPLICATE KEY UPDATE
 -- 插入超级管理员用户（密码：admin123）
 -- 注意：这里使用BCrypt加密后的密码hash值
 INSERT INTO `user` (`user_id`, `user_name`, `password`, `user_nick`, `sex`, `timeout`, `app_id`, `create_by`, `update_by`)
-VALUES (1, 'admin', '$2a$10$N.zmdr9k7uOCQb97.AnI.OJhKhXyX4yOd7I1fTHdA7.4H9B6W8Ks6', '超级管理员', 'U', -1, 'heytrip_supplier_integration_pax', 'admin', 'admin')
+VALUES (1, 'admin', '$2a$10$Z0ne2nKekwM3bgPrRNze4uXIu3brMqjdPsUsBm.O8.AvaiKAco.6S', '超级管理员', 'U', -1, 'heytrip_supplier_integration_pax', 'admin', 'admin')
 ON DUPLICATE KEY UPDATE
     `user_name` = VALUES(`user_name`),
     `password` = VALUES(`password`),

@@ -5,6 +5,8 @@ services:
     container_name: portainer
     image: 6053537/portainer-ce:2.27.9
     restart: unless-stopped
+    ports:
+      - "9000:9000"
     environment:
       PUBLIC_URL: /portainer/
     security_opt:
@@ -15,12 +17,8 @@ services:
       - ./data:/data
     networks:
       - portainer_net
-      - heytrip_backend
 
 networks:
   portainer_net:
     name: portainer_net
     driver: bridge
-  heytrip_backend:
-    external: true
-    name: heytrip_backend

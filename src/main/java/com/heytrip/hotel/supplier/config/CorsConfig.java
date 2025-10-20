@@ -11,7 +11,7 @@ import java.util.Arrays;
 
 /**
  * CORS跨域配置
- * 允许前端(localhost:19090)访问后端API
+ * 允许前端(localhost:9091)访问后端API
  *
  * @author Pax
  */
@@ -24,22 +24,19 @@ public class CorsConfig {
 
         // 允许的源地址
         configuration.setAllowedOriginPatterns(Arrays.asList(
-            "http://localhost:19090",
-            "http://127.0.0.1:19090",
-            "http://localhost:3000",  // 备用前端端口
-            "http://127.0.0.1:3000"
-        ));
+                "http://localhost:9091",
+                "http://127.0.0.1:9091",
+                "http://localhost:3000", // 备用前端端口
+                "http://127.0.0.1:3000"));
 
         // 允许的HTTP方法
         configuration.setAllowedMethods(Arrays.asList(
-            "GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"
-        ));
+                "GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"));
 
         // 允许的请求头
         configuration.setAllowedHeaders(Arrays.asList(
-            "Origin", "Content-Type", "Accept", "Authorization",
-            "app", "timestamp", "sign", "User-Agent", "X-Requested-With"
-        ));
+                "Origin", "Content-Type", "Accept", "Authorization",
+                "app", "timestamp", "sign", "User-Agent", "X-Requested-With"));
 
         // 允许发送Cookie
         configuration.setAllowCredentials(true);
@@ -49,9 +46,8 @@ public class CorsConfig {
 
         // 暴露的响应头（前端可以访问的响应头）
         configuration.setExposedHeaders(Arrays.asList(
-            "Content-Length", "Access-Control-Allow-Origin",
-            "Access-Control-Allow-Credentials", "Access-Control-Allow-Headers"
-        ));
+                "Content-Length", "Access-Control-Allow-Origin",
+                "Access-Control-Allow-Credentials", "Access-Control-Allow-Headers"));
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);

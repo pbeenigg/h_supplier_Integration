@@ -52,4 +52,4 @@ else
   docker compose -f "$COMPOSE_FILE" up -d
 fi
 
-echo "[SUCCESS] Nginx 已启动，可通过 http://localhost 访问。"
+echo "[SUCCESS] Nginx 已启动，可通过 http://47.76.191.223 访问。"
