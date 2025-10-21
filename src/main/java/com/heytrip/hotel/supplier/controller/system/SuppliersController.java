@@ -41,16 +41,12 @@ public class SuppliersController {
      * @return 启用的供应商列表
      */
     @GetMapping("/suppliers")
-    public R<Map<String, Object>> getEnabledSuppliers() {
+    public R<List<SupplierConfig>> getEnabledSuppliers() {
         logger.info("Getting enabled suppliers list");
         
         try {
-            List<String> suppliers = supplierAdapterManager.getEnabledSuppliers();
-            Map<String, Object> response = Map.of(
-                    "suppliers", suppliers,
-                    "count", suppliers.size()
-            );
-            return R.ok("获取启用供应商列表成功", response);
+            List<SupplierConfig>  supplierConfigs =  supplierConfigRepository.findByIsActiveTrue();
+            return R.ok("获取启用供应商列表成功", supplierConfigs);
         } catch (Exception e) {
             logger.error("Failed to get enabled suppliers", e);
             return R.fail("获取启用供应商列表失败: " + e.getMessage());

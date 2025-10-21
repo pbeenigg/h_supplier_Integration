@@ -5,6 +5,7 @@ import com.heytrip.hotel.supplier.adapter.parser.StaticDataParser;
 import com.heytrip.hotel.supplier.client.FtpClientService;
 import com.heytrip.hotel.supplier.config.CacheEvictor;
 import com.heytrip.hotel.supplier.config.FtpClientConfig;
+import com.heytrip.hotel.supplier.constant.SyncTypeNames;
 import com.heytrip.hotel.supplier.dto.supplier.SupplierFtp;
 import com.heytrip.hotel.supplier.entity.*;
 import com.heytrip.hotel.supplier.repository.*;
@@ -21,9 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.InputStream;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
 import java.util.function.Supplier;
 
 import static com.heytrip.hotel.supplier.constant.SyncTypeNames.*;
@@ -67,13 +67,58 @@ public class StaticDataSyncService {
             logger.warn("供应商{} 无 FTP 配置，跳过静态同步", supplierId);
             return;
         }
+
+        // 检查上次同步时间，若在48小时内则跳过
+        Set<String> businessTypes = Set.of(
+                SyncTypeNames.COUNTRIES,
+                SyncTypeNames.CITIES,
+                SyncTypeNames.NATIONALITY,
+                SyncTypeNames.GIATA,
+                SyncTypeNames.HOTELS
+        );
+        // 记录最近同步过的业务类型
+        Map<String,Boolean> recentSyncMap = new HashMap<>();
+        Optional<List<SyncLog>> syncLogs = syncLogRepo.findLatestBySupplierCodeAndBusinessTypeIn(supplierCode, businessTypes);
+        if (syncLogs.isPresent()) {
+            LocalDateTime now = LocalDateTime.now();
+            for (SyncLog log : syncLogs.get()) {
+                if (log.getCreatedAt() != null) {
+                    long hours = log.getCreatedAt().until(now, ChronoUnit.HOURS);
+                    if (hours < 48) {
+                        logger.info("供应商{} 静态数据 {} 上次同步时间{}，距离现在仅{}小时，跳过本次同步", supplierCode, log.getBusinessType(), log.getCreatedAt(), hours);
+                        recentSyncMap.put(log.getBusinessType(), true);
+                    }else {
+                        logger.info("供应商{} 静态数据 {} 上次同步时间{}，距离现在已{}小时，开始本次同步", supplierCode, log.getBusinessType(), log.getCreatedAt(), hours);
+                        recentSyncMap.put(log.getBusinessType(), false);
+                    }
+                }
+            }
+        }
+        //如果查询出来的记录与业务类型数量不一致，说明有部分业务类型从未同步过，也需要进行同步
+        //如果全部业务类型都在48小时内同步过，则跳过本次同步
+        if (recentSyncMap.size() == businessTypes.size() && recentSyncMap.values().stream().allMatch(v -> v)) {
+            logger.info("供应商{} 静态数据在48小时内已全部同步过，跳过本次同步", supplierCode);
+            return;
+        }
+
+
         SupplierFtp ftp = parseFtpConfig(sc.getFtpConfig());
         logger.info("开始静态数据同步，supplierId={}, supplierCode={}", supplierId, supplierCode);
-        //syncOne(() -> syncCountries(ftp, supplierId, supplierCode), supplierId, supplierCode, COUNTRIES, ftp.getCountriesPath());
-        syncOne(() -> syncCities(ftp, supplierId, supplierCode), supplierId, supplierCode, CITIES, ftp.getCitiesPath());
-        syncOne(() -> syncNationalities(ftp, supplierId, supplierCode), supplierId, supplierCode, NATIONALITY, ftp.getNationalityPath());
-        syncOne(() -> syncGiata(ftp, supplierId, supplierCode), supplierId, supplierCode, GIATA, ftp.getGiataLocalPath());
-        syncOne(() -> syncHotels(ftp, supplierId, supplierCode), supplierId, supplierCode, HOTELS, ftp.getHotelsPath());
+        if(recentSyncMap.getOrDefault(COUNTRIES, false) == Boolean.FALSE) {
+            //syncOne(() -> syncCountries(ftp, supplierId, supplierCode), supplierId, supplierCode, COUNTRIES, ftp.getCountriesPath());
+        }
+        if(recentSyncMap.getOrDefault(CITIES, false) == Boolean.FALSE){
+            syncOne(() -> syncCities(ftp, supplierId, supplierCode), supplierId, supplierCode, CITIES, ftp.getCitiesPath());
+        }
+        if(recentSyncMap.getOrDefault(NATIONALITY, false) == Boolean.FALSE) {
+            syncOne(() -> syncNationalities(ftp, supplierId, supplierCode), supplierId, supplierCode, NATIONALITY, ftp.getNationalityPath());
+        }
+        if(recentSyncMap.getOrDefault(GIATA, false) == Boolean.FALSE) {
+            syncOne(() -> syncGiata(ftp, supplierId, supplierCode), supplierId, supplierCode, GIATA, ftp.getGiataLocalPath());
+        }
+        if(recentSyncMap.getOrDefault(HOTELS, false) == Boolean.FALSE) {
+            syncOne(() -> syncHotels(ftp, supplierId, supplierCode), supplierId, supplierCode, HOTELS, ftp.getHotelsPath());
+        }
         logger.info("静态数据同步完成，supplierId={}, supplierCode={}", supplierId, supplierCode);
         // 同步完成后，清理静态数据相关缓存，避免读取到陈旧数据
         try {

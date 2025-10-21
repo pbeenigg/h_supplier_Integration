@@ -1288,7 +1288,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                     String searchUniqueId = searchResponse.getSearchUniqueId();
                     logger.info("[AsianOverlandAdapter.orderCheckOrg] 获取到searchUniqueId: {}, 继续调用取消规则接口", searchUniqueId);
                     if (StrUtil.isBlank(input.getRoomId())) {
-                        throw SupplierException.invalidParameter(getSafeSupplierName(),"缺少房型ID");
+                        throw SupplierException.missingParameter(getSafeSupplierName(),"缺少房型ID");
                     }
                     // 找到匹配的房型（input.getRoomId() = room.getRoomId()）
                     XRoom matchedRoom = xRooms.stream().parallel()
@@ -2014,6 +2014,20 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                 throw SupplierException.invalidParameter(getSafeSupplierName(),"convertHotelToXRooms 转换酒店数据失败");
             }
 
+            //打印：房型类型 ，房型名称， 价格，是否可退
+            targetHotelPropList.stream().forEach(prop -> {
+                List<QTechSearchResponse.RoomRate> roomRates = prop.getRoomRates();
+                if (roomRates != null) {
+                    roomRates.forEach(rate -> {
+                        logger.debug("[AsianOverlandAdapter.convertHotelToXRooms]打印所有房型数据： 房型属性: 类型={}, 名称={},餐型={}, 价格={}, 可退={}",
+                                rate.getRoomCategory(), rate.getRoomType(), rate.getRoomRate(),rate.getMealCode(), prop.getRefundable());
+                    });
+                }
+            });
+
+
+
+
             // 遍历每个房型属性
             for (QTechSearchResponse.HotelProperty prop : targetHotelPropList) {
 
@@ -2249,6 +2263,129 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
                 //添加到房型列表
                 xRooms.add(xRoom);
+            }
+
+            //打印：房型类型 ，房型名称， 价格，是否可退
+            xRooms.stream().forEach(xRoom -> {
+                List<XRatePlan> roomRates = xRoom.getRatePlans();
+                if (roomRates != null) {
+                    roomRates.forEach(rate -> {
+                        logger.debug("[AsianOverlandAdapter.convertHotelToXRooms.xRooms]打印所有房型数据： 房型属性: roomId={}, ratePlanId={}, basePrice={}, mealType={}, cancelable={}",
+                                xRoom.getRoomId(),rate.getRatePlanId(), rate.getBasePrice(),rate.getMealType(),rate.getCancelable());
+                    });
+                }
+            });
+
+            //打印所有房型数据： 房型属性: roomId=DELUXE_CITY_VIEW, ratePlanId=DELUXE_CITY_VIEW_BB_1, basePrice=DELUXE_CITY_VIEW_BB_1, mealType=13.41, cancelable=true
+            //打印所有房型数据： 房型属性: roomId=DELUXE_CITY_VIEW, ratePlanId=DELUXE_CITY_VIEW_BB_1, basePrice=DELUXE_CITY_VIEW_BB_1, mealType=14.9, cancelable=true
+            //打印所有房型数据： 房型属性: roomId=DELUXE_CITY_VIEW, ratePlanId=DELUXE_CITY_VIEW_RO_1, basePrice=DELUXE_CITY_VIEW_RO_1, mealType=15.11, cancelable=true
+            //打印所有房型数据： 房型属性: roomId=DELUXE_CITY_VIEW, ratePlanId=DELUXE_CITY_VIEW_RO_1, basePrice=DELUXE_CITY_VIEW_RO_1, mealType=16.81, cancelable=true
+            /// 最终得出结果，共两2条
+            /// 1、 roomId=DELUXE_CITY_VIEW, ratePlanId=DELUXE_CITY_VIEW_BB_1, basePrice=13.41 （最低价）
+            /// 2、 roomId=DELUXE_CITY_VIEW, ratePlanId=DELUXE_CITY_VIEW_RO_1, basePrice=15.11 （最低价）
+
+            //根据房型ID（roomId） + 价格计划ID（ratePlanId）去重房型列表，保留价格最低的房型
+            if (!xRooms.isEmpty()) {
+                // 全局价格计划去重Map：key = roomId + "_" + ratePlanId, value = 最低价格的XRatePlan
+                Map<String, XRatePlan> globalRatePlanMap = new HashMap<>();
+                // 记录每个key对应的roomId，避免从key中解析时出错
+                Map<String, String> keyToRoomIdMap = new HashMap<>();
+
+                // 第一步：收集所有价格计划并去重
+                for (XRoom xRoom : xRooms) {
+                    if (xRoom.getRatePlans() == null || xRoom.getRatePlans().isEmpty()) {
+                        continue;
+                    }
+
+                    for (XRatePlan ratePlan : xRoom.getRatePlans()) {
+                        String roomRatePlanKey = xRoom.getRoomId() + "_" + ratePlan.getRatePlanId();
+                        // 记录key对应的roomId
+                        keyToRoomIdMap.put(roomRatePlanKey, xRoom.getRoomId());
+
+                        // 如果这个组合还没有记录，或者当前价格更低，则更新
+                        if (!globalRatePlanMap.containsKey(roomRatePlanKey)) {
+                            globalRatePlanMap.put(roomRatePlanKey, ratePlan);
+                        } else {
+                            XRatePlan existingRatePlan = globalRatePlanMap.get(roomRatePlanKey);
+                            // 比较价格，保留更低的价格
+                            try {
+                                BigDecimal currentPrice = new BigDecimal(ratePlan.getBasePrice());
+                                BigDecimal existingPrice = new BigDecimal(existingRatePlan.getBasePrice());
+                                if (currentPrice.compareTo(existingPrice) < 0) {
+                                    globalRatePlanMap.put(roomRatePlanKey, ratePlan);
+                                    logger.debug("[AsianOverlandAdapter.convertHotelToXRooms] 更新最低价格: roomId={}, ratePlanId={}, 原价格={}, 新价格={}",
+                                               xRoom.getRoomId(), ratePlan.getRatePlanId(), existingRatePlan.getBasePrice(), ratePlan.getBasePrice());
+                                }
+                            } catch (NumberFormatException e) {
+                                logger.warn("[AsianOverlandAdapter.convertHotelToXRooms] 价格比较失败: currentPrice={}, existingPrice={}",
+                                          ratePlan.getBasePrice(), existingRatePlan.getBasePrice(), e);
+                                // 解析失败时保留原有的
+                            }
+                        }
+                    }
+                }
+
+                // 第二步：按roomId分组重新构建房型列表
+                Map<String, List<XRatePlan>> roomToRatePlansMap = new HashMap<>();
+                // 创建原始房型的Map，方便查找
+                Map<String, XRoom> originalRoomMap = new HashMap<>();
+                for (XRoom room : xRooms) {
+                    originalRoomMap.put(room.getRoomId(), room);
+                }
+
+                // 先按roomId分组收集所有的价格计划
+                for (Map.Entry<String, XRatePlan> entry : globalRatePlanMap.entrySet()) {
+                    String roomRatePlanKey = entry.getKey();
+                    XRatePlan ratePlan = entry.getValue();
+
+                    // 从映射中获取roomId
+                    String roomId = keyToRoomIdMap.get(roomRatePlanKey);
+
+                    if (roomId != null && originalRoomMap.containsKey(roomId)) {
+                        roomToRatePlansMap.computeIfAbsent(roomId, k -> new ArrayList<>()).add(ratePlan);
+                    }
+                }
+
+                // 只为有价格计划的房型创建XRoom对象
+                List<XRoom> finalRooms = new ArrayList<>();
+                for (Map.Entry<String, List<XRatePlan>> entry : roomToRatePlansMap.entrySet()) {
+                    String roomId = entry.getKey();
+                    List<XRatePlan> ratePlans = entry.getValue();
+
+                    // 只有当有价格计划时才创建房型
+                    if (!ratePlans.isEmpty()) {
+                        XRoom originalRoom = originalRoomMap.get(roomId);
+                        XRoom newRoom = new XRoom();
+                        newRoom.setRoomId(originalRoom.getRoomId());
+                        newRoom.setRoomName(originalRoom.getRoomName());
+                        newRoom.setRoomNameEn(originalRoom.getRoomNameEn());
+                        newRoom.setBedTypeDescEn(originalRoom.getBedTypeDescEn());
+                        newRoom.setNoSmoking(originalRoom.getNoSmoking());
+                        newRoom.setMinPrice(originalRoom.getMinPrice());
+                        newRoom.setMinBasePrice(originalRoom.getMinBasePrice());
+                        newRoom.setExt(originalRoom.getExt());
+                        newRoom.setRatePlans(ratePlans);
+                        finalRooms.add(newRoom);
+                    }
+                }
+
+                // 更新房型列表为去重后的结果
+                xRooms = finalRooms;
+
+                logger.info("[AsianOverlandAdapter.convertHotelToXRooms] 去重完成: 酒店={}, 去重后房型数量={}, 去重后价格计划总数={}",
+                           hotel.getHotelId(), xRooms.size(), globalRatePlanMap.size());
+
+                // 记录去重结果的详细信息
+                if (logger.isDebugEnabled()) {
+                    xRooms.forEach(room -> {
+                        if (room.getRatePlans() != null) {
+                            room.getRatePlans().forEach(ratePlan -> {
+                                logger.debug("[AsianOverlandAdapter.convertHotelToXRooms] 去重后房型: roomId={}, ratePlanId={}, basePrice={}",
+                                           room.getRoomId(), ratePlan.getRatePlanId(), ratePlan.getBasePrice());
+                            });
+                        }
+                    });
+                }
             }
 
             return xRooms;
