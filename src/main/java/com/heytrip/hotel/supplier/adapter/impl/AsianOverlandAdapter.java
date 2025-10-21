@@ -2044,7 +2044,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
             // 用于存储扩展信息的映射关系
             // 使用ratePlanId作为key，因为ratePlanId不会重复，能确保正确的对应关系
-            Map<String, String> ratePlanIdToSectionUniqueIdMap = new HashMap<>();
             Map<String, String> ratePlanIdToClassUniqueIdMap = new HashMap<>();
             Map<String, BigDecimal> ratePlanIdToPriceMap = new HashMap<>();
 
@@ -2120,11 +2119,12 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                     // 如果处理后的编码超过64字符，使用MD5
                     String finalRatePlanCode = ratePlanCode.length() > 64 ? MD5Util.string2MD5(ratePlanCode) : ratePlanCode;
 
-                    // 收集扩展信息映射关系 - 使用ratePlanId+SectionUniqueId作为组合key确保唯一性
-                    String uniqueKey = finalRatePlanCode + "_" + prop.getSectionUniqueId();
-                    ratePlanIdToSectionUniqueIdMap.put(uniqueKey, prop.getSectionUniqueId());
-                    ratePlanIdToClassUniqueIdMap.put(uniqueKey, roomRate.getClassUniqueId());
-                    ratePlanIdToPriceMap.put(uniqueKey, roomRate.getRoomRate());
+                    // 收集扩展信息映射关系 - 使用ectionUniqueId作为组合key确保唯一性
+                    ratePlanIdToClassUniqueIdMap.put(prop.getSectionUniqueId(), roomRate.getClassUniqueId());
+                    ratePlanIdToPriceMap.put(prop.getSectionUniqueId(), roomRate.getRoomRate());
+
+                    ///临时传递： 房型唯一标识 用于去重 选定最低价
+                    ratePlan.setExt(prop.getSectionUniqueId());
 
                     ratePlan.setRatePlanId(finalRatePlanCode);
                     ratePlan.setRatePlanName(roomRate.getRoomType());
@@ -2299,18 +2299,14 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                     }
                 }
             }
+
             //根据房型ID（roomId） + 价格计划ID（ratePlanId）去重房型列表，保留价格最低的房型
             if (!xRooms.isEmpty()) {
                 // 全局价格计划去重Map：key = roomId + "_" + ratePlanId, value = 最低价格的XRatePlan
                 Map<String, XRatePlan> globalRatePlanMap = new HashMap<>();
                 // 记录每个key对应的roomId，避免从key中解析时出错
                 Map<String, String> keyToRoomIdMap = new HashMap<>();
-                // 预构建ratePlanId到唯一key的映射表，提高查找效率
-                Map<String, String> ratePlanIdToUniqueKeyMap = new HashMap<>();
-                for (String uniqueKey : ratePlanIdToSectionUniqueIdMap.keySet()) {
-                    String ratePlanId = uniqueKey.substring(0, uniqueKey.lastIndexOf('_'));
-                    ratePlanIdToUniqueKeyMap.put(ratePlanId, uniqueKey);
-                }
+
 
                 // 第一步：收集所有价格计划并去重
                 for (XRoom xRoom : xRooms) {
@@ -2330,8 +2326,8 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                             XRatePlan existingRatePlan = globalRatePlanMap.get(roomRatePlanKey);
 
                             // 使用预构建的映射表直接查找价格，避免遍历
-                            String currentUniqueKey = ratePlanIdToUniqueKeyMap.get(ratePlan.getRatePlanId());
-                            String existingUniqueKey = ratePlanIdToUniqueKeyMap.get(existingRatePlan.getRatePlanId());
+                            String currentUniqueKey = ratePlan.getRatePlanId();
+                            String existingUniqueKey = existingRatePlan.getExt();
 
                             BigDecimal currentPrice = currentUniqueKey != null ? ratePlanIdToPriceMap.get(currentUniqueKey) : null;
                             BigDecimal existingPrice = existingUniqueKey != null ? ratePlanIdToPriceMap.get(existingUniqueKey) : null;
@@ -2402,10 +2398,9 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                             QTechSearchResponse.RoomRateExt roomRateExt = new QTechSearchResponse.RoomRateExt();
 
                             // 使用预构建的映射表直接查找扩展信息，避免遍历
-                            String uniqueKey = ratePlanIdToUniqueKeyMap.get(ratePlan.getRatePlanId());
-                            String sectionUniqueId = uniqueKey != null ? ratePlanIdToSectionUniqueIdMap.get(uniqueKey) : null;
-                            String classUniqueId = uniqueKey != null ? ratePlanIdToClassUniqueIdMap.get(uniqueKey) : null;
-                            BigDecimal price = uniqueKey != null ? ratePlanIdToPriceMap.get(uniqueKey) : null;
+                            String sectionUniqueId = ratePlan.getExt();
+                            String classUniqueId = ratePlanIdToClassUniqueIdMap.get(sectionUniqueId);
+                            BigDecimal price = ratePlanIdToPriceMap.get(sectionUniqueId);
 
                             // 房型层信息
                             roomRateExt.setRoomId(room.getRoomId());
