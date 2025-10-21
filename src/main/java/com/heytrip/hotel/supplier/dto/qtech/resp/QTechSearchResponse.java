@@ -163,7 +163,17 @@ public class QTechSearchResponse extends QTechBaseResponse {
         /**
          * 房型ID
          */
-        private String key;
+        private String roomId;
+
+        /**
+         * 本次请求会话ID
+         * 每个搜索唯一ID只能用于一次预订，并且从搜索时间起20分钟内有效
+         */
+        @JsonProperty("SearchUniqueId")
+        private String searchUniqueId;
+
+
+
         /**
          * 房型组合唯一ID (随时变、动态ID )
          */
@@ -172,21 +182,9 @@ public class QTechSearchResponse extends QTechBaseResponse {
 
 
         /**
-         * 价格计划层扩展信息列表 (房型层使用，包含该房型下所有价格计划的扩展信息)
-         */
-        private List<RoomPlanExt> ratePlanExts;
-
-    }
-
-
-    @Data
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class RoomPlanExt {
-
-        /**
          * 价格计划ID
          */
-        private String key;
+        private String ratePlanId;
 
         /**
          * 具体房类ID (随时变、动态ID )
@@ -195,11 +193,13 @@ public class QTechSearchResponse extends QTechBaseResponse {
         private String classUniqueId;
 
         /**
-         * 价格 (价格计划层使用)
+         * 总价
          */
         private BigDecimal price;
 
     }
+
+
 
         /**
      * 房型详情
