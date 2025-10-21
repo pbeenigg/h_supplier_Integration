@@ -39,31 +39,65 @@ spring:
         order_inserts: true
         order_updates: true
 
-
     # 缓存配置
   cache:
     type: caffeine
     caffeine:
       spec: maximumSize=1000,expireAfterWrite=30m
 
-  # JSON配置
+  # JSON配置 - 强制设置时区
   jackson:
     date-format: yyyy-MM-dd HH:mm:ss
     time-zone: Asia/Shanghai
     default-property-inclusion: non_null
+    # 序列化时区配置
+    serialization:
+      write-dates-as-timestamps: false
+    deserialization:
+      adjust-dates-to-context-time-zone: false
 
 # 日志配置
 logging:
   level:
-    com.heytrip.hotel.supplier: INFO
-    org.springframework.web: INFO
-    com.p6spy: INFO  # P6Spy日志级别
-    p6spy: INFO      # P6Spy日志输出
+    # 根据环境动态设置日志级别：dev=DEBUG, 其他环境=INFO
+    com.heytrip.hotel.supplier: ${LOG_LEVEL:INFO}
+    org.springframework.web:  ${LOG_LEVEL:INFO}
+    com.p6spy:  ${LOG_LEVEL:INFO}  # P6Spy日志级别
+    p6spy:  ${LOG_LEVEL:INFO}      # P6Spy日志输出
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
   file:
     name: logs/heytrip-supplier.log
+
+---
+# dev环境配置
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+logging:
+  level:
+    com.heytrip.hotel.supplier: DEBUG  # dev环境使用DEBUG级别
+    org.springframework.web: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG           # 显示SQL语句
+    org.hibernate.type.descriptor.sql: TRACE  # 显示SQL参数
+
+---
+# prod环境配置
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+logging:
+  level:
+    com.heytrip.hotel.supplier: INFO   # prod环境使用INFO级别
+    org.springframework.web: WARN
+    org.springframework.security: WARN
+    root: WARN                         # 根日志级别设为WARN减少日志输出
 
 
 # SpringDoc配置

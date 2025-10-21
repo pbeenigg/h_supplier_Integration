@@ -1,8 +1,11 @@
 package com.heytrip.hotel.supplier.adapter.tasks;
 
 import com.heytrip.hotel.supplier.adapter.tasks.impl.HotelSyncSyncService;
+import com.heytrip.hotel.supplier.constant.SyncTypeNames;
 import com.heytrip.hotel.supplier.entity.SupplierConfig;
+import com.heytrip.hotel.supplier.entity.SyncLog;
 import com.heytrip.hotel.supplier.repository.SupplierConfigRepository;
+import com.heytrip.hotel.supplier.repository.SyncLogRepository;
 import lombok.AllArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,6 +14,8 @@ import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -32,6 +37,8 @@ public class HotelSyncScheduler {
 
     private final HotelSyncSyncService hotelSyncSyncService;
     private final SupplierConfigRepository supplierConfigRepository;
+    private final SyncLogRepository syncLogRepository;
+
 
     // AsianOverland 供应商代码
     private static final String AO_SUPPLIER_CODE = "AsianOverland";
@@ -93,6 +100,20 @@ public class HotelSyncScheduler {
             logger.info("AOQ 供应商酒店数据同步未启用，跳过酒店数据同步");
             return;
         }
+
+
+        Optional<SyncLog> syncLog = syncLogRepository.findTopBySupplierCodeAndBusinessTypeOrderByCreatedAtDesc(AO_SUPPLIER_CODE, SyncTypeNames.HOTEL_BOOKABLE);
+        if (syncLog.isPresent()) {
+            SyncLog lastLog = syncLog.get();
+            long hoursSinceLastSync = lastLog.getCreatedAt().until(LocalDateTime.now(), ChronoUnit.HOURS);
+            if (hoursSinceLastSync < 48) {
+                logger.info("{}供应商，距离上次酒店可售状态同步仅 {} 小时，未达到 48 小时，跳过本次同步", AO_SUPPLIER_CODE,hoursSinceLastSync);
+                return;
+            }else {
+                logger.info("{}供应商，距离上次酒店可售状态同步已 {} 小时，开始执行本次同步",AO_SUPPLIER_CODE, hoursSinceLastSync);
+            }
+        }
+
         hotelSyncSyncService.syncAllForSupplier(sc.getId(), sc.getSupplierCode());
     }
 }

@@ -3,6 +3,10 @@
 
 FROM amazoncorretto:17-alpine
 
+# 设置时区为上海时区
+ENV TZ=Asia/Shanghai
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
 # 安装必要工具
 RUN apk add --no-cache \
     curl \
@@ -31,7 +35,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:9090/actuator/health || exit 1
 
 # 设置JVM参数
-ENV JAVA_OPTS="-Xmx6g -Xms2g -XX:+UseG1GC -XX:+UseContainerSupport -XX:MaxRAMPercentage=80 -XX:G1HeapRegionSize=16m -XX:MaxGCPauseMillis=200 -Djava.security.egd=file:/dev/./urandom"
+ENV JAVA_OPTS="-Xmx6g -Xms2g -XX:+UseG1GC -XX:+UseContainerSupport -XX:MaxRAMPercentage=80 -XX:G1HeapRegionSize=16m -XX:MaxGCPauseMillis=200 -Duser.timezone=Asia/Shanghai -Djava.security.egd=file:/dev/./urandom"
 
 # 启动应用
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
