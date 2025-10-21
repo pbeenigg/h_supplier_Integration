@@ -2028,16 +2028,18 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                 throw SupplierException.invalidParameter(getSafeSupplierName(), "convertHotelToXRooms 转换酒店数据失败");
             }
 
-            //打印：房型类型 ，房型名称， 价格，是否可退
-            targetHotelPropList.stream().forEach(prop -> {
-                List<QTechSearchResponse.RoomRate> roomRates = prop.getRoomRates();
-                if (roomRates != null) {
-                    roomRates.forEach(rate -> {
-                        logger.debug("[AsianOverlandAdapter.convertHotelToXRooms]打印所有房型数据： 房型属性: 类型={}, 名称={},餐型={}, 价格={}, 可退={}",
-                                rate.getRoomCategory(), rate.getRoomType(), rate.getMealCode(),rate.getRoomRate(), prop.getRefundable());
-                    });
+            //打印：房型类型 ，房型名称， 价格，是否可退 - 只在DEBUG级别启用时执行
+            if (logger.isDebugEnabled()) {
+                for (QTechSearchResponse.HotelProperty prop : targetHotelPropList) {
+                    List<QTechSearchResponse.RoomRate> roomRates = prop.getRoomRates();
+                    if (roomRates != null) {
+                        for (QTechSearchResponse.RoomRate rate : roomRates) {
+                            logger.debug("[AsianOverlandAdapter.convertHotelToXRooms]打印所有房型数据： 房型属性: 类型={}, 名称={},餐型={}, 价格={}, 可退={}",
+                                    rate.getRoomCategory(), rate.getRoomType(), rate.getMealCode(), rate.getRoomRate(), prop.getRefundable());
+                        }
+                    }
                 }
-            });
+            }
 
 
             // 用于存储扩展信息的映射关系
@@ -2285,31 +2287,30 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                 xRooms.add(xRoom);
             }
 
-            //打印：房型类型 ，房型名称， 价格，是否可退
-            xRooms.stream().forEach(xRoom -> {
-                List<XRatePlan> roomRates = xRoom.getRatePlans();
-                if (roomRates != null) {
-                    roomRates.forEach(rate -> {
-                        logger.debug("[AsianOverlandAdapter.convertHotelToXRooms.xRooms]打印所有房型数据： 房型属性: roomId={}, ratePlanId={}, basePrice={}, mealType={}, cancelable={}",
-                                xRoom.getRoomId(), rate.getRatePlanId(), rate.getBasePrice(), rate.getMealType(), rate.getCancelable());
-                    });
+            //打印：房型类型 ，房型名称， 价格，是否可退 - 只在DEBUG级别启用时执行
+            if (logger.isDebugEnabled()) {
+                for (XRoom xRoom : xRooms) {
+                    List<XRatePlan> roomRates = xRoom.getRatePlans();
+                    if (roomRates != null) {
+                        for (XRatePlan rate : roomRates) {
+                            logger.debug("[AsianOverlandAdapter.convertHotelToXRooms.xRooms]打印所有房型数据： 房型属性: roomId={}, ratePlanId={}, basePrice={}, mealType={}, cancelable={}",
+                                    xRoom.getRoomId(), rate.getRatePlanId(), rate.getBasePrice(), rate.getMealType(), rate.getCancelable());
+                        }
+                    }
                 }
-            });
-
-            //打印所有房型数据： 房型属性: roomId=DELUXE_CITY_VIEW, ratePlanId=DELUXE_CITY_VIEW_BB_1, basePrice=DELUXE_CITY_VIEW_BB_1, mealType=13.41, cancelable=true
-            //打印所有房型数据： 房型属性: roomId=DELUXE_CITY_VIEW, ratePlanId=DELUXE_CITY_VIEW_BB_1, basePrice=DELUXE_CITY_VIEW_BB_1, mealType=14.9, cancelable=true
-            //打印所有房型数据： 房型属性: roomId=DELUXE_CITY_VIEW, ratePlanId=DELUXE_CITY_VIEW_RO_1, basePrice=DELUXE_CITY_VIEW_RO_1, mealType=15.11, cancelable=true
-            //打印所有房型数据： 房型属性: roomId=DELUXE_CITY_VIEW, ratePlanId=DELUXE_CITY_VIEW_RO_1, basePrice=DELUXE_CITY_VIEW_RO_1, mealType=16.81, cancelable=true
-            /// 最终得出结果，共两2条
-            /// 1、 roomId=DELUXE_CITY_VIEW, ratePlanId=DELUXE_CITY_VIEW_BB_1, basePrice=13.41 （最低价）
-            /// 2、 roomId=DELUXE_CITY_VIEW, ratePlanId=DELUXE_CITY_VIEW_RO_1, basePrice=15.11 （最低价）
-
+            }
             //根据房型ID（roomId） + 价格计划ID（ratePlanId）去重房型列表，保留价格最低的房型
             if (!xRooms.isEmpty()) {
                 // 全局价格计划去重Map：key = roomId + "_" + ratePlanId, value = 最低价格的XRatePlan
                 Map<String, XRatePlan> globalRatePlanMap = new HashMap<>();
                 // 记录每个key对应的roomId，避免从key中解析时出错
                 Map<String, String> keyToRoomIdMap = new HashMap<>();
+                // 预构建ratePlanId到唯一key的映射表，提高查找效率
+                Map<String, String> ratePlanIdToUniqueKeyMap = new HashMap<>();
+                for (String uniqueKey : ratePlanIdToSectionUniqueIdMap.keySet()) {
+                    String ratePlanId = uniqueKey.substring(0, uniqueKey.lastIndexOf('_'));
+                    ratePlanIdToUniqueKeyMap.put(ratePlanId, uniqueKey);
+                }
 
                 // 第一步：收集所有价格计划并去重
                 for (XRoom xRoom : xRooms) {
@@ -2328,25 +2329,12 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                         } else {
                             XRatePlan existingRatePlan = globalRatePlanMap.get(roomRatePlanKey);
 
-                            // 查找当前价格计划对应的价格（遍历映射表找到匹配的组合key）
-                            BigDecimal currentPrice = null;
-                            String currentUniqueKey = null;
-                            for (Map.Entry<String, BigDecimal> entry : ratePlanIdToPriceMap.entrySet()) {
-                                if (entry.getKey().startsWith(ratePlan.getRatePlanId() + "_")) {
-                                    currentPrice = entry.getValue();
-                                    currentUniqueKey = entry.getKey();
-                                    break;
-                                }
-                            }
+                            // 使用预构建的映射表直接查找价格，避免遍历
+                            String currentUniqueKey = ratePlanIdToUniqueKeyMap.get(ratePlan.getRatePlanId());
+                            String existingUniqueKey = ratePlanIdToUniqueKeyMap.get(existingRatePlan.getRatePlanId());
 
-                            // 查找已存在价格计划对应的价格
-                            BigDecimal existingPrice = null;
-                            for (Map.Entry<String, BigDecimal> entry : ratePlanIdToPriceMap.entrySet()) {
-                                if (entry.getKey().startsWith(existingRatePlan.getRatePlanId() + "_")) {
-                                    existingPrice = entry.getValue();
-                                    break;
-                                }
-                            }
+                            BigDecimal currentPrice = currentUniqueKey != null ? ratePlanIdToPriceMap.get(currentUniqueKey) : null;
+                            BigDecimal existingPrice = existingUniqueKey != null ? ratePlanIdToPriceMap.get(existingUniqueKey) : null;
 
                             if (currentPrice != null && existingPrice != null && currentPrice.compareTo(existingPrice) < 0) {
                                 globalRatePlanMap.put(roomRatePlanKey, ratePlan);
@@ -2413,19 +2401,11 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                         for (XRatePlan ratePlan : room.getRatePlans()) {
                             QTechSearchResponse.RoomRateExt roomRateExt = new QTechSearchResponse.RoomRateExt();
 
-                            // 查找当前价格计划对应的扩展信息（遍历映射表找到匹配的组合key）
-                            String sectionUniqueId = null;
-                            String classUniqueId = null;
-                            BigDecimal price = null;
-
-                            for (String uniqueKey : ratePlanIdToSectionUniqueIdMap.keySet()) {
-                                if (uniqueKey.startsWith(ratePlan.getRatePlanId() + "_")) {
-                                    sectionUniqueId = ratePlanIdToSectionUniqueIdMap.get(uniqueKey);
-                                    classUniqueId = ratePlanIdToClassUniqueIdMap.get(uniqueKey);
-                                    price = ratePlanIdToPriceMap.get(uniqueKey);
-                                    break;
-                                }
-                            }
+                            // 使用预构建的映射表直接查找扩展信息，避免遍历
+                            String uniqueKey = ratePlanIdToUniqueKeyMap.get(ratePlan.getRatePlanId());
+                            String sectionUniqueId = uniqueKey != null ? ratePlanIdToSectionUniqueIdMap.get(uniqueKey) : null;
+                            String classUniqueId = uniqueKey != null ? ratePlanIdToClassUniqueIdMap.get(uniqueKey) : null;
+                            BigDecimal price = uniqueKey != null ? ratePlanIdToPriceMap.get(uniqueKey) : null;
 
                             // 房型层信息
                             roomRateExt.setRoomId(room.getRoomId());
