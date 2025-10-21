@@ -152,24 +152,52 @@ public class QTechSearchResponse extends QTechBaseResponse {
 
 
     /**
-     *房型 key +   房型属性ID + 具体房类ID
+     * 房型扩展信息 - 支持两层结构
+     * 房型层：key(roomId) + sectionUniqueId(房型唯一标识)
+     * 价格计划层：key(ratePlanId) + classUniqueId(价格计划唯一标识) + price(价格)
      */
     @Data
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class RoomRateExt {
 
+        /**
+         * 房型ID
+         */
         private String key;
         /**
-         * 房型组合唯一IDD (随时变、动态ID )
+         * 房型组合唯一ID (随时变、动态ID )
          */
         @JsonProperty("SectionUniqueId")
         private String sectionUniqueId;
+
+
+        /**
+         * 价格计划层扩展信息列表 (房型层使用，包含该房型下所有价格计划的扩展信息)
+         */
+        private List<RoomPlanExt> ratePlanExts;
+
+    }
+
+
+    @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class RoomPlanExt {
+
+        /**
+         * 价格计划ID
+         */
+        private String key;
 
         /**
          * 具体房类ID (随时变、动态ID )
          */
         @JsonProperty("ClassUniqueId")
-        private List<String> classUniqueId;
+        private String classUniqueId;
+
+        /**
+         * 价格 (价格计划层使用)
+         */
+        private BigDecimal price;
 
     }
 

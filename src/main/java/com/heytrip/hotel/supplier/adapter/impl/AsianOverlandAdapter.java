@@ -793,9 +793,15 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
             //从房型扩展信息里获取 房型唯一标识（sectionUniqueId）和 房间类型ID（classUniqueId）
             QTechSearchResponse.RoomRateExt roomRateExt = JSONUtil.toBean(matchedRoom.getExt(), QTechSearchResponse.RoomRateExt.class);
-            if (roomRateExt == null || StrUtil.isBlank(roomRateExt.getSectionUniqueId()) || CollUtil.isEmpty(roomRateExt.getClassUniqueId())) {
+            if (roomRateExt == null || StrUtil.isBlank(roomRateExt.getSectionUniqueId()) || CollUtil.isEmpty(roomRateExt.getRatePlanExts())) {
                 throw SupplierException.invalidParameter(getSafeSupplierName(),"所预定的房型扩展信息缺失，无法预定");
             }
+
+            // 获取匹配的 价格计划扩展信息
+            Optional<QTechSearchResponse.RoomPlanExt> roomPlanExtOpt =  roomRateExt.getRatePlanExts().stream().filter(rp -> rp.getKey().equals(input.getRatePlanId()))
+                    .findFirst();
+            roomPlanExtOpt.orElseThrow(() -> SupplierException.invalidParameter(getSafeSupplierName(),"未找到匹配的价格计划，无法预定"));
+            QTechSearchResponse.RoomPlanExt   roomPlanExt = roomPlanExtOpt.get();
 
             // 设置预定价格 - 实现价格判断和设置逻辑
             BigDecimal finalBookingPrice = verifyBookingPrice(input.getSalePrice(), matchedRoom.getMinBasePrice());
@@ -810,7 +816,8 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             /// 然后还需要为每个房间设置一个 对应的 房间类型ID（roomClassId）= input.getRatePlanId(), 但是入参只支持一个房间类型 ID
             /// 如果 input.getRoomNum() 入参的房间数 > 1 则表示多间房， 但是没有传递多个房间类型 ID 的参数，暂时只能使用同一个房间类型 ID
             /// 如果需要支持多间房且不同房型，则需要扩展入参，目前先按同一房型处理
-            String roomDetailsJson = buildReservationRoomDetails(input, roomDetails, roomRateExt.getClassUniqueId());
+
+            String roomDetailsJson = buildReservationRoomDetails(input, roomDetails, roomPlanExt.getClassUniqueId());
             reservationRequest.setRoomDetails(roomDetailsJson);
 
 
@@ -1116,6 +1123,9 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             if (StrUtil.isBlank(input.getRoomId())) {
                 throw SupplierException.missingParameter(getSafeSupplierName(),"缺少房型ID");
             }
+            if(StrUtil.isBlank(input.getRatePlanId())) {
+                throw SupplierException.missingParameter(getSafeSupplierName(),"缺少价格计划ID");
+            }
 
             // 找到匹配的房型（input.getRoomId() = room.getRoomId()）
             XRoom matchedRoom = xRooms.stream().parallel()
@@ -1125,9 +1135,13 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
             //从房型扩展信息里获取 房型唯一标识（sectionUniqueId）和 房间类型ID（classUniqueId）
             QTechSearchResponse.RoomRateExt roomRateExt = JSONUtil.toBean(matchedRoom.getExt(), QTechSearchResponse.RoomRateExt.class);
-            if (roomRateExt == null || StrUtil.isBlank(roomRateExt.getSectionUniqueId()) || CollUtil.isEmpty(roomRateExt.getClassUniqueId())) {
+            if (roomRateExt == null || StrUtil.isBlank(roomRateExt.getSectionUniqueId()) || CollUtil.isEmpty(roomRateExt.getRatePlanExts())) {
                 throw SupplierException.invalidParameter(getSafeSupplierName(),"所预定的房型扩展信息缺失，无法预定");
             }
+            // 获取匹配的 价格计划扩展信息
+            Optional<QTechSearchResponse.RoomPlanExt> roomPlanExtOpt =  roomRateExt.getRatePlanExts().stream().filter(rp -> rp.getKey().equals(input.getRatePlanId()))
+                    .findFirst();
+            roomPlanExtOpt.orElseThrow(() -> SupplierException.invalidParameter(getSafeSupplierName(),"未找到匹配的价格计划，无法预定"));
 
             // 3. 调用取消规则接口获取最新的预定价格和取消规则
             QTechCancellationPolicyRequest policyRequest = new QTechCancellationPolicyRequest();
@@ -1298,9 +1312,13 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
                     //从房型扩展信息里获取 房型唯一标识（sectionUniqueId）和 房间类型ID（classUniqueId）
                     QTechSearchResponse.RoomRateExt roomRateExt = JSONUtil.toBean(matchedRoom.getExt(), QTechSearchResponse.RoomRateExt.class);
-                    if (roomRateExt == null || StrUtil.isBlank(roomRateExt.getSectionUniqueId()) || CollUtil.isEmpty(roomRateExt.getClassUniqueId())) {
-                        throw SupplierException.invalidParameter(getSafeSupplierName(),"所预定的房型扩展信息缺失，无法预定");
+                    if (roomRateExt == null || StrUtil.isBlank(roomRateExt.getSectionUniqueId())) {
+                        throw SupplierException.invalidParameter(getSafeSupplierName(),"所预定的房型扩展信息缺失");
                     }
+                    // 获取匹配的 价格计划扩展信息
+                    Optional<QTechSearchResponse.RoomPlanExt> roomPlanExtOpt =  roomRateExt.getRatePlanExts().stream().filter(rp -> rp.getKey().equals(input.getRatePlanId()))
+                            .findFirst();
+                    roomPlanExtOpt.orElseThrow(() -> SupplierException.invalidParameter(getSafeSupplierName(),"未找到匹配的价格计划"));
 
                     // 调用取消规则接口
                     QTechCancellationPolicyRequest policyRequest = new QTechCancellationPolicyRequest();
@@ -1798,7 +1816,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
      * @param roomDetails 搜索时构建的房间明细
      * @return 房间明细JSON字符串
      */
-    private String buildReservationRoomDetails(XCreateOrderRequest input, List<QTechSearchRequest.RoomDetail> roomDetails, List<String> classUniqueIds) {
+    private String buildReservationRoomDetails(XCreateOrderRequest input, List<QTechSearchRequest.RoomDetail> roomDetails,String classUniqueId) {
         try {
             List<QTechReservationRequest.RoomDetail> roomDetailsList = new ArrayList<>();
 
@@ -1837,9 +1855,9 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                 reservationRoom.setNumberOfChilds(templateRoom.getNumberOfChild() != null ? templateRoom.getNumberOfChild().toString() : "0");
 
                 // 设置roomClassId
-                reservationRoom.setRoomClassId(classUniqueIds.get(i)); // 取第一个作为roomClassId
+                reservationRoom.setRoomClassId(classUniqueId); // 取第一个作为roomClassId
 
-                logger.debug("[AsianOverlandAdapter.buildReservationRoomDetails] 房间{}设置roomClassId: {}, RatePlanId:{}", i + 1, classUniqueIds.get(i), input.getRatePlanId());
+                logger.debug("[AsianOverlandAdapter.buildReservationRoomDetails] 房间{}设置roomClassId: {}, RatePlanId:{}", i + 1, classUniqueId, input.getRatePlanId());
 
                 // 获取该房间的入住人信息（修复索引：应该是i而不是i+1）
                 List<XCreateOrderRequest.CreateOrderCustomer> roomCustomers = roomGroups.get(i);
@@ -2028,17 +2046,13 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
 
 
+            // 用于存储扩展信息的映射关系
+            Map<String, String> roomIdToSectionUniqueIdMap = new HashMap<>();
+            Map<String, String> ratePlanIdToClassUniqueIdMap = new HashMap<>();
+            Map<String, BigDecimal> ratePlanIdToPriceMap = new HashMap<>();
+
             // 遍历每个房型属性
             for (QTechSearchResponse.HotelProperty prop : targetHotelPropList) {
-
-                //状态业务所需的扩展字段
-                // - 房型标识  key
-                // - 房型属性ID sectionUniqueId
-                // - 房型报价ID classUniqueId
-                QTechSearchResponse.RoomRateExt roomRateExt = new QTechSearchResponse.RoomRateExt();
-                //设置所选房型属性ID
-                roomRateExt.setSectionUniqueId(prop.getSectionUniqueId());
-
 
                 logger.debug("[AsianOverlandAdapter.convertHotelToXRooms] 酒店属性: 星级={}, 地址={}",
                         prop.getDisplayRoomRate(), prop.getType());
@@ -2054,10 +2068,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                     return xRooms;
                 }
 
-
                 XRoom xRoom = new XRoom();
-                //classUniqueId的房型
-                List<String> classUniqueIds = new ArrayList<>();
 
                 for (QTechSearchResponse.RoomRate roomRate : roomRates) {
                     logger.debug("[AsianOverlandAdapter.convertHotelToXRooms] 处理房型: ID={}, 类型={}, 餐型={}, 价格={}, 状态={}",
@@ -2084,10 +2095,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                     // 如果处理后的编码超过64字符，使用MD5
                     String finalRoomCode = roomCode.length() > 64 ? MD5Util.string2MD5(roomCode) : roomCode;
 
-                    // 设置房型标识
-                    roomRateExt.setKey(finalRoomCode);
-                    // 设置所选房型报价ID
-                    classUniqueIds.add(roomRate.getClassUniqueId());
 
                     xRoom.setRoomId(finalRoomCode);
                     xRoom.setRoomName(roomRate.getRoomCategory());
@@ -2116,6 +2123,11 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                     // 如果处理后的编码超过64字符，使用MD5
                     String finalRatePlanCode = ratePlanCode.length() > 64 ? MD5Util.string2MD5(ratePlanCode) : ratePlanCode;
 
+                    // 收集扩展信息映射关系
+                    roomIdToSectionUniqueIdMap.put(finalRoomCode, prop.getSectionUniqueId());
+                    ratePlanIdToClassUniqueIdMap.put(finalRatePlanCode, roomRate.getClassUniqueId());
+                    ratePlanIdToPriceMap.put(finalRatePlanCode, roomRate.getRoomRate());
+
                     ratePlan.setRatePlanId(finalRatePlanCode);
                     ratePlan.setRatePlanName(roomRate.getRoomType());
                     ratePlan.setDescription(roomRate.getRoomType());
@@ -2128,15 +2140,17 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                     //餐食类型 未知
                     ratePlan.setMealType(XMealType.UNKNOWN);
                     // 是否带餐食
-                    if (roomRate.getMealBasis().contains("breakfast") || roomRate.getRoomType().contains("breakfast")) {
+                    if (roomRate.getMealBasis().contains("Breakfast") || roomRate.getRoomType().contains("Breakfast") || roomRate.getMealCode().contains("BB")) {
                         ratePlan.setBreakfast(1);
                         ratePlan.setMealType(XMealType.SPECIFY);
                     }
-                    if (roomRate.getMealBasis().contains("lunch") || roomRate.getRoomType().contains("lunch")) {
+                    if (roomRate.getMealBasis().contains("Lunch") || roomRate.getRoomType().contains("Lunch") || roomRate.getMealCode().contains("LB")) {
                         ratePlan.setLunch(1);
+                        ratePlan.setMealType(XMealType.SPECIFY);
                     }
-                    if (roomRate.getMealBasis().contains("dinner") || roomRate.getRoomType().contains("dinner")) {
+                    if (roomRate.getMealBasis().contains("Dinner") || roomRate.getRoomType().contains("Dinner") || roomRate.getMealCode().contains("DB")) {
                         ratePlan.setDinner(1);
+                        ratePlan.setMealType(XMealType.SPECIFY);
                     }
 
                     ratePlan.setInstantConfirm(false);  //需要调用取消规则接口确费后才能 立即预定
@@ -2234,7 +2248,20 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                         daily.setCurrency(HeyUtil.toXwCurrency(hotel.getRateCurrencyCode()).orElse(XEnumCurrency.USD));
                         daily.setCancelable(prop.getRefundable());
                         daily.setInstantConfirm(false);
-                        daily.setMealType(XMealType.UNKNOWN);
+                        // 是否带餐食
+                        if (roomRate.getMealBasis().contains("Breakfast") || roomRate.getRoomType().contains("Breakfast") || roomRate.getMealCode().contains("BB")) {
+                            daily.setBreakfast(1);
+                            daily.setMealType(XMealType.SPECIFY);
+                        }
+                        if (roomRate.getMealBasis().contains("Lunch") || roomRate.getRoomType().contains("Lunch") || roomRate.getMealCode().contains("LB")) {
+                            daily.setLunch(1);
+                            daily.setMealType(XMealType.SPECIFY);
+                        }
+                        if (roomRate.getMealBasis().contains("Dinner") || roomRate.getRoomType().contains("Dinner") || roomRate.getMealCode().contains("DB")) {
+                            daily.setDinner(1);
+                            daily.setMealType(XMealType.SPECIFY);
+                        }
+
                         dailyPrices.add(daily);
                     });
                     ratePlan.setDailys(dailyPrices);
@@ -2257,9 +2284,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                     logger.debug("[AsianOverlandAdapter.convertHotelToXRooms] 转换报价: {},ID={},CODE={},NMAME={}", xRoom.getMinPrice(), xRoom.getRoomId(), xRoom.getRoomId(), xRoom.getRoomName());
                 }
 
-                roomRateExt.setClassUniqueId(classUniqueIds);
-                //设置扩展字段
-                xRoom.setExt(JSONUtil.toJsonStr(roomRateExt));
 
                 //添加到房型列表
                 xRooms.add(xRoom);
@@ -2371,6 +2395,32 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
                 // 更新房型列表为去重后的结果
                 xRooms = finalRooms;
+
+                // 重新组装两层结构的RoomRateExt扩展字段
+                for (XRoom room : xRooms) {
+                    if (room.getRatePlans() != null && !room.getRatePlans().isEmpty()) {
+                        // 创建房型层扩展信息
+                        QTechSearchResponse.RoomRateExt roomExt = new QTechSearchResponse.RoomRateExt();
+                        roomExt.setKey(room.getRoomId()); // 房型层key为roomId
+                        roomExt.setSectionUniqueId(roomIdToSectionUniqueIdMap.get(room.getRoomId())); // 房型唯一标识
+
+                        // 创建价格计划层扩展信息列表
+                        List<QTechSearchResponse.RoomPlanExt> ratePlanExts = new ArrayList<>();
+                        for (XRatePlan ratePlan : room.getRatePlans()) {
+                            QTechSearchResponse.RoomPlanExt ratePlanExt = new QTechSearchResponse.RoomPlanExt();
+                            ratePlanExt.setKey(ratePlan.getRatePlanId()); // 价格计划层key为ratePlanId
+                            ratePlanExt.setClassUniqueId(ratePlanIdToClassUniqueIdMap.get(ratePlan.getRatePlanId())); // 价格计划唯一标识
+                            ratePlanExt.setPrice(ratePlanIdToPriceMap.get(ratePlan.getRatePlanId())); // 价格
+                            ratePlanExts.add(ratePlanExt);
+                        }
+
+                        // 将价格计划层扩展信息设置到房型层
+                        roomExt.setRatePlanExts(ratePlanExts);
+
+                        // 设置扩展字段到房型
+                        room.setExt(JSONUtil.toJsonStr(roomExt));
+                    }
+                }
 
                 logger.info("[AsianOverlandAdapter.convertHotelToXRooms] 去重完成: 酒店={}, 去重后房型数量={}, 去重后价格计划总数={}",
                            hotel.getHotelId(), xRooms.size(), globalRatePlanMap.size());

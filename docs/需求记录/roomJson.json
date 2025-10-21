@@ -1,0 +1,337 @@
+{
+    "TotalCount": 1,
+    "WebServiceVersion": "2.0",
+    "Message": "success",
+    "HotelList": [
+        {
+            "HotelId": "OT000243877",
+            "HotelName": "SONG THU",
+            "LocalHotelId": "OT000243877",
+            "PropertyRating": "3.0",
+            "Available": "1",
+            "Latitude": "16.075671",
+            "Longitude": "108.223453",
+            "Address": "30 - 34 Tran Phu Hai Chau",
+            "ThumbNailUrl": "http://colosseum.otrams.com/cpfv3/images/?image=aHR0cHM6Ly91cy5kb3R3Y29ubmVjdC5jb20vcG96ZV9ob3RlbC8xMS8xMTQ3Mzc4L05LYzVoVDJNX2VjMzIwZDkxZDU4MTMyNTgwZDNhY2QzMDIyYmUyMjJjLmpwZw==",
+            "RateCurrencyCode": "USD",
+            "TotalCharges": 12.78,
+            "HotelProperty": [
+                {
+                    "DisplayRoomRate": 12.78,
+                    "SectionUniqueId": "ZG90dzoxXzExNDczNzhfZG91YmxlXzFfMl8wX2RlbHV4ZSxkb3VibGVvcnR3aW5iZWRfcm9vbW9ubHlfdHJ1ZV82OERfOTkuOTYlQ1A6cXFxOmdv",
+                    "Type": "Selection",
+                    "RoomRates": [
+                        {
+                            "Available": 1,
+                            "NumberOfRooms": 1,
+                            "NumberOfAdults": 2,
+                            "NumberOfChild": "0",
+                            "ChildAges": null,
+                            "RoomRate": 12.78,
+                            "RoomType": "Deluxe, Double Or Twin Bed Room Only  - Dynamic Availability ",
+                            "RoomCategory": "DELUXE, DOUBLE OR TWIN BED",
+                            "MealBasis": "Room Only",
+                            "MealCode": "RO",
+                            "Note": "",
+                            "ClassUniqueId": "MTE0NzM3OF8wX2RvdWJsZV8xXzJfMF9kZWx1eGUsIGRvdWJsZSBvciB0d2luIGJlZF9yb29tIG9ubHlfdHJ1ZQ==",
+                            "RateBreakup": [
+                                {
+                                    "Date": "29-12-2025",
+                                    "Day": "Monday",
+                                    "DisplayNightlyRate": 12.78
+                                }
+                            ]
+                        }
+                    ],
+                    "RoomDetails": [],
+                    "Refundable": true,
+                    "Policies": {
+                        "CancellationPolicy": [
+                            {
+                                "Start": "2025-12-27 09:00:01 +0530",
+                                "End": "2025-12-29 05:30:00 +0530",
+                                "Charges": 12.77
+                            }
+                        ]
+                    }
+                },
+                {
+                    "DisplayRoomRate": 13.41,
+                    "SectionUniqueId": "ZG90dzoxXzExNDczNzhfZG91YmxlXzFfMl8wX2RlbHV4ZSxjaXR5dmlld19icmVha2Zhc3RfdHJ1ZV82OERfMTAwLjAzJUNQOnFxcTpnbw==",
+                    "Type": "Selection",
+                    "RoomRates": [
+                        {
+                            "Available": 1,
+                            "NumberOfRooms": 1,
+                            "NumberOfAdults": 2,
+                            "NumberOfChild": "0",
+                            "ChildAges": null,
+                            "RoomRate": 13.41,
+                            "RoomType": "Deluxe, City View Breakfast  - Dynamic Availability ",
+                            "RoomCategory": "DELUXE, CITY VIEW",
+                            "MealBasis": "Breakfast",
+                            "MealCode": "BB",
+                            "Note": "",
+                            "ClassUniqueId": "MTE0NzM3OF8wX2RvdWJsZV8xXzJfMF9kZWx1eGUsIGNpdHkgdmlld19icmVha2Zhc3RfdHJ1ZQ==",
+                            "RateBreakup": [
+                                {
+                                    "Date": "29-12-2025",
+                                    "Day": "Monday",
+                                    "DisplayNightlyRate": 13.41
+                                }
+                            ]
+                        }
+                    ],
+                    "RoomDetails": [],
+                    "Refundable": true,
+                    "Policies": {
+                        "CancellationPolicy": [
+                            {
+                                "Start": "2025-12-27 09:00:01 +0530",
+                                "End": "2025-12-29 05:30:00 +0530",
+                                "Charges": 13.41
+                            }
+                        ]
+                    }
+                },
+                {
+                    "DisplayRoomRate": 14.04,
+                    "SectionUniqueId": "ZG90dzoxXzExNDczNzhfZG91YmxlXzFfMl8wX3N1aXRlX2JyZWFrZmFzdF90cnVlXzY4RF8xMDAuMDElQ1A6cXFxOmdv",
+                    "Type": "Selection",
+                    "RoomRates": [
+                        {
+                            "Available": 1,
+                            "NumberOfRooms": 1,
+                            "NumberOfAdults": 2,
+                            "NumberOfChild": "0",
+                            "ChildAges": null,
+                            "RoomRate": 14.04,
+                            "RoomType": "Suite Breakfast  - Dynamic Availability ",
+                            "RoomCategory": "Suite",
+                            "MealBasis": "Breakfast",
+                            "MealCode": "BB",
+                            "Note": "",
+                            "ClassUniqueId": "MTE0NzM3OF8wX2RvdWJsZV8xXzJfMF9zdWl0ZV9icmVha2Zhc3RfdHJ1ZQ==",
+                            "RateBreakup": [
+                                {
+                                    "Date": "29-12-2025",
+                                    "Day": "Monday",
+                                    "DisplayNightlyRate": 14.04
+                                }
+                            ]
+                        }
+                    ],
+                    "RoomDetails": [],
+                    "Refundable": true,
+                    "Policies": {
+                        "CancellationPolicy": [
+                            {
+                                "Start": "2025-12-27 09:00:01 +0530",
+                                "End": "2025-12-29 05:30:00 +0530",
+                                "Charges": 14.04
+                            }
+                        ]
+                    }
+                },
+                {
+                    "DisplayRoomRate": 14.21,
+                    "SectionUniqueId": "ZG90dzoxXzExNDczNzhfZG91YmxlXzFfMl8wX2RlbHV4ZSxkb3VibGVvcnR3aW5iZWRfcm9vbW9ubHlfdHJ1ZV82OERfMTAwLjAyJUNQOnFxcTpnbw==",
+                    "Type": "Selection",
+                    "RoomRates": [
+                        {
+                            "Available": 1,
+                            "NumberOfRooms": 1,
+                            "NumberOfAdults": 2,
+                            "NumberOfChild": "0",
+                            "ChildAges": null,
+                            "RoomRate": 14.21,
+                            "RoomType": "Deluxe, Double Or Twin Bed Room Only  - Dynamic Availability ",
+                            "RoomCategory": "DELUXE, DOUBLE OR TWIN BED",
+                            "MealBasis": "Room Only",
+                            "MealCode": "RO",
+                            "Note": "",
+                            "ClassUniqueId": "MTE0NzM3OF8wX2RvdWJsZV8xXzJfMF9kZWx1eGUsIGRvdWJsZSBvciB0d2luIGJlZF9yb29tIG9ubHlfdHJ1ZQ==",
+                            "RateBreakup": [
+                                {
+                                    "Date": "29-12-2025",
+                                    "Day": "Monday",
+                                    "DisplayNightlyRate": 14.21
+                                }
+                            ]
+                        }
+                    ],
+                    "RoomDetails": [],
+                    "Refundable": true,
+                    "Policies": {
+                        "CancellationPolicy": [
+                            {
+                                "Start": "2025-12-27 09:00:01 +0530",
+                                "End": "2025-12-29 05:30:00 +0530",
+                                "Charges": 14.21
+                            }
+                        ]
+                    }
+                },
+                {
+                    "DisplayRoomRate": 14.9,
+                    "SectionUniqueId": "ZG90dzoxXzExNDczNzhfZG91YmxlXzFfMl8wX2RlbHV4ZSxjaXR5dmlld19icmVha2Zhc3RfdHJ1ZV82OERfOTkuOTglQ1A6cXFxOmdv",
+                    "Type": "Selection",
+                    "RoomRates": [
+                        {
+                            "Available": 1,
+                            "NumberOfRooms": 1,
+                            "NumberOfAdults": 2,
+                            "NumberOfChild": "0",
+                            "ChildAges": null,
+                            "RoomRate": 14.9,
+                            "RoomType": "Deluxe, City View Breakfast  - Dynamic Availability ",
+                            "RoomCategory": "DELUXE, CITY VIEW",
+                            "MealBasis": "Breakfast",
+                            "MealCode": "BB",
+                            "Note": "",
+                            "ClassUniqueId": "MTE0NzM3OF8wX2RvdWJsZV8xXzJfMF9kZWx1eGUsIGNpdHkgdmlld19icmVha2Zhc3RfdHJ1ZQ==",
+                            "RateBreakup": [
+                                {
+                                    "Date": "29-12-2025",
+                                    "Day": "Monday",
+                                    "DisplayNightlyRate": 14.9
+                                }
+                            ]
+                        }
+                    ],
+                    "RoomDetails": [],
+                    "Refundable": true,
+                    "Policies": {
+                        "CancellationPolicy": [
+                            {
+                                "Start": "2025-12-27 09:00:01 +0530",
+                                "End": "2025-12-29 05:30:00 +0530",
+                                "Charges": 14.9
+                            }
+                        ]
+                    }
+                },
+                {
+                    "DisplayRoomRate": 15.11,
+                    "SectionUniqueId": "ZG90dzoxXzExNDczNzhfZG91YmxlXzFfMl8wX2RlbHV4ZSxjaXR5dmlld19yb29tb25seV90cnVlXzY4RF85OS45NyVDUDpxcXE6Z28=",
+                    "Type": "Selection",
+                    "RoomRates": [
+                        {
+                            "Available": 1,
+                            "NumberOfRooms": 1,
+                            "NumberOfAdults": 2,
+                            "NumberOfChild": "0",
+                            "ChildAges": null,
+                            "RoomRate": 15.11,
+                            "RoomType": "Deluxe, City View Room Only  - Dynamic Availability ",
+                            "RoomCategory": "DELUXE, CITY VIEW",
+                            "MealBasis": "Room Only",
+                            "MealCode": "RO",
+                            "Note": "",
+                            "ClassUniqueId": "MTE0NzM3OF8wX2RvdWJsZV8xXzJfMF9kZWx1eGUsIGNpdHkgdmlld19yb29tIG9ubHlfdHJ1ZQ==",
+                            "RateBreakup": [
+                                {
+                                    "Date": "29-12-2025",
+                                    "Day": "Monday",
+                                    "DisplayNightlyRate": 15.11
+                                }
+                            ]
+                        }
+                    ],
+                    "RoomDetails": [],
+                    "Refundable": true,
+                    "Policies": {
+                        "CancellationPolicy": [
+                            {
+                                "Start": "2025-12-27 09:00:01 +0530",
+                                "End": "2025-12-29 05:30:00 +0530",
+                                "Charges": 15.11
+                            }
+                        ]
+                    }
+                },
+                {
+                    "DisplayRoomRate": 15.83,
+                    "SectionUniqueId": "ZG90dzoxXzExNDczNzhfZG91YmxlXzFfMl8wX3N1aXRlX3Jvb21vbmx5X3RydWVfNjhEXzEwMC4wMCVDUDpxcXE6Z28=",
+                    "Type": "Selection",
+                    "RoomRates": [
+                        {
+                            "Available": 1,
+                            "NumberOfRooms": 1,
+                            "NumberOfAdults": 2,
+                            "NumberOfChild": "0",
+                            "ChildAges": null,
+                            "RoomRate": 15.83,
+                            "RoomType": "Suite Room Only  - Dynamic Availability ",
+                            "RoomCategory": "Suite",
+                            "MealBasis": "Room Only",
+                            "MealCode": "RO",
+                            "Note": "",
+                            "ClassUniqueId": "MTE0NzM3OF8wX2RvdWJsZV8xXzJfMF9zdWl0ZV9yb29tIG9ubHlfdHJ1ZQ==",
+                            "RateBreakup": [
+                                {
+                                    "Date": "29-12-2025",
+                                    "Day": "Monday",
+                                    "DisplayNightlyRate": 15.83
+                                }
+                            ]
+                        }
+                    ],
+                    "RoomDetails": [],
+                    "Refundable": true,
+                    "Policies": {
+                        "CancellationPolicy": [
+                            {
+                                "Start": "2025-12-27 09:00:01 +0530",
+                                "End": "2025-12-29 05:30:00 +0530",
+                                "Charges": 15.83
+                            }
+                        ]
+                    }
+                },
+                {
+                    "DisplayRoomRate": 16.81,
+                    "SectionUniqueId": "ZG90dzoxXzExNDczNzhfZG91YmxlXzFfMl8wX2RlbHV4ZSxjaXR5dmlld19yb29tb25seV90cnVlXzY4RF85OS45OSVDUDpxcXE6Z28=",
+                    "Type": "Selection",
+                    "RoomRates": [
+                        {
+                            "Available": 1,
+                            "NumberOfRooms": 1,
+                            "NumberOfAdults": 2,
+                            "NumberOfChild": "0",
+                            "ChildAges": null,
+                            "RoomRate": 16.81,
+                            "RoomType": "Deluxe, City View Room Only  - Dynamic Availability ",
+                            "RoomCategory": "DELUXE, CITY VIEW",
+                            "MealBasis": "Room Only",
+                            "MealCode": "RO",
+                            "Note": "",
+                            "ClassUniqueId": "MTE0NzM3OF8wX2RvdWJsZV8xXzJfMF9kZWx1eGUsIGNpdHkgdmlld19yb29tIG9ubHlfdHJ1ZQ==",
+                            "RateBreakup": [
+                                {
+                                    "Date": "29-12-2025",
+                                    "Day": "Monday",
+                                    "DisplayNightlyRate": 16.81
+                                }
+                            ]
+                        }
+                    ],
+                    "RoomDetails": [],
+                    "Refundable": true,
+                    "Policies": {
+                        "CancellationPolicy": [
+                            {
+                                "Start": "2025-12-27 09:00:01 +0530",
+                                "End": "2025-12-29 05:30:00 +0530",
+                                "Charges": 16.81
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    ],
+    "StartTime": "2025-10-21T06:58:48.135395361Z",
+    "EndTime": "2025-10-21T06:58:48.157339913Z",
+    "SearchUniqueId": "824-010-20251021065848-010-1572676-010-1761029928141214286-010-"
+}
