@@ -27,12 +27,41 @@ export interface LoginResponse {
   timeout: number
 }
 
-// 统一响应格式
+// 统一API响应格式
+export interface UnifiedApiResponse<T = any> {
+  code: number
+  msg: string
+  data: T
+  timestamp: number
+}
+
+// 兼容老版本的响应格式
 export interface ApiResponse<T = any> {
   success: boolean
   message: string
   data: T
 }
+
+// 供应商列表API响应格式 - 使用统一格式
+export type SupplierListResponse = UnifiedApiResponse<SupplierConfig[]>
+
+// 单个供应商健康状态
+export interface SupplierHealth {
+  supplierName: string
+  healthy: boolean
+}
+
+// 供应商健康检查数据结构
+export interface SupplierHealthData {
+  suppliers: SupplierHealth[]
+  totalCount: number
+  healthyCount: number
+  unhealthyCount: number
+  timestamp: number
+}
+
+// 供应商健康检查响应格式 - 使用统一格式
+export type SupplierHealthResponse = UnifiedApiResponse<SupplierHealthData>
 
 // 分页响应格式
 export interface PageResponse<T = any> {
@@ -50,14 +79,26 @@ export interface SupplierConfig {
   id: number
   supplierName: string
   supplierCode: string
-  baseUrl: string
+  apiBaseUrl: string
+  authType: string
   authConfig: string
   ftpConfig: string
+  timeoutMs: number
   retryCount: number
-  priority: number
+  maxConcurrentRequests: number
+  rateLimitPerSecond: number
   isActive: boolean
+  isSyncStatic: boolean
+  isSyncHotel: boolean
+  priority: number
+  description: string
+  contactInfo: string
+  supportedCountries: string
+  supportedCities: string
   createdAt: string
   updatedAt: string
+  createdBy: string
+  updatedBy: string
 }
 
 // 日志查询参数接口
