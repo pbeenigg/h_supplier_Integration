@@ -44,6 +44,7 @@ public class PricingController {
      */
     @GetMapping("/getPrice")
     @ApiLog(businessType = "getPrice",
+            recordOrderDetail = true,
             extractFields = {"hotelId", "checkInDate", "checkOutDate"},
             description = "获取报价(单酒店)")
     public Result<List<XRoom>> getPrice(@ModelAttribute XSupplierPriceRequest xwPriceRequest) {
@@ -58,6 +59,7 @@ public class PricingController {
      */
     @GetMapping("/getPrices")
     @ApiLog(businessType = "getPrices",
+            recordOrderDetail = true,
             extractFields = {"hotelIds", "checkInDate", "checkOutDate"},
             description = "获取报价(多酒店)")
     public  Result<Map<String, List<XRoom>>> getPrices(@ModelAttribute XSupplierPriceRequest xwPriceRequest) {

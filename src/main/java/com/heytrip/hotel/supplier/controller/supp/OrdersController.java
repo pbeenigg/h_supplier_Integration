@@ -76,6 +76,7 @@ public class OrdersController {
      */
     @GetMapping("/queryOrder")
     @ApiLog(businessType = "queryOrder",
+            recordOrderDetail = true,
             extractFields = {"supplierType","distributorOrderId", "supplierOrderId"},
             description = "查询订单")
     public Result<XQueryOrderResponse> queryOrder(

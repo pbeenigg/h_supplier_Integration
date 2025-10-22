@@ -182,16 +182,17 @@ public class SupplierConfig {
     /**
      * 创建人
      */
+
     @Column(name = "created_by", length = 100)
     @Comment("创建人")
-    private String createdBy = "system";
+    private String createdBy;
 
     /**
      * 更新人
      */
     @Column(name = "updated_by", length = 100)
     @Comment("更新人")
-    private String updatedBy = "system";
+    private String updatedBy;
 
     // 默认构造函数
     public SupplierConfig() {}

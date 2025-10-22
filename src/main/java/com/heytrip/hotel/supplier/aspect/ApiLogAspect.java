@@ -291,7 +291,6 @@ public class ApiLogAspect {
             ExceptionInfo exceptionInfo = analyzeException(exception);
             logData.setErrorCode(exceptionInfo.getErrorCode());
             logData.setErrorMessage(exceptionInfo.getErrorMessage());
-
             logData.setResponseStatus(500);
 
         } catch (Exception e) {

@@ -1,5 +1,6 @@
 package com.heytrip.hotel.supplier.controller.system;
 
+import cn.hutool.core.util.NumberUtil;
 import com.heytrip.hotel.supplier.adapter.SupplierAdapterManager;
 import com.heytrip.hotel.supplier.dto.R;
 import com.heytrip.hotel.supplier.entity.SupplierConfig;
@@ -45,7 +46,7 @@ public class SuppliersController {
         logger.info("Getting enabled suppliers list");
         
         try {
-            List<SupplierConfig>  supplierConfigs =  supplierConfigRepository.findByIsActiveTrue();
+            List<SupplierConfig>  supplierConfigs =  supplierConfigRepository.findAll();
             return R.ok("获取启用供应商列表成功", supplierConfigs);
         } catch (Exception e) {
             logger.error("Failed to get enabled suppliers", e);
@@ -171,15 +172,33 @@ public class SuppliersController {
         logger.info("Updating supplier info: {}", request);
 
         try {
+            Long supplierId = (Long) request.get("id");
             String supplierName = (String) request.get("supplierName");
+            String supplierCode = (String) request.get("supplierCode");
             Boolean isActive = (Boolean) request.get("isActive");
+            Boolean isSyncStatic = (Boolean) request.get("isSyncStatic");
+            Boolean isSyncHotel = (Boolean) request.get("isSyncHotel");
+            String authConfig =   (String) request.get("authConfig");
+            String  ftpConfig =   (String) request.get("ftpConfig");
+            String  authType =   (String) request.get("authType");
+            String  description =   (String) request.get("description");
+            String  contactInfo =   (String) request.get("contactInfo");
+
+            String  apiBaseUrl =   (String) request.get("apiBaseUrl");
+            Integer retryCount = (Integer) request.get("retryCount");
+            Long timeoutMs = (Long) request.get("timeoutMs");
+            Integer priority = (Integer) request.get("priority");
+            Integer maxConcurrentRequests = (Integer) request.get("maxConcurrentRequests");
+            Integer rateLimitPerSecond = (Integer) request.get("rateLimitPerSecond");
+
+
             String updateBy = AuthHelper.getCurrentUser(); // 获取当前登录用户作为更新者
 
-            if (supplierName == null || supplierName.trim().isEmpty()) {
-                return R.fail("供应商名称不能为空");
+            if (supplierId == null ) {
+                return R.fail("供应商ID不能为空");
             }
 
-            Optional<SupplierConfig> configOpt = supplierConfigRepository.findBySupplierName(supplierName);
+            Optional<SupplierConfig> configOpt = supplierConfigRepository.findById(supplierId);
             if (configOpt.isEmpty()) {
                 return R.fail("供应商不存在: " + supplierName);
             }
@@ -187,6 +206,51 @@ public class SuppliersController {
             SupplierConfig config = configOpt.get();
             if (isActive != null) {
                 config.setIsActive(isActive);
+            }
+            if(supplierCode != null){
+                config.setSupplierCode(supplierCode);
+            }
+            if(supplierName != null){
+                config.setSupplierName(supplierName);
+            }
+            if(isSyncStatic != null){
+                config.setIsSyncStatic(isSyncStatic);
+            }
+            if(isSyncHotel != null){
+                config.setIsSyncHotel(isSyncHotel);
+            }
+            if(authConfig != null){
+                config.setAuthConfig(authConfig);
+            }
+            if(ftpConfig != null){
+                config.setFtpConfig(ftpConfig);
+            }
+            if(authType != null){
+                config.setAuthType(authType);
+            }
+            if(description != null){
+                config.setDescription(description);
+            }
+            if(contactInfo != null){
+                config.setContactInfo(contactInfo);
+            }
+            if(apiBaseUrl != null){
+                config.setApiBaseUrl(apiBaseUrl);
+            }
+            if(retryCount != null){
+                config.setRetryCount(retryCount);
+            }
+            if(timeoutMs != null){
+                config.setTimeoutMs(timeoutMs);
+            }
+            if(priority != null){
+                config.setPriority(priority);
+            }
+            if(maxConcurrentRequests != null){
+                config.setMaxConcurrentRequests(maxConcurrentRequests);
+            }
+            if(rateLimitPerSecond != null){
+                config.setRateLimitPerSecond(rateLimitPerSecond);
             }
 
             // 记录更新操作信息
@@ -204,23 +268,25 @@ public class SuppliersController {
     /**
      * 修改指定供应商的配置信息
      *
-     * @param supplierName 供应商名称
+     * @param supplierId 供应商名称
      * @param request 配置修改请求
      * @return 修改结果
      */
-    @PutMapping("/suppliers/{supplierName}/config")
-    public R<SupplierConfig> updateSupplierConfig(@PathVariable String supplierName,
+    @PutMapping("/suppliers/{supplierId}/config")
+    public R<SupplierConfig> updateSupplierConfig(@PathVariable Long supplierId,
                                                    @RequestBody Map<String, Object> request) {
-        logger.info("Updating config for supplier: {}, request: {}", supplierName, request);
+        logger.info("Updating config for supplier: {}, request: {}", supplierId, request);
 
         try {
-            Optional<SupplierConfig> configOpt = supplierConfigRepository.findBySupplierName(supplierName);
+            Optional<SupplierConfig> configOpt = supplierConfigRepository.findById(supplierId);
             if (configOpt.isEmpty()) {
-                return R.fail("供应商配置不存在: " + supplierName);
+                return R.fail("供应商配置不存在: " + supplierId);
             }
 
             SupplierConfig config = configOpt.get();
-            String updateBy = AuthHelper.getCurrentUser(); // 获取当前登录用户作为更新者
+            String currentUser = AuthHelper.getCurrentUser(); // 获取当前登录用户作为更新者
+
+            String supplierName = (String) request.get("supplierName");
 
             // 更新配置参数（使用实际存在的字段）
             if (request.containsKey("authConfig")) {
@@ -229,24 +295,63 @@ public class SuppliersController {
             if (request.containsKey("ftpConfig")) {
                 config.setFtpConfig((String) request.get("ftpConfig"));
             }
+            if (request.containsKey("authType")) {
+                config.setAuthType((String) request.get("authType"));
+            }
+            if (request.containsKey("apiBaseUrl")) {
+                config.setApiBaseUrl((String) request.get("apiBaseUrl"));
+            }
+            if (request.containsKey("timeoutMs")) {
+                config.setTimeoutMs(NumberUtil.parseLong(request.get("timeoutMs").toString()));
+            }
             if (request.containsKey("retryCount")) {
                 config.setRetryCount((Integer) request.get("retryCount"));
+            }
+            if (request.containsKey("maxConcurrentRequests")) {
+                config.setMaxConcurrentRequests((Integer) request.get("maxConcurrentRequests"));
+            }
+            if (request.containsKey("rateLimitPerSecond")) {
+                config.setRateLimitPerSecond((Integer) request.get("rateLimitPerSecond"));
             }
             if (request.containsKey("isActive")) {
                 config.setIsActive((Boolean) request.get("isActive"));
             }
+            if (request.containsKey("isSyncStatic")) {
+                config.setIsSyncStatic((Boolean) request.get("isSyncStatic"));
+            }
+            if (request.containsKey("isSyncHotel")) {
+                config.setIsSyncHotel((Boolean) request.get("isSyncHotel"));
+            }
             if (request.containsKey("priority")) {
                 config.setPriority((Integer) request.get("priority"));
             }
+            if (request.containsKey("description")) {
+                config.setDescription((String) request.get("description"));
+            }
+            if (request.containsKey("contactInfo")) {
+                config.setContactInfo((String) request.get("contactInfo"));
+            }
+            if (request.containsKey("supplierName")) {
+                config.setSupplierName((String) request.get("supplierName"));
+            }
+            if (request.containsKey("supplierCode")) {
+                config.setSupplierCode((String) request.get("supplierCode"));
+            }
+
+            config.setUpdatedBy(currentUser);
+
+            //需要修改的字段名称：
+            // authConfig, ftpConfig, authType, apiBaseUrl, timeoutMs, retryCount, maxConcurrentRequests,
+            // rateLimitPerSecond, isActive, isSyncStatic, isSyncHotel, priority, description, contactInfo , supplierName, supplierCode,
 
             // 记录更新操作信息
-            logger.info("供应商 {} 配置更新, 操作用户: {}", supplierName, updateBy);
+            logger.info("供应商 {} 配置更新, 操作用户: {}", supplierName, currentUser);
 
             SupplierConfig savedConfig = supplierConfigRepository.save(config);
 
             return R.ok("供应商配置修改成功", savedConfig);
         } catch (Exception e) {
-            logger.error("Failed to update supplier config for: " + supplierName, e);
+            logger.error("Failed to update supplier config for: " + supplierId, e);
             return R.fail("修改供应商配置失败: " + e.getMessage());
         }
     }

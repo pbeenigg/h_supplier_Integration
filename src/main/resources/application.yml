@@ -97,7 +97,8 @@ logging:
     com.heytrip.hotel.supplier: INFO   # prod环境使用INFO级别
     org.springframework.web: WARN
     org.springframework.security: WARN
-    root: WARN                         # 根日志级别设为WARN减少日志输出
+    root: WARN
+---                   # 根日志级别设为WARN减少日志输出
 
 
 # SpringDoc配置
@@ -184,3 +185,7 @@ app:
       max-pool-size: ${API_LOG_MAX_POOL_SIZE:10} # 最大线程数
       queue-capacity: ${API_LOG_QUEUE_CAPACITY:1000} # 队列容量
       keep-alive-seconds: ${API_LOG_KEEP_ALIVE:60} # 线程存活时间
+
+
+
+

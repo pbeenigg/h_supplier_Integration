@@ -190,7 +190,7 @@ public class QTechSearchResponse extends QTechBaseResponse {
          * 具体房类ID (随时变、动态ID )
          */
         @JsonProperty("ClassUniqueId")
-        private String classUniqueId;
+        private List<String> classUniqueId;
 
         /**
          * 总价

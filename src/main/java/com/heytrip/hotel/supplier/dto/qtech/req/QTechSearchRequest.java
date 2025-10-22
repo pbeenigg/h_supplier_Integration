@@ -129,8 +129,8 @@ public class QTechSearchRequest {
      * 默认5，返回 5 个最优房型
      * 不传 返回所有可用的房型
      */
-    //@JsonProperty("limit_hotel_room_type")
-    //private Integer limitHotelRoomType = 5;
+    @JsonProperty("limit_hotel_room_type")
+    private Integer limitHotelRoomType;
 
     /**
      * 校验房间详情列表与房间数的一致性

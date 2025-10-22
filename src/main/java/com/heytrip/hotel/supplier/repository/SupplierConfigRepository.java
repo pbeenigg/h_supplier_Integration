@@ -48,6 +48,8 @@ public interface SupplierConfigRepository extends JpaRepository<SupplierConfig, 
      * 查找所有激活的供应商配置
      */
     List<SupplierConfig> findByIsActiveTrue();
+
+
     
 
     /**
