@@ -39,11 +39,6 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
      */
     boolean existsByAppId(String appId);
 
-    /**
-     * 查找所有未过期的用户
-     */
-    @Query("SELECT u FROM User u WHERE u.timeout = -1 OR u.createAt >= :expireTime")
-    List<User> findAllActiveUsers(@Param("expireTime") LocalDateTime expireTime);
 
     /**
      * 根据用户昵称模糊查找
@@ -60,11 +55,6 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
      */
     List<User> findByCreateBy(String createBy);
 
-    /**
-     * 查找即将过期的用户（在指定小时内过期）
-     */
-    @Query("SELECT u FROM User u WHERE u.timeout > 0 AND u.createAt < :beforeTime AND u.createAt >= :afterTime")
-    List<User> findUsersExpiringWithinHours(@Param("beforeTime") LocalDateTime beforeTime, @Param("afterTime") LocalDateTime afterTime);
 
     /**
      * 根据创建时间范围查找用户

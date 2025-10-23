@@ -127,7 +127,7 @@ public class AppService {
      */
     @Transactional
     @CacheEvict(value = CacheNames.APP, allEntries = true)
-    public App updateApp(String appId, Integer rateLimit, Integer timeout, String updateBy) {
+    public App updateApp(String appId,String secretKey,String encryptionKey, Integer rateLimit, Integer timeout, String updateBy) {
         logger.info("更新应用信息，appId: {}, 更新人: {}", appId, updateBy);
 
         Optional<App> appOpt = findByAppId(appId);
@@ -140,10 +140,16 @@ public class AppService {
         if (rateLimit != null && rateLimit > 0) {
             app.setRateLimit(rateLimit);
         }
-
         if (timeout != null) {
             app.setTimeout(timeout);
         }
+        if (StrUtil.isNotBlank(secretKey)) {
+            app.setSecretKey(secretKey);
+        }
+        if (StrUtil.isNotBlank(encryptionKey)) {
+            app.setEncryptionKey(encryptionKey);
+        }
+
 
         app.setUpdateBy(updateBy);
         app.setUpdateAt(LocalDateTime.now());
@@ -173,9 +179,8 @@ public class AppService {
     /**
      * 获取所有活跃应用
      */
-    public List<App> findAllActiveApps() {
-        LocalDateTime expireTime = LocalDateTime.now().minusHours(24); // 24小时前作为过期基准
-        return appRepository.findAllActiveApps(expireTime);
+    public List<App> findAll() {
+        return appRepository.findAll();
     }
 
     /**

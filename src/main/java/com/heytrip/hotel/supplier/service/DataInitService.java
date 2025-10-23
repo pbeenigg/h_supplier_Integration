@@ -69,7 +69,7 @@ public class DataInitService {
                 "427ae41e4649b934ca495991b7852b855",
                 1000,
                 720,
-                "SYSTEM"
+                "admin"
             );
 
             appRepository.save(defaultApp);
@@ -98,7 +98,7 @@ public class DataInitService {
                 "U",
                 -1,
                 "heytrip_supplier_integration_pax",
-                "SYSTEM"
+                "admin"
             );
 
             // 手动设置用户ID为1

@@ -94,14 +94,14 @@ public class SystemConfig {
      */
     @Column(name = "created_by", length = 100)
     @Comment("创建人")
-    private String createdBy = "system";
+    private String createdBy = "admin";
     
     /**
      * 更新人
      */
     @Column(name = "updated_by", length = 100)
     @Comment("更新人")
-    private String updatedBy = "system";
+    private String updatedBy = "admin";
     
     // 默认构造函数
     public SystemConfig() {}

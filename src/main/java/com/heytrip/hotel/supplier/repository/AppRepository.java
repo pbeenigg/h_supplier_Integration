@@ -29,11 +29,6 @@ public interface AppRepository extends JpaRepository<App, String>, JpaSpecificat
      */
     boolean existsByAppId(String appId);
 
-    /**
-     * 查找所有未过期的应用
-     */
-    @Query("SELECT a FROM App a WHERE a.timeout = -1 OR a.createAt >= :expireTime")
-    List<App> findAllActiveApps(@Param("expireTime") LocalDateTime expireTime);
 
     /**
      * 查找指定创建人的应用

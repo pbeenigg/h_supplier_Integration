@@ -1,10 +1,12 @@
 package com.heytrip.hotel.supplier.controller.system;
 
+import cn.hutool.core.util.StrUtil;
 import com.heytrip.hotel.supplier.dto.R;
 import com.heytrip.hotel.supplier.entity.App;
 import com.heytrip.hotel.supplier.entity.User;
 import com.heytrip.hotel.supplier.service.AppService;
 import com.heytrip.hotel.supplier.service.UserService;
+import com.heytrip.hotel.supplier.utils.AuthHelper;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,22 +44,24 @@ public class AdminController {
         logger.info("管理员创建用户请求");
 
         try {
+
+            String currentUser =  AuthHelper.getCurrentUser();
+
             String userName = (String) createRequest.get("userName");
             String password = (String) createRequest.get("password");
             String userNick = (String) createRequest.get("userNick");
             String sex = (String) createRequest.get("sex");
             Integer timeout = createRequest.get("timeout") != null ?
                             Integer.valueOf(createRequest.get("timeout").toString()) : -1;
-            String createBy = (String) createRequest.get("createBy");
 
-            User user = userService.createUser(userName, password, userNick, sex, timeout, createBy);
+            User user = userService.createUser(userName, password, userNick, sex, timeout, currentUser);
 
             Map<String, Object> userResponse = new HashMap<>();
             userResponse.put("userId", user.getUserId());
             userResponse.put("userName", user.getUserName());
             userResponse.put("userNick", user.getUserNick());
             userResponse.put("appId", user.getAppId());
-            userResponse.put("createAt", user.getCreateAt());
+            userResponse.put("timeout", user.getTimeout());
 
             logger.info("用户创建成功，用户名: {}, appId: {}", userName, user.getAppId());
             return R.ok("用户创建成功", userResponse);
@@ -76,14 +80,18 @@ public class AdminController {
         logger.info("管理员更新用户请求");
 
         try {
+            String currentUser =  AuthHelper.getCurrentUser();
+
             Long userId = Long.valueOf(updateRequest.get("userId").toString());
+            if(StrUtil.isBlank(userId.toString())){
+                throw new IllegalArgumentException("用户ID不能为空");
+            }
             String userNick = (String) updateRequest.get("userNick");
             String sex = (String) updateRequest.get("sex");
             Integer timeout = updateRequest.get("timeout") != null ?
                             Integer.valueOf(updateRequest.get("timeout").toString()) : null;
-            String updateBy = (String) updateRequest.get("updateBy");
 
-            User user = userService.updateUser(userId, userNick, sex, timeout, updateBy);
+            User user = userService.updateUser(userId, userNick, sex, timeout, currentUser);
 
             Map<String, Object> userResponse = new HashMap<>();
             userResponse.put("userId", user.getUserId());
@@ -91,7 +99,6 @@ public class AdminController {
             userResponse.put("userNick", user.getUserNick());
             userResponse.put("sex", user.getSex());
             userResponse.put("timeout", user.getTimeout());
-            userResponse.put("updateAt", user.getUpdateAt());
 
             logger.info("用户更新成功，用户ID: {}", userId);
             return R.ok("用户更新成功", userResponse);
@@ -110,11 +117,14 @@ public class AdminController {
         logger.info("管理员重置密码请求");
 
         try {
+            String currentUser =  AuthHelper.getCurrentUser();
             Long userId = Long.valueOf(resetRequest.get("userId").toString());
             String newPassword = (String) resetRequest.get("newPassword");
-            String updateBy = (String) resetRequest.get("updateBy");
+            if(StrUtil.isBlank(userId.toString()) || StrUtil.isBlank(newPassword)){
+                throw new IllegalArgumentException("用户ID和新密码不能为空");
+            }
 
-            userService.resetPassword(userId, newPassword, updateBy);
+            userService.resetPassword(userId, newPassword, currentUser);
 
             logger.info("密码重置成功，用户ID: {}", userId);
             return R.ok("密码重置成功");
@@ -129,11 +139,13 @@ public class AdminController {
      * 删除用户
      */
     @DeleteMapping("/user/delete/{userId}")
-    public R<Void> deleteUser(@PathVariable Long userId, @RequestParam String deleteBy) {
+    public R<Void> deleteUser(@PathVariable Long userId ) {
         logger.info("管理员删除用户请求，用户ID: {}", userId);
 
         try {
-            userService.deleteUser(userId, deleteBy);
+            String currentUser =  AuthHelper.getCurrentUser();
+
+            userService.deleteUser(userId, currentUser);
 
             logger.info("用户删除成功，用户ID: {}", userId);
             return R.ok("用户删除成功");
@@ -145,14 +157,14 @@ public class AdminController {
     }
 
     /**
-     * 获取所有活跃用户
+     * 获取所有用户
      */
     @GetMapping("/user/list")
     public R<List<User>> getUserList() {
         logger.debug("获取用户列表请求");
 
         try {
-            List<User> users = userService.findAllActiveUsers();
+            List<User> users = userService.findAll();
             return R.ok("查询成功", users);
 
         } catch (Exception e) {
@@ -188,16 +200,24 @@ public class AdminController {
         logger.info("管理员创建应用请求");
 
         try {
+            String currentUser =  AuthHelper.getCurrentUser();
+
+
+
             String appId = (String) createRequest.get("appId");
             String secretKey = (String) createRequest.get("secretKey");
             String encryptionKey = (String) createRequest.get("encryptionKey");
+
+            if(StrUtil.isBlank(appId) || StrUtil.isBlank(secretKey) || StrUtil.isBlank(encryptionKey)){
+                throw new IllegalArgumentException("应用ID、密钥和加密密钥不能为空");
+            }
+
             Integer rateLimit = createRequest.get("rateLimit") != null ?
                               Integer.valueOf(createRequest.get("rateLimit").toString()) : 1000;
             Integer timeout = createRequest.get("timeout") != null ?
                             Integer.valueOf(createRequest.get("timeout").toString()) : -1;
-            String createBy = (String) createRequest.get("createBy");
 
-            App app = appService.createApp(appId, secretKey, encryptionKey, rateLimit, timeout, createBy);
+            App app = appService.createApp(appId, secretKey, encryptionKey, rateLimit, timeout, currentUser);
 
             Map<String, Object> appResponse = new HashMap<>();
             appResponse.put("appId", app.getAppId());
@@ -222,20 +242,27 @@ public class AdminController {
         logger.info("管理员更新应用请求");
 
         try {
+
+            String currentUser =  AuthHelper.getCurrentUser();
+
             String appId = (String) updateRequest.get("appId");
+            String secretKey = (String) updateRequest.get("secretKey");
+            String encryptionKey = (String) updateRequest.get("encryptionKey");
+            if(StrUtil.isBlank(appId) || StrUtil.isBlank(secretKey) || StrUtil.isBlank(encryptionKey)){
+                throw new IllegalArgumentException("应用ID、密钥和加密密钥不能为空");
+            }
             Integer rateLimit = updateRequest.get("rateLimit") != null ?
                               Integer.valueOf(updateRequest.get("rateLimit").toString()) : null;
             Integer timeout = updateRequest.get("timeout") != null ?
                             Integer.valueOf(updateRequest.get("timeout").toString()) : null;
-            String updateBy = (String) updateRequest.get("updateBy");
 
-            App app = appService.updateApp(appId, rateLimit, timeout, updateBy);
+
+            App app = appService.updateApp(appId,secretKey,encryptionKey, rateLimit, timeout, currentUser);
 
             Map<String, Object> appResponse = new HashMap<>();
             appResponse.put("appId", app.getAppId());
             appResponse.put("rateLimit", app.getRateLimit());
             appResponse.put("timeout", app.getTimeout());
-            appResponse.put("updateAt", app.getUpdateAt());
 
             logger.info("应用更新成功，appId: {}", appId);
             return R.ok("应用更新成功", appResponse);
@@ -250,11 +277,12 @@ public class AdminController {
      * 删除应用
      */
     @DeleteMapping("/app/delete/{appId}")
-    public R<Void> deleteApp(@PathVariable String appId, @RequestParam String deleteBy) {
+    public R<Void> deleteApp(@PathVariable String appId) {
         logger.info("管理员删除应用请求，appId: {}", appId);
 
         try {
-            appService.deleteApp(appId, deleteBy);
+            String currentUser =  AuthHelper.getCurrentUser();
+            appService.deleteApp(appId, currentUser);
 
             logger.info("应用删除成功，appId: {}", appId);
             return R.ok("应用删除成功");
@@ -282,6 +310,8 @@ public class AdminController {
 
             Map<String, Object> appInfo = new HashMap<>();
             appInfo.put("appId", app.getAppId());
+            appInfo.put("encryptionKey", app.getEncryptionKey());
+            appInfo.put("secretKey", app.getSecretKey());
             appInfo.put("rateLimit", app.getRateLimit());
             appInfo.put("timeout", app.getTimeout());
             appInfo.put("createAt", app.getCreateAt());
@@ -299,14 +329,14 @@ public class AdminController {
     }
 
     /**
-     * 获取所有活跃应用
+     * 获取所有应用
      */
     @GetMapping("/app/list")
     public R<List<App>> getAppList() {
         logger.debug("获取应用列表请求");
 
         try {
-            List<App> apps = appService.findAllActiveApps();
+            List<App> apps = appService.findAll();
             return R.ok("查询成功", apps);
 
         } catch (Exception e) {

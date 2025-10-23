@@ -67,11 +67,11 @@ public class User {
 
     @Comment("更新人")
     @Column(name = "update_by", length = 50)
-    private String updateBy;
+    private String updateBy = "admin";
 
     @Comment("创建人")
     @Column(name = "create_by", length = 50)
-    private String createBy;
+    private String createBy= "admin";   
 
     // 一对一关联App实体（可选，用于查询时的便利性）
     @OneToOne(fetch = FetchType.LAZY)

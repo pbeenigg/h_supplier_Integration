@@ -270,19 +270,11 @@ public class UserService {
     /**
      * 获取所有活跃用户
      */
-    public List<User> findAllActiveUsers() {
-        LocalDateTime expireTime = LocalDateTime.now().minusHours(24); // 24小时前作为过期基准
-        return userRepository.findAllActiveUsers(expireTime);
+    public List<User> findAll() {
+        return userRepository.findAll();
     }
 
-    /**
-     * 获取即将过期的用户
-     */
-    public List<User> findUsersExpiringWithinHours(int hours) {
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime beforeTime = now.minusHours(hours);
-        return userRepository.findUsersExpiringWithinHours(now, beforeTime);
-    }
+
 
     /**
      * 根据用户昵称搜索用户

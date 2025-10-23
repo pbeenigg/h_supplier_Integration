@@ -173,7 +173,7 @@ public class AuthController {
             // 如果请求中包含用户名，验证是否与当前用户一致
             if (logoutRequest != null && logoutRequest.containsKey("userName")) {
                 String requestUserName = logoutRequest.get("userName");
-                if (!currentUser.equals(requestUserName) && !"system".equals(currentUser)) {
+                if (!currentUser.equals(requestUserName) ) {
                     logger.warn("退出登录用户名不匹配，当前用户: {}, 请求用户: {}", currentUser, requestUserName);
                     return R.fail("用户验证失败");
                 }
