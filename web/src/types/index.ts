@@ -2,12 +2,33 @@
 export interface User {
   userId: number
   userName: string
+  password?: string
   userNick: string
   sex: string
   timeout: number
   appId: string
-  createAt: string
   updateAt: string
+  createAt: string
+  updateBy: string
+  createBy: string
+  expired: boolean
+}
+
+// 用户列表API响应格式
+export type UserListResponse = UnifiedApiResponse<User[]>
+
+// 用户更新请求接口
+export interface UserUpdateRequest {
+  userId: number
+  userNick?: string
+  sex?: string
+  timeout?: number
+}
+
+// 重置密码请求接口
+export interface ResetPasswordRequest {
+  userId: number
+  newPassword: string
 }
 
 // 登录请求接口
