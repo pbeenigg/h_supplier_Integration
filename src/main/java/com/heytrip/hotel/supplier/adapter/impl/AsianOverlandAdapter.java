@@ -33,10 +33,13 @@ import com.heytrip.hotel.supplier.utils.HeyUtil;
 import com.heytrip.hotel.supplier.utils.MD5Util;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
+import lombok.Builder;
+import lombok.Data;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.*;
 import java.time.format.DateTimeParseException;
 import java.util.*;
@@ -831,7 +834,10 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             /// 如果 input.getRoomNum() 入参的房间数 > 1 则表示多间房， 但是没有传递多个房间类型 ID 的参数，暂时只能使用同一个房间类型 ID
             /// 如果需要支持多间房且不同房型，则需要扩展入参，目前先按同一房型处理
 
-            String roomDetailsJson = buildReservationRoomDetails(input, roomDetails, roomRateExt.getClassUniqueId());
+
+            roomRateExt.getClassUniqueId().forEach(classUniqueId -> logger.debug("房型唯一标识: {}, 房间类型ID: {},Base64解码后:{}", roomRateExt.getSectionUniqueId(), classUniqueId,  new String(Base64.getDecoder().decode(classUniqueId), StandardCharsets.UTF_8)));
+
+            String roomDetailsJson = buildReservationRoomDetails(input, roomDetails,matchedRoom.getRoomName(), roomRateExt.getClassUniqueId());
             reservationRequest.setRoomDetails(roomDetailsJson);
 
 
@@ -1820,6 +1826,559 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
     }
 
     /**
+     * 智能匹配正确的ClassUniqueId
+     * 根据完整的入住信息从classUniqueId列表中选择最匹配的那个
+     * 匹配条件包括：成人数、儿童数、儿童年龄、房型名称
+     *
+     * @param classUniqueIdList 可用的classUniqueId列表
+     * @param expectedAdultCount 期望成人数量
+     * @param expectedChildCount 期望儿童数量
+     * @param expectedChildAges 期望儿童年龄数组（可选）
+     * @param expectedRoomCategory 期望房型名称（可选，转小写匹配）
+     * @return 匹配的classUniqueId，如果没有精确匹配则返回最相似的
+     */
+    private String selectMatchingClassUniqueId(List<String> classUniqueIdList,
+                                             int expectedAdultCount,
+                                             int expectedChildCount,
+                                             String expectedChildAges,
+                                             String expectedRoomCategory) {
+        if (classUniqueIdList == null || classUniqueIdList.isEmpty()) {
+            logger.warn("[AsianOverlandAdapter.selectMatchingClassUniqueId] classUniqueId列表为空");
+            throw SupplierException.invalidParameter(getSafeSupplierName(), "classUniqueId列表为空");
+        }
+
+        // 如果只有一个选项，直接返回
+        if (classUniqueIdList.size() == 1) {
+            logger.debug("[AsianOverlandAdapter.selectMatchingClassUniqueId] 只有一个classUniqueId选项: {}", classUniqueIdList.get(0));
+            return classUniqueIdList.get(0);
+        }
+
+        // 尝试解析每个classUniqueId，找到最匹配的
+        String bestMatch = null;
+        int bestScore = -1;
+
+        for (String classUniqueId : classUniqueIdList) {
+            try {
+                // 解析classUniqueId中的入住信息
+                OccupancyInfo occupancyInfo = parseOccupancyFromClassUniqueId(classUniqueId);
+
+                if (occupancyInfo == null) {
+                    continue;
+                }
+
+                // 计算匹配分数
+                int matchScore = calculateMatchScore(occupancyInfo,expectedAdultCount, expectedChildCount,
+                    expectedChildAges, expectedRoomCategory);
+
+                logger.debug("[AsianOverlandAdapter.selectMatchingClassUniqueId] ClassUniqueId: {}, 匹配分数: {}, 房间:{}, 成人:{}, 儿童:{}, 房型:{}, 餐型:{}",
+                    classUniqueId, matchScore, occupancyInfo.getNumberOfRooms(),
+                    occupancyInfo.getNumberOfAdults(), occupancyInfo.getNumberOfChild(),
+                    occupancyInfo.getRoomCategory(), occupancyInfo.getMealBasis());
+
+                // 如果这是完美匹配，直接返回
+                if (matchScore == 100) {
+                    logger.debug("[AsianOverlandAdapter.selectMatchingClassUniqueId] 找到完美匹配的classUniqueId: {}", classUniqueId);
+                    return classUniqueId;
+                }
+
+                // 更新最佳匹配
+                if (matchScore > bestScore) {
+                    bestScore = matchScore;
+                    bestMatch = classUniqueId;
+                }
+
+            } catch (Exception e) {
+                logger.debug("[AsianOverlandAdapter.selectMatchingClassUniqueId] 解析classUniqueId失败: {}", classUniqueId, e);
+            }
+        }
+
+        // 返回最佳匹配或第一个作为兜底
+        if (bestMatch != null && bestScore >= 50) { // 至少50%匹配度
+            logger.debug("[AsianOverlandAdapter.selectMatchingClassUniqueId] 选择最佳匹配的classUniqueId: {}, 匹配分数: {}", bestMatch, bestScore);
+            return bestMatch;
+        } else {
+            logger.warn("[AsianOverlandAdapter.selectMatchingClassUniqueId] 未找到足够匹配的classUniqueId，使用第一个: {}, 最高分数: {}",
+                classUniqueIdList.get(0), bestScore);
+            return classUniqueIdList.get(0);
+        }
+    }
+
+
+    /**
+     * 计算匹配分数
+     * 根据各项匹配条件计算总分数（0-100）
+     */
+    private int calculateMatchScore(OccupancyInfo occupancyInfo,
+                                  int expectedAdultCount,
+                                  int expectedChildCount,
+                                  String expectedChildAges,
+                                  String expectedRoomCategory) {
+        int totalScore = 0;
+        int maxScore = 0;
+
+
+
+        // 1. 成人数匹配（权重：35分）- 最重要
+        maxScore += 35;
+        if (occupancyInfo.getNumberOfAdults() == expectedAdultCount) {
+            totalScore += 35;
+        }
+
+        // 2. 儿童数匹配（权重：35分）- 最重要
+        maxScore += 35;
+        if (occupancyInfo.getNumberOfChild() == expectedChildCount) {
+            totalScore += 35;
+        }
+
+        // 3. 儿童年龄匹配（权重：20分）
+        if (StrUtil.isNotBlank(expectedChildAges) && StrUtil.isNotBlank(occupancyInfo.getChildAges())) {
+            maxScore += 20;
+            if (isChildAgesStringMatch(occupancyInfo.getChildAges(), expectedChildAges)) {
+                totalScore += 20; // 完全匹配得满分
+            } else if (isChildAgesStringPartialMatch(occupancyInfo.getChildAges(), expectedChildAges)) {
+                totalScore += 10; // 部分匹配得一半分
+            }
+        }
+
+        // 4. 房型名称匹配（权重：10分）
+        if (StrUtil.isNotBlank(expectedRoomCategory) && StrUtil.isNotBlank(occupancyInfo.getRoomCategory())) {
+            maxScore += 10;
+            String actualRoomCategory = occupancyInfo.getRoomCategory().toLowerCase().trim();
+            String expectedRoomCategoryLower = expectedRoomCategory.toLowerCase().trim();
+
+            if (actualRoomCategory.equals(expectedRoomCategoryLower)) {
+                totalScore += 10; // 完全匹配
+            } else if (actualRoomCategory.contains(expectedRoomCategoryLower) || expectedRoomCategoryLower.contains(actualRoomCategory)) {
+                totalScore += 6; // 包含匹配
+            } else if ( calculateStringSimilarity(actualRoomCategory, expectedRoomCategoryLower) > 0.7) {
+                totalScore += 3; // 相似匹配
+            }
+        }
+
+
+
+        // 转换为百分比分数
+        return maxScore > 0 ? (totalScore * 100) / maxScore : 0;
+    }
+
+    /**
+     * 检查儿童年龄字符串是否完全匹配
+     * 比较逗号分割的年龄字符串
+     */
+    private boolean isChildAgesStringMatch(String actualAges, String expectedAges) {
+        if (StrUtil.isBlank(actualAges) && StrUtil.isBlank(expectedAges)) {
+            return true;
+        }
+        if (StrUtil.isBlank(actualAges) || StrUtil.isBlank(expectedAges)) {
+            return false;
+        }
+
+        // 标准化年龄字符串：去除空格，按数值排序
+        String normalizedActual = normalizeAgesString(actualAges);
+        String normalizedExpected = normalizeAgesString(expectedAges);
+
+        return normalizedActual.equals(normalizedExpected);
+    }
+
+    /**
+     * 检查儿童年龄字符串是否部分匹配
+     * 检查是否有任何年龄重叠
+     */
+    private boolean isChildAgesStringPartialMatch(String actualAges, String expectedAges) {
+        if (StrUtil.isBlank(actualAges) || StrUtil.isBlank(expectedAges)) {
+            return false;
+        }
+
+        String[] actualAgeArray = actualAges.split(",");
+        String[] expectedAgeArray = expectedAges.split(",");
+
+        // 检查是否有任何年龄重叠
+        for (String actualAge : actualAgeArray) {
+            String trimmedActual = actualAge.trim();
+            for (String expectedAge : expectedAgeArray) {
+                String trimmedExpected = expectedAge.trim();
+                if (trimmedActual.equals(trimmedExpected)) {
+                    return true; // 有任何年龄匹配就算部分匹配
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * 标准化年龄字符串：去除空格，按数值排序
+     */
+    private String normalizeAgesString(String agesString) {
+        if (StrUtil.isBlank(agesString)) {
+            return "";
+        }
+
+        String[] ageArray = agesString.split(",");
+        List<Integer> ages = new ArrayList<>();
+
+        for (String age : ageArray) {
+            String trimmedAge = age.trim();
+            if (StrUtil.isNotBlank(trimmedAge) && trimmedAge.matches("\\d{1,2}")) {
+                ages.add(Integer.parseInt(trimmedAge));
+            }
+        }
+
+        // 按数值排序
+        ages.sort(Integer::compareTo);
+
+        // 转换回逗号分割的字符串
+        return ages.stream()
+            .map(String::valueOf)
+            .collect(java.util.stream.Collectors.joining(","));
+    }
+
+    /**
+     * 计算字符串相似度（简化版Levenshtein距离）
+     */
+    private double calculateStringSimilarity(String s1, String s2) {
+        if (StrUtil.isBlank(s1) || StrUtil.isBlank(s2)) {
+            return 0.0;
+        }
+
+        int maxLength = Math.max(s1.length(), s2.length());
+        if (maxLength == 0) {
+            return 1.0;
+        }
+
+        int editDistance = calculateEditDistance(s1, s2);
+        return 1.0 - (double) editDistance / maxLength;
+    }
+
+    /**
+     * 计算编辑距离
+     */
+    private int calculateEditDistance(String s1, String s2) {
+        int[][] dp = new int[s1.length() + 1][s2.length() + 1];
+
+        for (int i = 0; i <= s1.length(); i++) {
+            dp[i][0] = i;
+        }
+
+        for (int j = 0; j <= s2.length(); j++) {
+            dp[0][j] = j;
+        }
+
+        for (int i = 1; i <= s1.length(); i++) {
+            for (int j = 1; j <= s2.length(); j++) {
+                if (s1.charAt(i - 1) == s2.charAt(j - 1)) {
+                    dp[i][j] = dp[i - 1][j - 1];
+                } else {
+                    dp[i][j] = 1 + Math.min(Math.min(dp[i - 1][j], dp[i][j - 1]), dp[i - 1][j - 1]);
+                }
+            }
+        }
+
+        return dp[s1.length()][s2.length()];
+    }
+
+    /**
+     * 入住信息结构
+     */
+    @Data
+    @Builder
+    private static class OccupancyInfo {
+        // 房间数
+        int numberOfRooms;
+        // 成人数
+        int numberOfAdults;
+        // 儿童数
+        int numberOfChild;
+        // 儿童年龄  (用逗号分割 ： 5,6 表示5岁和6岁)
+        String  childAges;
+        //房型名称  （注意：转成小写）
+        String  roomCategory;
+        //餐型名称  （注意：转成小写）
+        String  mealBasis;
+
+    }
+
+    /**
+     * 从ClassUniqueId中解析入住人数信息
+     * ClassUniqueId是Base64编码的字符串，解码后按下划线分割：
+     * 格式：ID_索引_入住规格_房间数_成人数_儿童数_儿童年龄_房间描述_餐型_状态
+     * 示例：1147378_0_singleplus2child_1_1_2_56_deluxe, double或twin床房间_only_true
+     *
+     * @param classUniqueId 编码的classUniqueId
+     * @return 解析出的入住信息，解析失败返回null
+     */
+    private OccupancyInfo parseOccupancyFromClassUniqueId(String classUniqueId) {
+        try {
+            if (StrUtil.isBlank(classUniqueId)) {
+                return null;
+            }
+
+            // Base64解码
+            String decoded = new String(Base64.getDecoder().decode(classUniqueId), StandardCharsets.UTF_8);
+            logger.debug("[AsianOverlandAdapter.parseOccupancyFromClassUniqueId] 解码classUniqueId: {} -> {}", classUniqueId, decoded);
+
+            // 按下划线分割
+            String[] parts = decoded.split("_");
+
+            if (parts.length < 6) {
+                logger.debug("[AsianOverlandAdapter.parseOccupancyFromClassUniqueId] 解码后字段数量不足: {}, 字段数: {}", decoded, parts.length);
+                return null;
+            }
+
+            // 根据确认的规则解析各字段：
+            // parts[0] = ID (如: 1147378)
+            // parts[1] = 索引 (如: 0)
+            // parts[2] = 入住规格 (如: singleplus2child)
+            // parts[3] = 房间数量 (如: 1)
+            // parts[4] = 成人数量 (如: 1)
+            // parts[5] = 儿童数量 (如: 2)
+            // parts[6] = 儿童年龄 (如: 56，表示5岁和6岁)
+            // parts[7+] = 房间描述和其他信息
+
+            try {
+                // 解析基础字段
+                int numberOfRooms = Integer.parseInt(parts[3]);
+                int numberOfAdults = Integer.parseInt(parts[4]);
+                int numberOfChild = Integer.parseInt(parts[5]);
+
+                // 解析儿童年龄字符串（保持逗号分割格式）
+                String childAges = null;
+                if (parts.length > 6 && StrUtil.isNotBlank(parts[6]) && numberOfChild > 0) {
+                    childAges = parseChildAgesString(parts[6], numberOfChild);
+                }
+
+                // 解析房型名称（从parts[7]开始，直到遇到餐型关键词）
+                String roomCategory = "";
+                String mealBasis = "";
+
+                if (parts.length > 7) {
+                    // 重新组合剩余部分，然后分析房型和餐型
+                    StringBuilder remainingParts = new StringBuilder();
+                    for (int i = 7; i < parts.length; i++) {
+                        if (remainingParts.length() > 0) {
+                            remainingParts.append("_");
+                        }
+                        remainingParts.append(parts[i]);
+                    }
+
+                    String remaining = remainingParts.toString().toLowerCase();
+
+                    // 识别餐型关键词的位置
+                    String[] mealKeywords = {"only", "breakfast", "bb", "lunch", "dinner", "all inclusive", "half board", "full board"};
+                    int mealStartIndex = -1;
+                    String foundMealKeyword = "";
+
+                    for (String keyword : mealKeywords) {
+                        int index = remaining.indexOf(keyword);
+                        if (index != -1 && (mealStartIndex == -1 || index < mealStartIndex)) {
+                            mealStartIndex = index;
+                            foundMealKeyword = keyword;
+                        }
+                    }
+
+                    if (mealStartIndex != -1) {
+                        // 分离房型名称和餐型
+                        roomCategory = remaining.substring(0, mealStartIndex).trim();
+                        mealBasis = remaining.substring(mealStartIndex).trim();
+
+                        // 清理房型名称末尾的分隔符
+                        roomCategory = roomCategory.replaceAll("[,_\\s]+$", "").trim();
+                    } else {
+                        // 没有找到餐型关键词，全部当作房型名称
+                        roomCategory = remaining.trim();
+                        mealBasis = "room only"; // 默认值
+                    }
+                }
+
+                // 构建OccupancyInfo对象
+                OccupancyInfo occupancyInfo = OccupancyInfo.builder()
+                    .numberOfAdults(numberOfAdults)
+                    .numberOfChild(numberOfChild)
+                    .childAges(childAges)
+                    .roomCategory(roomCategory)
+                    .build();
+
+                logger.debug("[AsianOverlandAdapter.parseOccupancyFromClassUniqueId] 解析结果: 成人:{}, 儿童:{}, 年龄:{}, 房型:{}",
+                    numberOfAdults, numberOfChild, childAges, roomCategory);
+                return occupancyInfo;
+
+            } catch (NumberFormatException e) {
+                logger.debug("[AsianOverlandAdapter.parseOccupancyFromClassUniqueId] 数字解析失败: 房间数={}, 成人字段={}, 儿童字段={}",
+                    parts.length > 3 ? parts[3] : "N/A",
+                    parts.length > 4 ? parts[4] : "N/A",
+                    parts.length > 5 ? parts[5] : "N/A", e);
+
+                // 如果直接数字解析失败，尝试从入住规格字段解析（兜底策略）
+                return parseFromOccupancyPattern(parts[2]);
+            }
+
+        } catch (Exception e) {
+            logger.debug("[AsianOverlandAdapter.parseOccupancyFromClassUniqueId] 解析失败: {}", classUniqueId, e);
+            return null;
+        }
+    }
+
+    /**
+     * 解析儿童年龄字符串，返回逗号分割格式
+     * 支持逗号分割格式：5,6 -> "5,6", 5,6,7 -> "5,6,7"
+     * 兼容旧的连续数字格式：56 -> "5,6", 578 -> "5,7,8"
+     *
+     * @param ageStr 年龄字符串
+     * @param childCount 儿童数量
+     * @return 儿童年龄逗号分割字符串
+     */
+    private String parseChildAgesString(String ageStr, int childCount) {
+        try {
+            if (StrUtil.isBlank(ageStr)) {
+                return null;
+            }
+
+            // 优先尝试逗号分割格式
+            if (ageStr.contains(",")) {
+                String[] ageArray = ageStr.split(",");
+                List<String> validAges = new ArrayList<>();
+
+                for (String age : ageArray) {
+                    String trimmedAge = age.trim();
+                    if (StrUtil.isNotBlank(trimmedAge) && trimmedAge.matches("\\d{1,2}")) {
+                        int ageValue = Integer.parseInt(trimmedAge);
+                        if (ageValue >= 0 && ageValue <= 12) { // 儿童年龄范围0-12岁
+                            validAges.add(String.valueOf(ageValue));
+                        }
+                    }
+                }
+
+                if (!validAges.isEmpty()) {
+                    // 限制年龄数量不超过儿童数量
+                    int actualAgeCount = Math.min(validAges.size(), childCount);
+                    List<String> finalAges = validAges.subList(0, actualAgeCount);
+                    String result = String.join(",", finalAges);
+
+                    logger.debug("[AsianOverlandAdapter.parseChildAgesString] 逗号分割解析成功: {} -> {}", ageStr, result);
+                    return result;
+                }
+            }
+
+            // 兜底：尝试旧的连续数字格式
+            logger.debug("[AsianOverlandAdapter.parseChildAgesString] 尝试兼容旧格式解析: {}", ageStr);
+
+            // 如果字符串长度等于儿童数量，每个字符代表一个儿童的年龄
+            if (ageStr.length() == childCount) {
+                List<String> ages = new ArrayList<>();
+                for (int i = 0; i < childCount; i++) {
+                    int ageValue = Character.getNumericValue(ageStr.charAt(i));
+                    if (ageValue >= 0 && ageValue <= 12) {
+                        ages.add(String.valueOf(ageValue));
+                    } else {
+                        // 如果年龄不在合理范围内，返回null
+                        logger.debug("[AsianOverlandAdapter.parseChildAgesString] 年龄超出范围: {}", ageValue);
+                        return null;
+                    }
+                }
+                String result = String.join(",", ages);
+                logger.debug("[AsianOverlandAdapter.parseChildAgesString] 单字符解析成功: {} -> {}", ageStr, result);
+                return result;
+            }
+
+            // 如果字符串长度是儿童数量的2倍，每两个字符代表一个儿童的年龄
+            if (ageStr.length() == childCount * 2 && ageStr.matches("\\d+")) {
+                List<String> ages = new ArrayList<>();
+                for (int i = 0; i < childCount; i++) {
+                    String ageSubStr = ageStr.substring(i * 2, i * 2 + 2);
+                    int ageValue = Integer.parseInt(ageSubStr);
+                    if (ageValue >= 0 && ageValue <= 12) {
+                        ages.add(String.valueOf(ageValue));
+                    } else {
+                        // 如果年龄不在合理范围内，返回null
+                        logger.debug("[AsianOverlandAdapter.parseChildAgesString] 年龄超出范围: {}", ageValue);
+                        return null;
+                    }
+                }
+                String result = String.join(",", ages);
+                logger.debug("[AsianOverlandAdapter.parseChildAgesString] 双字符解析成功: {} -> {}", ageStr, result);
+                return result;
+            }
+
+            // 最后兜底：假设每个字符代表一个年龄（仅限合理范围内）
+            if (ageStr.matches("\\d+")) {
+                List<String> ages = new ArrayList<>();
+                for (int i = 0; i < Math.min(ageStr.length(), childCount); i++) {
+                    int ageValue = Character.getNumericValue(ageStr.charAt(i));
+                    if (ageValue >= 0 && ageValue <= 12) {
+                        ages.add(String.valueOf(ageValue));
+                    }
+                }
+
+                if (!ages.isEmpty()) {
+                    String result = String.join(",", ages);
+                    logger.debug("[AsianOverlandAdapter.parseChildAgesString] 逐字符解析成功: {} -> {}", ageStr, result);
+                    return result;
+                }
+            }
+
+            logger.debug("[AsianOverlandAdapter.parseChildAgesString] 无法解析年龄字符串: {}", ageStr);
+            return null;
+
+        } catch (Exception e) {
+            logger.debug("[AsianOverlandAdapter.parseChildAges] 解析儿童年龄失败: {}", ageStr, e);
+            return null;
+        }
+    }
+
+    /**
+     * 从入住规格字段解析人数信息（兜底策略）
+     * 支持格式：single, double, triple, singleplus2child, doubleplus2child等
+     *
+     * @param occupancyPattern 入住规格字符串
+     * @return 解析出的入住信息，解析失败返回null
+     */
+    private OccupancyInfo parseFromOccupancyPattern(String occupancyPattern) {
+        if (StrUtil.isBlank(occupancyPattern)) {
+            return null;
+        }
+
+        String lowerPattern = occupancyPattern.toLowerCase();
+        int numberOfAdults = 0;
+        int numberOfChild = 0;
+
+        // 解析成人数量
+        if (lowerPattern.contains("single")) {
+            numberOfAdults = 1;
+        } else if (lowerPattern.contains("double")) {
+            numberOfAdults = 2;
+        } else if (lowerPattern.contains("triple")) {
+            numberOfAdults = 3;
+        } else if (lowerPattern.contains("quad")) {
+            numberOfAdults = 4;
+        }
+
+        // 解析儿童数量
+        if (lowerPattern.contains("plus")) {
+            // 提取plus后面的儿童数量，如 "plus2child" -> 2
+            java.util.regex.Pattern childPattern = java.util.regex.Pattern.compile("plus(\\d+)child");
+            java.util.regex.Matcher childMatcher = childPattern.matcher(lowerPattern);
+            if (childMatcher.find()) {
+                numberOfChild = Integer.parseInt(childMatcher.group(1));
+            } else if (lowerPattern.contains("pluschild")) {
+                // "pluschild" 表示1个儿童
+                numberOfChild = 1;
+            }
+        }
+
+        // 构建OccupancyInfo对象（兜底策略，部分字段使用默认值）
+        OccupancyInfo occupancyInfo = OccupancyInfo.builder()
+            .numberOfAdults(numberOfAdults)
+            .numberOfChild(numberOfChild)
+            .childAges(null) // 兜底策略无法解析具体年龄
+            .roomCategory("") // 兜底策略无法解析房型名称
+            .build();
+
+        logger.debug("[AsianOverlandAdapter.parseFromOccupancyPattern] 兜底解析结果: 规格={}, 成人:{}, 儿童:{}",
+            occupancyPattern, numberOfAdults, numberOfChild);
+        return occupancyInfo;
+    }
+
+    /**
      * 构建预订房间明细JSON字符串
      * 根据input.getRoomNum()构建对应数量的房间明细，使用input.getRatePlanId()作为roomClassId
      * 结合XCreateOrderRequest中的入住人信息转换为QTech预订接口需要的格式
@@ -1828,7 +2387,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
      * @param roomDetails 搜索时构建的房间明细
      * @return 房间明细JSON字符串
      */
-    private String buildReservationRoomDetails(XCreateOrderRequest input, List<QTechSearchRequest.RoomDetail> roomDetails, List<String> classUniqueId) {
+    private String buildReservationRoomDetails(XCreateOrderRequest input, List<QTechSearchRequest.RoomDetail> roomDetails,String  roomName, List<String> classUniqueIds) {
         try {
             List<QTechReservationRequest.RoomDetail> roomDetailsList = new ArrayList<>();
 
@@ -1866,10 +2425,25 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                 reservationRoom.setNumberOfAdults(templateRoom.getNumberOfAdults());
                 reservationRoom.setNumberOfChilds(templateRoom.getNumberOfChild() != null ? templateRoom.getNumberOfChild().toString() : "0");
 
-                // 设置roomClassId
-                reservationRoom.setRoomClassId(classUniqueId.get(i)); // 取第一个作为roomClassId
+                // 设置roomClassId - 智能匹配正确的classUniqueId
+                String selectedClassUniqueId;
+                if (classUniqueIds.isEmpty()) {
+                    // 兜底：如果没有classUniqueId列表，使用ratePlanId
+                    selectedClassUniqueId = input.getRatePlanId();
+                    logger.warn("[AsianOverlandAdapter.buildReservationRoomDetails] 无可用classUniqueId，使用ratePlanId: {}", selectedClassUniqueId);
+                } else {
+                    selectedClassUniqueId = selectMatchingClassUniqueId(classUniqueIds,
+                            templateRoom.getNumberOfAdults(),
+                            templateRoom.getNumberOfChild() != null ? templateRoom.getNumberOfChild() : 0,
+                            templateRoom.getChildAge(),
+                            roomName);
+                }
 
-                logger.debug("[AsianOverlandAdapter.buildReservationRoomDetails] 房间{}设置roomClassId: {}, RatePlanId:{}", i + 1, classUniqueId.get(i), input.getRatePlanId());
+                reservationRoom.setRoomClassId(selectedClassUniqueId);
+
+                logger.debug("[AsianOverlandAdapter.buildReservationRoomDetails] 房间{}设置roomClassId: {}, 成人数:{}, 儿童数:{}, RatePlanId:{}",
+                    i + 1, selectedClassUniqueId, templateRoom.getNumberOfAdults(),
+                    templateRoom.getNumberOfChild() != null ? templateRoom.getNumberOfChild() : 0, input.getRatePlanId());
 
                 // 获取该房间的入住人信息（修复索引：应该是i而不是i+1）
                 List<XCreateOrderRequest.CreateOrderCustomer> roomCustomers = roomGroups.get(i);

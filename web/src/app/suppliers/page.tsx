@@ -997,7 +997,7 @@ export default function SuppliersPage() {
                                 <div>
                                   <h5 className="text-blue-700 font-medium mb-2 text-sm">编辑提示</h5>
                                   <ul className="text-blue-600 space-y-1 text-xs">
-                                    <li>• 点击"格式化"按钮美化代码</li>
+                                    <li>• 点击&ldquo;格式化&rdquo;按钮美化代码</li>
                                     <li>• 实时显示格式验证状态</li>
                                     <li>• 支持Tab键缩进对齐</li>
                                     <li>• 自动语法高亮显示</li>
