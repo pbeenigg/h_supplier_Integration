@@ -31,6 +31,30 @@ export interface ResetPasswordRequest {
   newPassword: string
 }
 
+// 创建用户请求接口
+export interface UserCreateRequest {
+  userName: string
+  password: string
+  userNick: string
+  sex: string
+  timeout: number
+}
+
+// 创建应用请求接口
+export interface AppCreateRequest {
+  appId: string
+  secretKey: string
+  encryptionKey: string
+  rateLimit: number
+  timeout: number
+}
+
+// 用户应用绑定更新请求接口
+export interface UserAppBindRequest {
+  userId: number
+  appId?: string
+}
+
 // 登录请求接口
 export interface LoginRequest {
   userName: string
@@ -47,6 +71,35 @@ export interface LoginResponse {
   secretKey: string
   timeout: number
 }
+
+// 应用信息接口
+export interface App {
+  appId: string
+  secretKey: string
+  encryptionKey: string
+  rateLimit: number
+  timeout: number
+  updateAt: string
+  createAt: string
+  updateBy: string
+  createBy: string
+  expired: boolean
+}
+
+// 应用列表API响应格式
+export type AppListResponse = UnifiedApiResponse<App[]>
+
+// 应用更新请求接口
+export interface AppUpdateRequest {
+  appId: string
+  secretKey?: string
+  encryptionKey?: string
+  rateLimit?: number
+  timeout?: number
+}
+
+// 应用详情API响应格式
+export type AppInfoResponse = UnifiedApiResponse<App>
 
 // 统一API响应格式
 export interface UnifiedApiResponse<T = any> {

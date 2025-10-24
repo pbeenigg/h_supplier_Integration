@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import MainLayout from '@/components/layout/main-layout'
 import { apiClient } from '@/lib/api-client'
-import type { User, UserListResponse, UserUpdateRequest, ResetPasswordRequest } from '@/types'
-import { Search, Edit, Trash2, Key, RefreshCw, Users, UserCheck, UserX, Clock, X, Save } from 'lucide-react'
+import type { User, UserListResponse, UserUpdateRequest, ResetPasswordRequest, UserCreateRequest, AppCreateRequest, UserAppBindRequest } from '@/types'
+import { Search, Edit, Trash2, Key, RefreshCw, Users, UserCheck, UserX, Clock, X, Save, Plus, Link, Unlink } from 'lucide-react'
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([])
@@ -15,9 +15,17 @@ export default function UsersPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [showPasswordDialog, setShowPasswordDialog] = useState(false)
+  const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [editForm, setEditForm] = useState<UserUpdateRequest>({ userId: 0 })
   const [newPassword, setNewPassword] = useState('')
+  const [createForm, setCreateForm] = useState<UserCreateRequest>({
+    userName: '',
+    password: '',
+    userNick: '',
+    sex: 'U',
+    timeout: 24
+  })
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -126,6 +134,138 @@ export default function UsersPage() {
     }
   }
 
+  // 创建用户
+  const handleCreateUser = async () => {
+    if (!createForm.userName.trim() || !createForm.password.trim() || !createForm.userNick.trim()) {
+      alert('请填写完整的用户信息')
+      return
+    }
+
+    try {
+      setSaving(true)
+      const response = await apiClient.put('/admin/user/create', createForm)
+
+      if (response.data && response.data.code === 200) {
+        alert('创建用户成功')
+        setShowCreateDialog(false)
+        setCreateForm({
+          userName: '',
+          password: '',
+          userNick: '',
+          sex: 'U',
+          timeout: 24
+        })
+        fetchUsers()
+      } else {
+        throw new Error(response.data?.msg || '创建用户失败')
+      }
+    } catch (error) {
+      console.error('创建用户失败:', error)
+      alert('创建用户失败，请稍后重试')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // 生成应用ID
+  const generateAppId = (userName: string) => {
+    const timestamp = Date.now()
+    return `app_${userName}_${timestamp}`
+  }
+
+  // 生成密钥
+  const generateSecretKey = () => {
+    const timestamp = Date.now()
+    const uuid = crypto.randomUUID().replace(/-/g, '')
+    return `SK_${uuid}_${timestamp}`
+  }
+
+  // 生成加密密钥
+  const generateEncryptionKey = () => {
+    return crypto.randomUUID().replace(/-/g, '')
+  }
+
+  // 绑定应用
+  const handleBindApp = async (user: User) => {
+    if (!confirm('确定要为该用户绑定新应用吗？')) return
+
+    try {
+      setSaving(true)
+
+      // 1. 创建新应用
+      const appData: AppCreateRequest = {
+        appId: generateAppId(user.userName),
+        secretKey: generateSecretKey(),
+        encryptionKey: generateEncryptionKey(),
+        rateLimit: 1000,
+        timeout: user.timeout
+      }
+
+      const appResponse = await apiClient.put('/app/create', appData)
+      if (appResponse.data && appResponse.data.code === 200) {
+        // 2. 更新用户的 appId
+        const userUpdateData: UserAppBindRequest = {
+          userId: user.userId,
+          appId: appData.appId
+        }
+
+        const userResponse = await apiClient.put('/user/update', userUpdateData)
+        if (userResponse.data && userResponse.data.code === 200) {
+          alert('应用绑定成功')
+          fetchUsers()
+        } else {
+          throw new Error(userResponse.data?.msg || '绑定应用失败')
+        }
+      } else {
+        throw new Error(appResponse.data?.msg || '创建应用失败')
+      }
+    } catch (error) {
+      console.error('绑定应用失败:', error)
+      alert('绑定应用失败，请稍后重试')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // 解绑应用
+  const handleUnbindApp = async (user: User) => {
+    if (!confirm('确定要解绑该用户的应用吗？此操作将删除关联的应用记录。')) return
+
+    try {
+      setSaving(true)
+
+      // 1. 清空用户的 appId
+      const userUpdateData: UserAppBindRequest = {
+        userId: user.userId,
+        appId: ''
+      }
+
+      const userResponse = await apiClient.put('/user/update', userUpdateData)
+      if (userResponse.data && userResponse.data.code === 200) {
+        // 2. 删除对应的应用记录
+        if (user.appId) {
+          const appResponse = await apiClient.delete(`/app/delete/${user.appId}`)
+          if (appResponse.data && appResponse.data.code === 200) {
+            alert('应用解绑成功')
+            fetchUsers()
+          } else {
+            throw new Error(appResponse.data?.msg || '删除应用失败')
+          }
+        } else {
+          alert('应用解绑成功')
+          fetchUsers()
+        }
+      } else {
+        throw new Error(userResponse.data?.msg || '解绑应用失败')
+      }
+    } catch (error) {
+      console.error('解绑应用失败:', error)
+      alert('解绑应用失败，请稍后重试')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   // 删除用户
   const handleDeleteUser = async (userId: number) => {
     if (confirm('确定要删除该用户吗？此操作不可恢复。')) {
@@ -148,12 +288,17 @@ export default function UsersPage() {
     }
   }
 
+  // 检查用户是否可以删除
+  const canDeleteUser = (user: User) => {
+    return user.userId !== 1 && user.userName !== 'admin'
+  }
+
   // 获取状态信息
   const getStatusInfo = (user: User) => {
     if (user.expired) {
       return { color: 'text-red-600', bg: 'bg-red-100', text: '已过期' }
     } else if (user.timeout === -1) {
-      return { color: 'text-green-600', bg: 'bg-green-100', text: '永不过期' }
+      return { color: 'text-green-600', bg: 'bg-green-100', text: '永久有效' }
     } else {
       return { color: 'text-blue-600', bg: 'bg-blue-100', text: `${user.timeout}小时` }
     }
@@ -178,10 +323,20 @@ export default function UsersPage() {
             <h1 className="text-3xl font-bold text-gray-900">用户管理</h1>
             <p className="text-gray-600 mt-1">管理系统用户账户和权限信息</p>
           </div>
-          <Button onClick={refreshData} disabled={loading}>
-            <RefreshCw className="w-4 h-4 mr-2" />
-            {loading ? '刷新中...' : '刷新数据'}
-          </Button>
+          <div className="flex space-x-2">
+            <Button
+              onClick={() => setShowCreateDialog(true)}
+              disabled={saving}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              创建用户
+            </Button>
+            <Button onClick={refreshData} disabled={loading} variant="outline">
+              <RefreshCw className="w-4 h-4 mr-2" />
+              {loading ? '刷新中...' : '刷新数据'}
+            </Button>
+          </div>
         </div>
 
         {/* 统计概览 */}
@@ -231,7 +386,7 @@ export default function UsersPage() {
               <div className="flex items-center">
                 <Clock className="h-8 w-8 text-purple-600" />
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">永不过期</p>
+                  <p className="text-sm font-medium text-gray-600">永久有效</p>
                   <p className="text-2xl font-bold text-gray-900">
                     {users.filter(u => u.timeout === -1).length}
                   </p>
@@ -340,16 +495,43 @@ export default function UsersPage() {
                               >
                                 <Key className="w-4 h-4" />
                               </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDeleteUser(user.userId)}
-                                disabled={saving}
-                                title="删除用户"
-                                className="text-red-600 hover:text-red-800"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
+                              {user.appId ? (
+                                canDeleteUser(user) && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleUnbindApp(user)}
+                                    disabled={saving}
+                                    title="解绑应用"
+                                    className="text-orange-600 hover:text-orange-800"
+                                  >
+                                    <Unlink className="w-4 h-4" />
+                                  </Button>
+                                )
+                              ) : (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleBindApp(user)}
+                                  disabled={saving}
+                                  title="绑定应用"
+                                  className="text-green-600 hover:text-green-800"
+                                >
+                                  <Link className="w-4 h-4" />
+                                </Button>
+                              )}
+                              {canDeleteUser(user) && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteUser(user.userId)}
+                                  disabled={saving}
+                                  title="删除用户"
+                                  className="text-red-600 hover:text-red-800"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -364,7 +546,7 @@ export default function UsersPage() {
         {/* 编辑用户对话框 */}
         {showEditDialog && editingUser && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-6">
-            <div className="bg-white rounded-xl max-w-md w-full shadow-2xl">
+            <div className="bg-white rounded-xl max-w-lg w-full shadow-2xl">
               <div className="flex justify-between items-center px-6 py-4 border-b">
                 <h3 className="text-lg font-semibold text-gray-900">编辑用户信息</h3>
                 <button
@@ -418,16 +600,24 @@ export default function UsersPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    登录超时时间（小时）
+                    登录超时时间（小时，-1表示永久有效）
                   </label>
                   <Input
                     type="number"
-                    value={editForm.timeout || 0}
-                    onChange={(e) => setEditForm({ ...editForm, timeout: parseInt(e.target.value) || 0 })}
-                    placeholder="设置为-1表示永不过期"
+                    value={editForm.timeout !== undefined ? editForm.timeout : ''}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      if (value === '' || value === '-') {
+                        setEditForm({ ...editForm, timeout: undefined })
+                      } else {
+                        const numValue = parseInt(value)
+                        setEditForm({ ...editForm, timeout: isNaN(numValue) ? 1 : numValue })
+                      }
+                    }}
+                    placeholder="例如：24 或 -1"
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    设置为-1表示永不过期，大于-1表示过期时间（小时）
+                    设置为-1表示永久有效，大于0表示过期时间（小时）
                   </p>
                 </div>
               </div>
@@ -516,6 +706,140 @@ export default function UsersPage() {
                 >
                   <Key className="w-4 h-4 mr-2" />
                   {saving ? '重置中...' : '重置密码'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 创建用户对话框 */}
+        {showCreateDialog && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-6">
+            <div className="bg-white rounded-xl max-w-lg w-full shadow-2xl">
+              <div className="flex justify-between items-center px-6 py-4 border-b">
+                <h3 className="text-lg font-semibold text-gray-900">创建新用户</h3>
+                <button
+                  onClick={() => {
+                    setShowCreateDialog(false)
+                    setCreateForm({
+                      userName: '',
+                      password: '',
+                      userNick: '',
+                      sex: 'U',
+                      timeout: 24
+                    })
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-6 space-y-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                  <div className="flex items-center">
+                    <Plus className="w-5 h-5 text-blue-600 mr-2" />
+                    <p className="text-sm text-blue-800">
+                      创建用户的同时会自动创建并绑定一个新的应用ID
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    用户名 <span className="text-red-500">*</span>
+                  </label>
+                  <Input
+                    value={createForm.userName}
+                    onChange={(e) => setCreateForm({ ...createForm, userName: e.target.value })}
+                    placeholder="请输入用户名"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    密码 <span className="text-red-500">*</span>
+                  </label>
+                  <Input
+                    type="password"
+                    value={createForm.password}
+                    onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
+                    placeholder="请输入密码"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    昵称 <span className="text-red-500">*</span>
+                  </label>
+                  <Input
+                    value={createForm.userNick}
+                    onChange={(e) => setCreateForm({ ...createForm, userNick: e.target.value })}
+                    placeholder="请输入用户昵称"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    性别
+                  </label>
+                  <select
+                    value={createForm.sex}
+                    onChange={(e) => setCreateForm({ ...createForm, sex: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="U">未知</option>
+                    <option value="M">男</option>
+                    <option value="F">女</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    超时时间（小时，-1表示永久有效）
+                  </label>
+                  <Input
+                    type="number"
+                    value={createForm.timeout}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      if (value === '' || value === '-') {
+                        setCreateForm({ ...createForm, timeout: 24 })
+                      } else {
+                        const numValue = parseInt(value)
+                        setCreateForm({ ...createForm, timeout: isNaN(numValue) ? 24 : numValue })
+                      }
+                    }}
+                    placeholder="例如：24 或 -1"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    设置为-1表示永久有效，大于0表示过期时间（小时）
+                  </p>
+                </div>
+              </div>
+              <div className="flex justify-end space-x-3 px-6 py-4 border-t bg-gray-50">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowCreateDialog(false)
+                    setCreateForm({
+                      userName: '',
+                      password: '',
+                      userNick: '',
+                      sex: 'U',
+                      timeout: 24
+                    })
+                  }}
+                  disabled={saving}
+                >
+                  取消
+                </Button>
+                <Button
+                  onClick={handleCreateUser}
+                  disabled={saving || !createForm.userName.trim() || !createForm.password.trim() || !createForm.userNick.trim()}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  {saving ? '创建中...' : '创建用户'}
                 </Button>
               </div>
             </div>

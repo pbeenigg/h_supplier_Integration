@@ -292,7 +292,29 @@ export default function CachePage() {
             setLoading(true)
             // 尝试调用真实API
             const response = await apiClient.get('/cache/stats')
-            setCacheStats(response.data)
+            // 处理响应数据
+            
+            // 确保响应数据是数组格式
+            let statsData = response.data
+            if (statsData && typeof statsData === 'object') {
+                // 如果是包装的响应格式（如 {code: 200, data: [...], msg: "success"}）
+                if (statsData.data && Array.isArray(statsData.data)) {
+                    statsData = statsData.data
+                }
+                // 如果直接是数组
+                else if (Array.isArray(statsData)) {
+                    // 保持原样
+                }
+                // 如果是其他格式，转换为空数组
+                else {
+                    console.warn('缓存统计数据格式不正确:', statsData)
+                    statsData = []
+                }
+            } else {
+                statsData = []
+            }
+            
+            setCacheStats(statsData)
         } catch (error) {
             console.error('获取缓存统计失败:', error)
             // 如果API调用失败，使用模拟数据而不是抛出错误
@@ -488,23 +510,24 @@ export default function CachePage() {
 
     // 计算总体统计数据
     const getTotalStats = () => {
-        if (cacheStats.length === 0) {
+        // 安全检查：确保 cacheStats 是数组
+        if (!cacheStats || !Array.isArray(cacheStats) || cacheStats.length === 0) {
             return {
                 totalCaches: 0,
                 totalSize: '0 MB',
-                avgHitRate: 0,
+                avgHitRate: '0.0',
                 totalEvictions: 0,
                 totalHits: 0,
                 totalMisses: 0
             }
         }
 
-        const totalHits = cacheStats.reduce((sum, cache) => sum + cache.hitCount, 0)
-        const totalMisses = cacheStats.reduce((sum, cache) => sum + cache.missCount, 0)
-        const totalEvictions = cacheStats.reduce((sum, cache) => sum + cache.evictionCount, 0)
-        const totalSize = cacheStats.reduce((sum, cache) => sum + cache.estimatedSize, 0)
+        const totalHits = cacheStats.reduce((sum, cache) => sum + (cache.hitCount || 0), 0)
+        const totalMisses = cacheStats.reduce((sum, cache) => sum + (cache.missCount || 0), 0)
+        const totalEvictions = cacheStats.reduce((sum, cache) => sum + (cache.evictionCount || 0), 0)
+        const totalSize = cacheStats.reduce((sum, cache) => sum + (cache.estimatedSize || 0), 0)
         const avgHitRate = cacheStats.length > 0
-            ? cacheStats.reduce((sum, cache) => sum + cache.hitRate, 0) / cacheStats.length * 100
+            ? cacheStats.reduce((sum, cache) => sum + (cache.hitRate || 0), 0) / cacheStats.length * 100
             : 0
 
         return {
@@ -545,7 +568,7 @@ export default function CachePage() {
                 </div>
 
                 {/* 缓存概览统计 */}
-                {cacheStats.length > 0 && (
+                {cacheStats && Array.isArray(cacheStats) && cacheStats.length > 0 && (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         <Card>
                             <CardContent className="pt-6">
@@ -651,7 +674,7 @@ export default function CachePage() {
                 </div>
 
                 {/* 缓存详细信息 */}
-                {cacheStats.length > 0 && (
+                {cacheStats && Array.isArray(cacheStats) && cacheStats.length > 0 && (
                     <Card>
                         <CardHeader>
                             <CardTitle>缓存详细统计</CardTitle>
@@ -679,7 +702,7 @@ export default function CachePage() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {cacheStats.map((cache, index) => (
+                                        {cacheStats && Array.isArray(cacheStats) ? cacheStats.map((cache, index) => (
                                             <tr key={cache.name} className={index % 2 === 0 ? 'bg-gray-50' : ''}>
                                                 <td className="py-3 px-4">
                                                     <code className="text-sm bg-gray-200 px-2 py-1 rounded">
@@ -738,7 +761,13 @@ export default function CachePage() {
                                                     {cache.averageLoadPenalty.toFixed(1)}
                                                 </td>
                                             </tr>
-                                        ))}
+                                        )) : (
+                                            <tr>
+                                                <td colSpan={11} className="py-8 text-center text-gray-500">
+                                                    暂无缓存数据
+                                                </td>
+                                            </tr>
+                                        )}
                                     </tbody>
                                 </table>
                             </div>
