@@ -143,7 +143,7 @@ public class UserService {
      */
     @Transactional
     @CacheEvict(value = CacheNames.USER, allEntries = true)
-    public User updateUser(Long userId, String userNick, String sex, Integer timeout, String updateBy) {
+    public User updateUser(Long userId, String userNick, String sex, Integer timeout, String updateBy,String appId) {
         logger.info("更新用户信息，用户ID: {}, 更新人: {}", userId, updateBy);
 
         Optional<User> userOpt = userRepository.findById(userId);
@@ -163,6 +163,9 @@ public class UserService {
 
         if (timeout != null) {
             user.setTimeout(timeout);
+        }
+        if (!StrUtil.isBlank(appId)) {
+            user.setAppId(appId);
         }
 
         user.setUpdateBy(updateBy);

@@ -39,7 +39,7 @@ public class AdminController {
     /**
      * 创建新用户
      */
-    @PostMapping("/user/create")
+    @PutMapping("/user/create")
     public R<Map<String, Object>> createUser(@RequestBody Map<String, Object> createRequest) {
         logger.info("管理员创建用户请求");
 
@@ -90,8 +90,9 @@ public class AdminController {
             String sex = (String) updateRequest.get("sex");
             Integer timeout = updateRequest.get("timeout") != null ?
                             Integer.valueOf(updateRequest.get("timeout").toString()) : null;
+            String appId = (String) updateRequest.get("appId");
 
-            User user = userService.updateUser(userId, userNick, sex, timeout, currentUser);
+            User user = userService.updateUser(userId, userNick, sex, timeout, currentUser,appId);
 
             Map<String, Object> userResponse = new HashMap<>();
             userResponse.put("userId", user.getUserId());
@@ -145,6 +146,12 @@ public class AdminController {
         try {
             String currentUser =  AuthHelper.getCurrentUser();
 
+            if(userId == null){
+                throw new IllegalArgumentException("用户ID不能为空");
+            }
+            if(userId == 1L){
+                throw new IllegalArgumentException("不能删除超级管理员用户");
+            }
             userService.deleteUser(userId, currentUser);
 
             logger.info("用户删除成功，用户ID: {}", userId);
@@ -248,6 +255,7 @@ public class AdminController {
             String appId = (String) updateRequest.get("appId");
             String secretKey = (String) updateRequest.get("secretKey");
             String encryptionKey = (String) updateRequest.get("encryptionKey");
+
             if(StrUtil.isBlank(appId) || StrUtil.isBlank(secretKey) || StrUtil.isBlank(encryptionKey)){
                 throw new IllegalArgumentException("应用ID、密钥和加密密钥不能为空");
             }
@@ -282,6 +290,9 @@ public class AdminController {
 
         try {
             String currentUser =  AuthHelper.getCurrentUser();
+            if(StrUtil.isBlank(appId)){
+                throw new IllegalArgumentException("应用ID不能为空");
+            }
             appService.deleteApp(appId, currentUser);
 
             logger.info("应用删除成功，appId: {}", appId);

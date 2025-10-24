@@ -6,12 +6,10 @@ import com.heytrip.hotel.supplier.client.HttpClientService;
 import com.heytrip.hotel.supplier.config.Config;
 import com.heytrip.hotel.supplier.dto.R;
 import com.heytrip.hotel.supplier.entity.ApiCallLog;
+import com.heytrip.hotel.supplier.entity.DistributionCallLog;
+import com.heytrip.hotel.supplier.entity.DistributionOrdersLog;
 import com.heytrip.hotel.supplier.entity.SupplierConfig;
-import com.heytrip.hotel.supplier.entity.SupplierHealthLog;
-import com.heytrip.hotel.supplier.repository.ApiCallLogRepository;
-import com.heytrip.hotel.supplier.repository.SupplierConfigRepository;
-import com.heytrip.hotel.supplier.repository.SupplierHealthLogRepository;
-import com.heytrip.hotel.supplier.repository.SystemConfigRepository;
+import com.heytrip.hotel.supplier.repository.*;
 import com.heytrip.hotel.supplier.service.SystemConfigService;
 import com.heytrip.hotel.supplier.utils.HeyUtil;
 import com.heytrip.hotel.supplier.utils.SignUtil;
@@ -23,7 +21,6 @@ import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.web.bind.annotation.*;
-import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -49,24 +46,29 @@ public class MonitorController implements HealthIndicator {
     
     @Autowired
     private ApiCallLogRepository apiCallLogRepository;
-    
+
     @Autowired
-    private SupplierHealthLogRepository supplierHealthLogRepository;
+    private SyncLogRepository syncLogRepository;
+
+    @Autowired
+    private DistributionCallLogRepository distributionCallLogRepository;
+
+    @Autowired
+    private DistributionOrdersLogRepository distributionOrdersLogRepository;
     
     @Autowired
     private SystemConfigRepository systemConfigRepository;
-    
+
     @Autowired
     private SystemConfigService systemConfigService;
 
     @Autowired
     private HttpClientService httpClientService;
 
-
-
     @Resource
     private Config config;
-    
+
+
     /**
      * 系统健康检查
      */
@@ -84,23 +86,27 @@ public class MonitorController implements HealthIndicator {
             // 检查数据库连接
             long apiCallCount = apiCallLogRepository.count();
             long supplierCount = supplierConfigRepository.countActiveSuppliers();
-            long healthLogCount = supplierHealthLogRepository.count();
-            
+            long syncLogCount = syncLogRepository.count();
+            long distributionCallLogCount = distributionCallLogRepository.count();
+            long distributionOrdersLogCount = distributionOrdersLogRepository.count();
+
             health.put("database", Map.of(
                     "status", "UP",
-                    "apiCallCount", apiCallCount,
                     "supplierCount", supplierCount,
-                    "healthLogCount", healthLogCount
+                    "apiCallCount", apiCallCount,
+                    "syncLogCount", syncLogCount,
+                    "distributionCallLogCount", distributionCallLogCount,
+                    "distributionOrdersLogCount", distributionOrdersLogCount
+
             ));
             
             // 检查供应商状态
             List<String> enabledSuppliers = supplierAdapterManager.getEnabledSuppliers();
-            List<SupplierHealthLog> latestHealthStatus = supplierHealthLogRepository.findLatestHealthStatusForAllSuppliers();
-            
+
             health.put("suppliers", Map.of(
                     "enabled", enabledSuppliers,
                     "count", enabledSuppliers.size(),
-                    "healthChecks", latestHealthStatus.size()
+                    "healthChecks", enabledSuppliers.size()
             ));
             
             // 检查系统配置
@@ -121,11 +127,11 @@ public class MonitorController implements HealthIndicator {
     }
 
     /**
-     * 获取系统统计信息
+     * 获取日志统计信息
      */
-    @GetMapping("/stats")
-    public R<Map<String, Object>> getSystemStats() {
-        logger.info("Getting system statistics");
+    @GetMapping("/logs/stats")
+    public R<Map<String, Object>> getLogsStats() {
+        logger.info("Getting Logs statistics");
 
         try {
             Map<String, Object> stats = new HashMap<>();
@@ -140,6 +146,36 @@ public class MonitorController implements HealthIndicator {
                     "successRate", totalApiCalls > 0 ? (double) successfulCalls / totalApiCalls * 100 : 0.0
             ));
 
+            // 同步日志统计
+            long totalSyncLogs = syncLogRepository.count();
+            long successfulSyncs = syncLogRepository.countByIsSuccessTrue();
+            stats.put("syncLogs", Map.of(
+                    "total", totalSyncLogs,
+                    "successful", successfulSyncs,
+                    "failed", totalSyncLogs - successfulSyncs,
+                    "successRate", totalSyncLogs > 0 ? (double) successfulSyncs / totalSyncLogs * 100 : 0.0
+            ));
+
+            // 分销商调用统计
+            long totalDistributionCalls = distributionCallLogRepository.count();
+            long successfulDistributionCalls = distributionCallLogRepository.countByIsSuccessTrue();
+            stats.put("distributionCalls", Map.of(
+                    "total", totalDistributionCalls,
+                    "successful", successfulDistributionCalls,
+                    "failed", totalDistributionCalls - successfulDistributionCalls,
+                    "successRate", totalDistributionCalls > 0 ? (double) successfulDistributionCalls / totalDistributionCalls * 100 : 0.0
+            ));
+
+            // 分销商订单统计
+            long totalDistributionOrders = distributionOrdersLogRepository.count();
+            long successfulDistributionOrders = distributionOrdersLogRepository.countByIsSuccessTrue();
+            stats.put("distributionOrders", Map.of(
+                    "total", totalDistributionOrders,
+                    "successful", successfulDistributionOrders,
+                    "failed", totalDistributionOrders - successfulDistributionOrders,
+                    "successRate", totalDistributionOrders > 0 ? (double) successfulDistributionOrders / totalDistributionOrders * 100 : 0.0
+            ));
+
             // 供应商统计
             long totalSuppliers = supplierConfigRepository.countAllSuppliers();
             long activeSuppliers = supplierConfigRepository.countActiveSuppliers();
@@ -151,22 +187,12 @@ public class MonitorController implements HealthIndicator {
                     "list", supplierAdapterManager.getEnabledSuppliers()
             ));
 
-            // 系统配置统计
-            long totalConfigs = systemConfigRepository.countAllConfigs();
-            long activeConfigs = systemConfigRepository.countActiveConfigs();
-            long encryptedConfigs = systemConfigRepository.countEncryptedConfigs();
-            stats.put("systemConfig", Map.of(
-                    "total", totalConfigs,
-                    "active", activeConfigs,
-                    "encrypted", encryptedConfigs
-            ));
-
             stats.put("timestamp", LocalDateTime.now());
 
             return R.ok(stats);
 
         } catch (Exception e) {
-            logger.error("Failed to get system statistics", e);
+            logger.error("Failed to get Logs statistics", e);
             Map<String, Object> errorStats = Map.of(
                     "error", "Failed to retrieve statistics: " + e.getMessage(),
                     "timestamp", LocalDateTime.now()
@@ -176,54 +202,43 @@ public class MonitorController implements HealthIndicator {
     }
 
 
-    
+
     /**
-     * 获取供应商性能指标
+     * 获取分销商订单统计信息
      */
-    @GetMapping("/metrics/suppliers")
-    public Mono<R<Map<String, Object>>> getSupplierMetrics() {
-        logger.info("Getting supplier performance metrics");
-        
-        return supplierAdapterManager.checkAllSuppliersHealth()
-                .map(healthStatuses -> {
-                    Map<String, Object> metrics = new HashMap<>();
-                    
-                    healthStatuses.forEach(status -> {
-                        String supplierName = status.getSupplierName();
-                        
-                        // 获取该供应商的API调用统计
-                        try {
-                            // 这里简化实现，实际项目中应该根据supplier_id查询
-                            long totalCalls = apiCallLogRepository.count();
-                            long successfulCalls = apiCallLogRepository.countByResponseStatus(200);
-                            
-                            metrics.put(supplierName, Map.of(
-                                    "healthy", status.isHealthy(),
-                                    "totalApiCalls", totalCalls,
-                                    "successfulCalls", successfulCalls,
-                                    "successRate", totalCalls > 0 ? (double) successfulCalls / totalCalls * 100 : 0.0
-                            ));
-                        } catch (Exception e) {
-                            logger.warn("Failed to get metrics for supplier: {}", supplierName, e);
-                            metrics.put(supplierName, Map.of(
-                                    "healthy", status.isHealthy(),
-                                    "error", "Failed to retrieve metrics"
-                            ));
-                        }
-                    });
-                    
-                    Map<String, Object> response = Map.of(
-                            "suppliers", metrics,
-                            "timestamp", LocalDateTime.now()
-                    );
-                    
-                    return R.ok("供应商性能指标获取成功", response);
-                })
-                .onErrorResume(error -> {
-                    logger.error("Failed to get supplier metrics", error);
-                    return Mono.just(R.fail("获取供应商性能指标失败: " + error.getMessage()));
-                });
+    @GetMapping("/distribution/orders/stats")
+    public  R<Map<String, Object>> getSupplierOrderStats() {
+
+        try {
+            Map<String, Object> stats = new HashMap<>();
+
+            // 分销商订单统计总数
+            long count = distributionOrdersLogRepository.count();
+            //根据业务类型统计订单操作成功率  最近7天
+            List<Object[]>  countByBusinessTypeAndSuccess7 = distributionOrdersLogRepository.countByBusinessTypeAndSuccess(
+                    LocalDateTime.now().minusDays(7),
+                    LocalDateTime.now()
+            );
+            //根据业务类型统计订单操作成功率  最近1天
+            List<Object[]> countByBusinessTypeAndSuccess1 = distributionOrdersLogRepository.countByBusinessTypeAndSuccess(
+                    LocalDateTime.now().minusDays(1),
+                    LocalDateTime.now()
+            );
+            stats.put("totalDistributionOrders", count);
+            stats.put("orderSuccessStats7Days", countByBusinessTypeAndSuccess7);
+            stats.put("orderSuccessStats1Day", countByBusinessTypeAndSuccess1);
+            stats.put("timestamp", LocalDateTime.now());
+            return R.ok("分销商订单统计信息获取成功", stats);
+        } catch (Exception e) {
+            logger.error("Failed to get supplier order statistics", e);
+            return R.fail("获取分销商订单统计信息失败: " + e.getMessage());
+        }
+
     }
+
+
+    
+
     
     /**
      * 获取系统性能指标
@@ -317,15 +332,22 @@ public class MonitorController implements HealthIndicator {
             healthDetail.put("maxConcurrentRequests", supplier.getMaxConcurrentRequests());
             healthDetail.put("rateLimitPerSecond", supplier.getRateLimitPerSecond());
 
-            // 最近的健康检查日志（最近10条）
-            List<SupplierHealthLog> recentHealthLogs = supplierHealthLogRepository
-                .findRecentLogsBySupplierId(supplierId, PageRequest.of(0, 10));
-            healthDetail.put("recentHealthLogs", recentHealthLogs);
 
             // 最近的API调用日志（最近20条）
             List<ApiCallLog> recentApiCalls = apiCallLogRepository
                 .findRecentCallsBySupplierId(supplierId, PageRequest.of(0, 20));
             healthDetail.put("recentApiCalls", recentApiCalls);
+
+            // 最近的分销商调用日志（最近20条）
+            List<DistributionCallLog> distributionCallLogs = distributionCallLogRepository
+                    .findRecentCallsBySupplierId(supplierId, PageRequest.of(0, 20));
+            healthDetail.put("distributionCallLogs", distributionCallLogs);
+
+
+            // 最近的分销商订单日志（最近20条）
+            List<DistributionOrdersLog> distributionOrdersLogs = distributionOrdersLogRepository
+                    .findRecentCallsBySupplierId(supplierId, PageRequest.of(0, 20));
+            healthDetail.put("distributionOrdersLogs", distributionOrdersLogs);
 
             // 统计信息
             LocalDateTime yesterday = LocalDateTime.now().minusDays(1);

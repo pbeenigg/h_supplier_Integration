@@ -1,6 +1,7 @@
 package com.heytrip.hotel.supplier.repository;
 
 import com.heytrip.hotel.supplier.entity.DistributionOrdersLog;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -18,6 +19,16 @@ import java.util.List;
  */
 @Repository
 public interface DistributionOrdersLogRepository extends JpaRepository<DistributionOrdersLog, Long>, JpaSpecificationExecutor<DistributionOrdersLog> {
+
+
+
+    /**
+     * 根据供应商ID查询最近的订单日志，按创建时间降序排列
+     */
+    @Query("SELECT acl FROM DistributionOrdersLog acl WHERE acl.supplierId = :supplierId " +
+            "ORDER BY acl.createdAt DESC")
+    List<DistributionOrdersLog> findRecentCallsBySupplierId(@Param("supplierId") Long supplierId , Pageable pageable);
+
 
     /**
      * 根据分销商订单号查询
@@ -45,7 +56,7 @@ public interface DistributionOrdersLogRepository extends JpaRepository<Distribut
             @Param("endTime") LocalDateTime endTime);
 
     /**
-     * 统计订单操作成功率
+     * 根据业务类型统计订单操作成功率
      */
     @Query("SELECT d.businessType, d.isSuccess, COUNT(d) FROM DistributionOrdersLog d " +
            "WHERE d.createdAt BETWEEN :startTime AND :endTime " +
@@ -53,4 +64,7 @@ public interface DistributionOrdersLogRepository extends JpaRepository<Distribut
     List<Object[]> countByBusinessTypeAndSuccess(
             @Param("startTime") LocalDateTime startTime,
             @Param("endTime") LocalDateTime endTime);
+
+
+    Long countByIsSuccessTrue();
 }

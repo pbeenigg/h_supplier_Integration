@@ -50,4 +50,7 @@ public interface SyncLogRepository extends JpaRepository<SyncLog, Long>, JpaSpec
      * @return 同步日志记录列表
      */
     Optional<List<SyncLog>> findBySupplierCodeAndBusinessTypeInOrderByCreatedAtDesc(String supplierCode, Collection<String> businessTypes);
+
+
+    Long countByIsSuccessTrue();
 }

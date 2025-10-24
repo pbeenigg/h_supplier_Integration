@@ -148,9 +148,9 @@ app:
     timeout: 30000 # API请求超时时间（毫秒）
   security:
     permit-all-patterns: # 无需认证的路径模式
+      - /actuator
+      - /actuator/metrics/**
       - /actuator/health
-      - /actuator/info
-      - /monitor/**
       - /version
       - /swagger-ui/**
       - /v1/api-docs/**
@@ -166,6 +166,7 @@ app:
       - /auth/user/**
       - /admin/**
       - /logs/**
+      - /monitor/**
 
   # API日志配置
   api-log:

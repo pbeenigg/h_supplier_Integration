@@ -1,6 +1,7 @@
 package com.heytrip.hotel.supplier.repository;
 
 import com.heytrip.hotel.supplier.entity.DistributionCallLog;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -18,6 +19,15 @@ import java.util.List;
  */
 @Repository
 public interface DistributionCallLogRepository extends JpaRepository<DistributionCallLog, Long>, JpaSpecificationExecutor<DistributionCallLog> {
+
+
+
+    /**
+     * 根据供应商ID查询最近的调用日志，按创建时间降序排列
+     */
+    @Query("SELECT acl FROM DistributionCallLog acl WHERE acl.supplierId = :supplierId " +
+            "ORDER BY acl.createdAt DESC")
+    List<DistributionCallLog> findRecentCallsBySupplierId(@Param("supplierId") Long supplierId , Pageable pageable);
 
     /**
      * 根据traceId查询日志
@@ -48,4 +58,7 @@ public interface DistributionCallLogRepository extends JpaRepository<Distributio
     List<Object[]> countBySuccessStatus(
             @Param("startTime") LocalDateTime startTime,
             @Param("endTime") LocalDateTime endTime);
+
+
+    Long countByIsSuccessTrue();
 }

@@ -19,60 +19,14 @@ import java.util.List;
 @Repository
 public interface ApiCallLogRepository extends JpaRepository<ApiCallLog, Long>, JpaSpecificationExecutor<ApiCallLog> {
 
-    /**
-     * 根据供应商ID查找API调用日志
-     */
-    List<ApiCallLog> findBySupplierId(Long supplierId);
-    
-    /**
-     * 根据API端点查找调用日志
-     */
-    List<ApiCallLog> findByApiEndpoint(String apiEndpoint);
-    
-    /**
-     * 根据HTTP方法查找调用日志
-     */
-    List<ApiCallLog> findByHttpMethod(String httpMethod);
-    
-    /**
-     * 根据响应状态查找调用日志
-     */
-    List<ApiCallLog> findByResponseStatus(Integer responseStatus);
-    
-    /**
-     * 根据渠道查找调用日志
-     */
-    List<ApiCallLog> findByChannel(String channel);
+
 
     /**
      * 根据应用ID查找调用日志
      */
     List<ApiCallLog> findByAppId(String appId);
-    
-    /**
-     * 根据客户端IP查找调用日志
-     */
-    List<ApiCallLog> findByClientIp(String clientIp);
-    
-    /**
-     * 查找指定时间段内的API调用日志
-     */
-    @Query("SELECT acl FROM ApiCallLog acl WHERE acl.createdAt BETWEEN :startTime AND :endTime")
-    List<ApiCallLog> findByCreatedAtBetween(@Param("startTime") LocalDateTime startTime, 
-                                           @Param("endTime") LocalDateTime endTime);
-    
-    /**
-     * 查找响应时间超过指定值的调用日志
-     */
-    @Query("SELECT acl FROM ApiCallLog acl WHERE acl.responseTimeMs > :responseTime")
-    List<ApiCallLog> findByResponseTimeGreaterThan(@Param("responseTime") Integer responseTime);
-    
-    /**
-     * 查找有错误信息的调用日志
-     */
-    @Query("SELECT acl FROM ApiCallLog acl WHERE acl.errorMessage IS NOT NULL")
-    List<ApiCallLog> findWithErrors();
-    
+
+
     /**
      * 统计指定供应商的API调用次数
      */
@@ -125,28 +79,5 @@ public interface ApiCallLogRepository extends JpaRepository<ApiCallLog, Long>, J
      */
     Long countByIsSuccessTrue();
     
-    /**
-     * 统计失败的API调用次数（基于isSuccess字段）
-     */
-    Long countByIsSuccessFalse();
-    
-    /**
-     * 根据业务类型查找调用日志
-     */
-    List<ApiCallLog> findByBusinessType(String businessType);
-    
-    /**
-     * 根据跟踪ID查找调用日志
-     */
-    ApiCallLog findByTraceId(String traceId);
-    
-    /**
-     * 根据用户ID查找调用日志
-     */
-    List<ApiCallLog> findByUserId(String userId);
-    
-    /**
-     * 根据会话ID查找调用日志
-     */
-    List<ApiCallLog> findBySessionId(String sessionId);
+
 }
