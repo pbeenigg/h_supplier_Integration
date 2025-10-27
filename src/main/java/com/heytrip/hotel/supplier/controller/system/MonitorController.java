@@ -167,8 +167,8 @@ public class MonitorController implements HealthIndicator {
             ));
 
             // 分销商订单统计
-            long totalDistributionOrders = distributionOrdersLogRepository.count();
-            long successfulDistributionOrders = distributionOrdersLogRepository.countByIsSuccessTrue();
+            long totalDistributionOrders = distributionOrdersLogRepository.countByBusinessType("createOrder");
+            long successfulDistributionOrders = distributionOrdersLogRepository.countByBusinessTypeAndIsSuccessTrue("createOrder");
             stats.put("distributionOrders", Map.of(
                     "total", totalDistributionOrders,
                     "successful", successfulDistributionOrders,
@@ -213,7 +213,8 @@ public class MonitorController implements HealthIndicator {
             Map<String, Object> stats = new HashMap<>();
 
             // 分销商订单统计总数
-            long count = distributionOrdersLogRepository.count();
+            long totalCount = distributionOrdersLogRepository.countByBusinessType("createOrder");
+            long successCount = distributionOrdersLogRepository.countByBusinessTypeAndIsSuccessTrue("createOrder");
             //根据业务类型统计订单操作成功率  最近7天
             List<Object[]>  countByBusinessTypeAndSuccess7 = distributionOrdersLogRepository.countByBusinessTypeAndSuccess(
                     LocalDateTime.now().minusDays(7),
@@ -224,7 +225,8 @@ public class MonitorController implements HealthIndicator {
                     LocalDateTime.now().minusDays(1),
                     LocalDateTime.now()
             );
-            stats.put("totalDistributionOrders", count);
+            stats.put("totalDistributionOrdersSuccess", successCount);
+                    stats.put("totalDistributionOrders", totalCount);
             stats.put("orderSuccessStats7Days", countByBusinessTypeAndSuccess7);
             stats.put("orderSuccessStats1Day", countByBusinessTypeAndSuccess1);
             stats.put("timestamp", LocalDateTime.now());

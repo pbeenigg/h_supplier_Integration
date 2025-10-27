@@ -67,4 +67,10 @@ public interface DistributionOrdersLogRepository extends JpaRepository<Distribut
 
 
     Long countByIsSuccessTrue();
+
+
+    Long countByBusinessType(String businessType);
+
+
+    long countByBusinessTypeAndIsSuccessTrue(String businessType);
 }

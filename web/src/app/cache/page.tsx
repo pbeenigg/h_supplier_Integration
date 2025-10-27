@@ -317,94 +317,6 @@ export default function CachePage() {
             setCacheStats(statsData)
         } catch (error) {
             console.error('获取缓存统计失败:', error)
-            // 如果API调用失败，使用模拟数据而不是抛出错误
-            const mockStats: CacheStats[] = [
-                {
-                    name: "static:country",
-                    estimatedSize: 15,
-                    hitCount: 1250,
-                    missCount: 180,
-                    hitRate: 0.874,
-                    evictionCount: 2,
-                    loadCount: 15,
-                    loadSuccessCount: 14,
-                    loadFailureCount: 1,
-                    totalLoadTime: 1200,
-                    averageLoadPenalty: 80.0,
-                    type: "CaffeineCache"
-                },
-                {
-                    name: "static:city",
-                    estimatedSize: 45,
-                    hitCount: 3400,
-                    missCount: 420,
-                    hitRate: 0.890,
-                    evictionCount: 5,
-                    loadCount: 45,
-                    loadSuccessCount: 43,
-                    loadFailureCount: 2,
-                    totalLoadTime: 3600,
-                    averageLoadPenalty: 83.7,
-                    type: "CaffeineCache"
-                },
-                {
-                    name: "static:hotel",
-                    estimatedSize: 128,
-                    hitCount: 8500,
-                    missCount: 850,
-                    hitRate: 0.909,
-                    evictionCount: 12,
-                    loadCount: 128,
-                    loadSuccessCount: 125,
-                    loadFailureCount: 3,
-                    totalLoadTime: 10240,
-                    averageLoadPenalty: 80.0,
-                    type: "CaffeineCache"
-                },
-                {
-                    name: "static:room",
-                    estimatedSize: 67,
-                    hitCount: 4200,
-                    missCount: 680,
-                    hitRate: 0.860,
-                    evictionCount: 8,
-                    loadCount: 67,
-                    loadSuccessCount: 65,
-                    loadFailureCount: 2,
-                    totalLoadTime: 5360,
-                    averageLoadPenalty: 80.0,
-                    type: "CaffeineCache"
-                },
-                {
-                    name: "system:user",
-                    estimatedSize: 1,
-                    hitCount: 5,
-                    missCount: 1,
-                    hitRate: 0.8333333333333334,
-                    evictionCount: 0,
-                    loadCount: 1,
-                    loadSuccessCount: 1,
-                    loadFailureCount: 0,
-                    totalLoadTime: 80,
-                    averageLoadPenalty: 80.0,
-                    type: "CaffeineCache"
-                },
-                {
-                    name: "system:app",
-                    estimatedSize: 1,
-                    hitCount: 14,
-                    missCount: 1,
-                    hitRate: 0.9333333333333333,
-                    evictionCount: 0,
-                    loadCount: 1,
-                    loadSuccessCount: 1,
-                    loadFailureCount: 0,
-                    totalLoadTime: 80,
-                    averageLoadPenalty: 80.0,
-                    type: "CaffeineCache"
-                }
-            ]
-            setCacheStats(mockStats)
         } finally {
             setLoading(false)
         }
@@ -464,7 +376,7 @@ export default function CachePage() {
             setCacheKeys([])
 
             const keys = await fetchCacheKeys(cacheName, keyPrefix)
-            setCacheKeys(keys || [])
+            setCacheKeys(keys.data || [])
         } catch (error) {
             console.error('获取缓存键列表失败:', error)
             alert('获取缓存键列表失败')

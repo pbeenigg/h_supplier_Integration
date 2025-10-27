@@ -61,7 +61,8 @@ interface LogStatsResponse {
 
 // 分销商订单统计接口类型定义
 interface DistributionOrderStatsResponse {
-  totalDistributionOrders: number
+  totalDistributionOrdersSuccess: number,
+  totalDistributionOrders: number,
   orderSuccessStats7Days: [string, boolean, number][]  // [业务类型, 是否成功, 数量]
   orderSuccessStats1Day: [string, boolean, number][]   // [业务类型, 是否成功, 数量]
   timestamp: string
@@ -129,6 +130,15 @@ export default function LogsPage() {
       default:
         return []
     }
+  }
+
+  // 获取默认业务类型统计数据
+  const getDefaultBusinessTypeStats = () => {
+    const defaultBusinessTypes = ['orderCheck', 'createOrder', 'queryOrder', 'getPrice', 'cancelOrder']
+    return defaultBusinessTypes.reduce((acc, businessType) => {
+      acc[businessType] = { success: 0, total: 0 }
+      return acc
+    }, {} as Record<string, {success: number, total: number}>)
   }  // 当切换标签页时，重置查询参数
   const handleTabChange = (newTab: LogType) => {
     setActiveTab(newTab)
@@ -255,79 +265,9 @@ export default function LogsPage() {
         setLogStats(response.data.data)
       } else {
         console.warn('获取日志统计数据失败:', response.data)
-        // 使用模拟数据
-        setLogStats({
-          suppliers: {
-            enabled: 1,
-            list: ["AsianOverland"],
-            inactive: 0,
-            total: 1,
-            active: 1
-          },
-          distributionCalls: {
-            successful: 97,
-            successRate: 63.81578947368421,
-            total: 152,
-            failed: 55
-          },
-          distributionOrders: {
-            successful: 36,
-            successRate: 42.857142857142854,
-            total: 84,
-            failed: 48
-          },
-          apiCalls: {
-            successful: 29264,
-            successRate: 99.48665646778855,
-            total: 29415,
-            failed: 151
-          },
-          syncLogs: {
-            successful: 58,
-            successRate: 98.30508474576271,
-            total: 59,
-            failed: 1
-          },
-          timestamp: new Date().toISOString()
-        })
       }
     } catch (error) {
       console.error('获取日志统计失败:', error)
-      // 使用模拟数据作为后备
-      setLogStats({
-        suppliers: {
-          enabled: 1,
-          list: ["AsianOverland"],
-          inactive: 0,
-          total: 1,
-          active: 1
-        },
-        distributionCalls: {
-          successful: 97,
-          successRate: 63.81578947368421,
-          total: 152,
-          failed: 55
-        },
-        distributionOrders: {
-          successful: 36,
-          successRate: 42.857142857142854,
-          total: 84,
-          failed: 48
-        },
-        apiCalls: {
-          successful: 29264,
-          successRate: 99.48665646778855,
-          total: 29415,
-          failed: 151
-        },
-        syncLogs: {
-          successful: 58,
-          successRate: 98.30508474576271,
-          total: 59,
-          failed: 1
-        },
-        timestamp: new Date().toISOString()
-      })
     } finally {
       setStatsLoading(false)
     }
@@ -341,52 +281,10 @@ export default function LogsPage() {
       if (response.data && response.data.code === 200) {
         setDistributionOrderStats(response.data.data)
       } else {
-        console.warn('获取分发订单统计数据失败:', response.data)
-        // 使用模拟数据
-        setDistributionOrderStats({
-          totalDistributionOrders: 1245,
-          orderSuccessStats7Days: [
-            ['HTW', true, 856],
-            ['HTW', false, 34],
-            ['HBG', true, 234],
-            ['HBG', false, 12],
-            ['XML', true, 89],
-            ['XML', false, 4]
-          ],
-          orderSuccessStats1Day: [
-            ['HTW', true, 124],
-            ['HTW', false, 5],
-            ['HBG', true, 42],
-            ['HBG', false, 2],
-            ['XML', true, 18],
-            ['XML', false, 1]
-          ],
-          timestamp: new Date().toISOString()
-        })
+        console.warn('获取分销商订单统计数据失败:', response.data)
       }
     } catch (error) {
-      console.error('获取分发订单统计失败:', error)
-      // 使用模拟数据作为后备
-      setDistributionOrderStats({
-        totalDistributionOrders: 1245,
-        orderSuccessStats7Days: [
-          ['HTW', true, 856],
-          ['HTW', false, 34],
-          ['HBG', true, 234],
-          ['HBG', false, 12],
-          ['XML', true, 89],
-          ['XML', false, 4]
-        ],
-        orderSuccessStats1Day: [
-          ['HTW', true, 124],
-          ['HTW', false, 5],
-          ['HBG', true, 42],
-          ['HBG', false, 2],
-          ['XML', true, 18],
-          ['XML', false, 1]
-        ],
-        timestamp: new Date().toISOString()
-      })
+      console.error('获取分销商订单统计失败:', error)
     } finally {
       setDistributionOrderStatsLoading(false)
     }
@@ -1009,18 +907,18 @@ export default function LogsPage() {
           </>
         )}
 
-        {/* 分发订单统计面板 */}
+        {/* 分销商订单统计面板 */}
         {activeTab === 'stats' && (
           <>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* 总分发订单数 */}
+              {/* 总分销商订单数 */}
               <Card className="bg-gradient-to-r from-teal-50 to-cyan-50 border-teal-200">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-teal-800">
                     <div className="p-2 bg-gradient-to-r from-teal-500 to-cyan-600 rounded-lg">
                       <ShoppingCart className="w-5 h-5 text-white" />
                     </div>
-                    分发订单总量
+                    分销商订单总量
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -1030,11 +928,22 @@ export default function LogsPage() {
                       <span className="ml-2">加载中...</span>
                     </div>
                   ) : distributionOrderStats ? (
-                    <div className="text-center">
-                      <div className="text-3xl font-bold text-teal-800 mb-2">
-                        {distributionOrderStats.totalDistributionOrders.toLocaleString()}
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* 左侧：总订单数 */}
+                      <div className="text-center p-3 bg-gradient-to-r from-teal-50 to-cyan-50 rounded-lg border">
+                        <div className="text-2xl font-bold text-teal-800 mb-1">
+                          {distributionOrderStats.totalDistributionOrders === undefined ? 0 : distributionOrderStats.totalDistributionOrders }
+                        </div>
+                        <div className="text-sm text-teal-600">总订单数</div>
                       </div>
-                      <div className="text-sm text-teal-600">总分发订单数</div>
+                      
+                      {/* 右侧：成功订单数 */}
+                      <div className="text-center p-3 bg-gradient-to-r from-emerald-50 to-green-50 rounded-lg border">
+                        <div className="text-2xl font-bold text-emerald-800 mb-1">
+                          {distributionOrderStats.totalDistributionOrdersSuccess === undefined ? 0 : distributionOrderStats.totalDistributionOrdersSuccess  }
+                        </div>
+                        <div className="text-sm text-emerald-600">成功订单数</div>
+                      </div>
                     </div>
                   ) : (
                     <div className="text-center py-8 text-gray-500">暂无数据</div>
@@ -1058,21 +967,23 @@ export default function LogsPage() {
                       <Loader2 className="w-6 h-6 animate-spin" />
                       <span className="ml-2">加载中...</span>
                     </div>
-                  ) : distributionOrderStats?.orderSuccessStats7Days ? (
+                  ) : (
                     <div className="space-y-3">
                       {Object.entries(
-                        distributionOrderStats.orderSuccessStats7Days.reduce((acc, [businessType, isSuccess, count]) => {
-                          if (!acc[businessType]) {
-                            acc[businessType] = { success: 0, total: 0 }
-                          }
-                          acc[businessType].total += count
-                          if (isSuccess) {
-                            acc[businessType].success += count
-                          }
-                          return acc
-                        }, {} as Record<string, {success: number, total: number}>)
+                        distributionOrderStats?.orderSuccessStats7Days && distributionOrderStats.orderSuccessStats7Days.length > 0
+                          ? distributionOrderStats.orderSuccessStats7Days.reduce((acc, [businessType, isSuccess, count]) => {
+                              if (!acc[businessType]) {
+                                acc[businessType] = { success: 0, total: 0 }
+                              }
+                              acc[businessType].total += count
+                              if (isSuccess) {
+                                acc[businessType].success += count
+                              }
+                              return acc
+                            }, {} as Record<string, {success: number, total: number}>)
+                          : getDefaultBusinessTypeStats()
                       ).map(([businessType, stats]) => {
-                        const successRate = ((stats.success / stats.total) * 100).toFixed(1)
+                        const successRate = stats.total > 0 ? ((stats.success / stats.total) * 100).toFixed(1) : '0.0'
                         return (
                           <div key={businessType} className="flex justify-between items-center">
                             <span className="text-sm font-medium text-gray-700">{businessType}</span>
@@ -1089,8 +1000,6 @@ export default function LogsPage() {
                         )
                       })}
                     </div>
-                  ) : (
-                    <div className="text-center py-8 text-gray-500">暂无数据</div>
                   )}
                 </CardContent>
               </Card>
@@ -1111,21 +1020,23 @@ export default function LogsPage() {
                       <Loader2 className="w-6 h-6 animate-spin" />
                       <span className="ml-2">加载中...</span>
                     </div>
-                  ) : distributionOrderStats?.orderSuccessStats1Day ? (
+                  ) : (
                     <div className="space-y-3">
                       {Object.entries(
-                        distributionOrderStats.orderSuccessStats1Day.reduce((acc, [businessType, isSuccess, count]) => {
-                          if (!acc[businessType]) {
-                            acc[businessType] = { success: 0, total: 0 }
-                          }
-                          acc[businessType].total += count
-                          if (isSuccess) {
-                            acc[businessType].success += count
-                          }
-                          return acc
-                        }, {} as Record<string, {success: number, total: number}>)
+                        distributionOrderStats?.orderSuccessStats1Day && distributionOrderStats.orderSuccessStats1Day.length > 0
+                          ? distributionOrderStats.orderSuccessStats1Day.reduce((acc, [businessType, isSuccess, count]) => {
+                              if (!acc[businessType]) {
+                                acc[businessType] = { success: 0, total: 0 }
+                              }
+                              acc[businessType].total += count
+                              if (isSuccess) {
+                                acc[businessType].success += count
+                              }
+                              return acc
+                            }, {} as Record<string, {success: number, total: number}>)
+                          : getDefaultBusinessTypeStats()
                       ).map(([businessType, stats]) => {
-                        const successRate = ((stats.success / stats.total) * 100).toFixed(1)
+                        const successRate = stats.total > 0 ? ((stats.success / stats.total) * 100).toFixed(1) : '0.0'
                         return (
                           <div key={businessType} className="flex justify-between items-center">
                             <span className="text-sm font-medium text-gray-700">{businessType}</span>
@@ -1142,14 +1053,12 @@ export default function LogsPage() {
                         )
                       })}
                     </div>
-                  ) : (
-                    <div className="text-center py-8 text-gray-500">暂无数据</div>
                   )}
                 </CardContent>
               </Card>
             </div>
 
-            {/* 分发订单统计刷新按钮 */}
+            {/* 分销商订单统计刷新按钮 */}
             <Card className="bg-gradient-to-r from-slate-50 to-gray-50 border-slate-200">
               <CardContent className="pt-6">
                 <div className="flex justify-center">
