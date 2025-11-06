@@ -10,7 +10,6 @@ import com.heytrip.common.request.XCreateOrderRequest;
 import com.heytrip.common.request.XSupplierCheckRequest;
 import com.heytrip.common.request.XSupplierPriceRequest;
 import com.heytrip.common.response.base.XRatePlan;
-import com.heytrip.common.response.base.XRatePlanDaily;
 import com.heytrip.common.response.base.XRoom;
 import com.heytrip.common.response.other.XCancelOrderResponse;
 import com.heytrip.common.response.other.XCreateOrderResponse;
@@ -763,6 +762,9 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             QTechReservationRequest reservationRequest = new QTechReservationRequest();
             // 这里需要根据 input 构建预订请求对象
 
+            if( searchResponse.getHotelList().isEmpty()){
+                throw SupplierException.notFound(getSafeSupplierName(), "返回酒店列表为空，无法预订");
+            }
 
             // 仅处理指定酒店ID的报价
             Optional<QTechSearchResponse.Hotel> targetHotelOpt = searchResponse.getHotelList().stream()
@@ -1041,7 +1043,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
     }
 
     /**
-     * 订单前置校验（标准格式）
+     * 订单价格验证（标准格式）
      * 在正式下单前校验房型可售性、价格变化等
      */
     @Override
@@ -1850,11 +1852,9 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             try {
                 // 解析classUniqueId中的入住信息
                 OccupancyInfo occupancyInfo = parseOccupancyFromClassUniqueId(classUniqueId);
-
                 if (occupancyInfo == null) {
                     continue;
                 }
-
                 // 计算匹配分数
                 int matchScore = calculateMatchScore(occupancyInfo,index,expectedRoomCount, expectedAdultCount, expectedChildCount,
                         expectedChildAges, expectedRoomCategory);
@@ -2143,12 +2143,15 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
         //餐型名称  （注意：转成小写）
         String mealBasis;
 
+        //是否可退款
+        String refundable;
+
     }
 
     /**
      * 从ClassUniqueId中解析入住人数信息
      * ClassUniqueId是Base64编码的字符串，解码后按下划线分割：
-     * 格式：ID_索引_入住规格_房间数_成人数_儿童数_儿童年龄_房间描述_餐型_状态
+     * 格式：ID_索引_入住规格_房间数_成人数_儿童数_儿童年龄_房型描述_餐型_状态
      * 示例：1147378_0_singleplus2child_1_1_2_56_deluxe, double或twin床房间_only_true
      *
      * @param classUniqueId 编码的classUniqueId
@@ -2172,15 +2175,21 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                 return null;
             }
 
-            // 根据确认的规则解析各字段：
-            // parts[0] = ID (如: 1147378)
-            // parts[1] = 索引 (如: 0)
-            // parts[2] = 入住规格 (如: singleplus2child)
+            // 根据确认的规则解析各字段（固定位置）：
+            // parts[0] = ID (如: 1147378, 5162155)
+            // parts[1] = 索引 (如: 0, 1, 2)
+            // parts[2] = 入住规格 (如: singleplus2child, double, single, doublepluschild, doubleplus2children)
             // parts[3] = 房间数量 (如: 1)
-            // parts[4] = 成人数量 (如: 1)
-            // parts[5] = 儿童数量 (如: 2)
-            // parts[6] = 儿童年龄 (如: 56，表示5岁和6岁)
-            // parts[7+] = 房间描述和其他信息
+            // parts[4] = 成人数量 (如: 1, 2)
+            // parts[5] = 儿童数量 (如: 0, 1, 2)
+            // parts[6] = 儿童年龄 (如: 3, 35, 56，表示单个或多个儿童年龄)
+            // parts[7+] = 房型描述 + 餐型 + 可退款标识 (如: standard twin / queen_room only_true)
+            //
+            // 示例数据：
+            // 5162155_0_double_1_2_0_standard twin / queen_room only_true
+            // 5162155_1_single_1_1_0_standard twin / queen_room only_true
+            // 5162155_2_doublepluschild_1_2_1_3_standard twin / queen_room only_true
+            // 5162155_0_doubleplus2children_1_2_2_35_standard twin / queen_room only_true
 
             try {
                 // 解析基础字段
@@ -2195,12 +2204,13 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                     childAges = parseChildAgesString(parts[6], numberOfChild);
                 }
 
-                // 解析房型名称（从parts[7]开始，直到遇到餐型关键词）
+                // 解析房型、餐型和可退款标识（从parts[7]开始到最后）
                 String roomCategory = "";
                 String mealBasis = "";
+                String refundable = "";
 
                 if (parts.length > 7) {
-                    // 重新组合剩余部分，然后分析房型和餐型
+                    // 重新组合剩余部分
                     StringBuilder remainingParts = new StringBuilder();
                     for (int i = 7; i < parts.length; i++) {
                         if (remainingParts.length() > 0) {
@@ -2209,15 +2219,32 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                         remainingParts.append(parts[i]);
                     }
 
-                    String remaining = remainingParts.toString().toLowerCase();
+                    String remaining = remainingParts.toString();
+                    
+                    // 提取可退款标识（最后一个字段，通常是true/false）
+                    int lastUnderscoreIndex = remaining.lastIndexOf("_");
+                    if (lastUnderscoreIndex != -1) {
+                        String lastPart = remaining.substring(lastUnderscoreIndex + 1).trim();
+                        if ("true".equalsIgnoreCase(lastPart) || "false".equalsIgnoreCase(lastPart)) {
+                            refundable = lastPart;
+                            remaining = remaining.substring(0, lastUnderscoreIndex);
+                        }
+                    }
 
-                    // 识别餐型关键词的位置
-                    String[] mealKeywords = {"only", "breakfast", "bb", "lunch", "dinner", "all inclusive", "half board", "full board"};
+                    // 转换为小写便于匹配餐型关键词
+                    String remainingLower = remaining.toLowerCase();
+
+                    // 识别餐型关键词的位置（按优先级排序，优先匹配长关键词）
+                    String[] mealKeywords = {
+                        "all inclusive", "full board", "half board", 
+                        "room only", "breakfast", "lunch", "dinner", 
+                        "bb", "ro"
+                    };
                     int mealStartIndex = -1;
                     String foundMealKeyword = "";
 
                     for (String keyword : mealKeywords) {
-                        int index = remaining.indexOf(keyword);
+                        int index = remainingLower.indexOf(keyword);
                         if (index != -1 && (mealStartIndex == -1 || index < mealStartIndex)) {
                             mealStartIndex = index;
                             foundMealKeyword = keyword;
@@ -2225,7 +2252,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                     }
 
                     if (mealStartIndex != -1) {
-                        // 分离房型名称和餐型
+                        // 分离房型名称和餐型（保持原始大小写）
                         roomCategory = remaining.substring(0, mealStartIndex).trim();
                         mealBasis = remaining.substring(mealStartIndex).trim();
 
@@ -2246,10 +2273,12 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                         .numberOfChild(numberOfChild)
                         .childAges(childAges)
                         .roomCategory(roomCategory)
+                        .mealBasis(mealBasis)
+                        .refundable(refundable)
                         .build();
 
-                logger.debug("[AsianOverlandAdapter.parseOccupancyFromClassUniqueId] 解析结果: 索引:{},房间数:{} 成人:{}, 儿童:{}, 年龄:{}, 房型:{}",
-                        indexxx, numberOfRooms, numberOfAdults, numberOfChild, childAges, roomCategory);
+                logger.debug("[AsianOverlandAdapter.parseOccupancyFromClassUniqueId] 解析结果: 索引:{}, 房间数:{}, 成人:{}, 儿童:{}, 年龄:{}, 房型:{}, 餐型:{}, 可退款:{}",
+                        indexxx, numberOfRooms, numberOfAdults, numberOfChild, childAges, roomCategory, mealBasis, refundable);
                 return occupancyInfo;
 
             } catch (NumberFormatException e) {
@@ -2475,6 +2504,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                 reservationRoom.setNumberOfAdults(templateRoom.getNumberOfAdults());
                 reservationRoom.setNumberOfChilds(templateRoom.getNumberOfChild() != null ? templateRoom.getNumberOfChild().toString() : "0");
 
+                classUniqueIds.forEach(id -> logger.debug("[AsianOverlandAdapter.buildReservationRoomDetails] 可选classUniqueId: {}", cn.hutool.core.codec.Base64.decodeStr(id)));
                 // 设置roomClassId - 智能匹配正确的classUniqueId
                 String selectedClassUniqueId = selectMatchingClassUniqueId(classUniqueIds,
                         i,1,
@@ -2632,6 +2662,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
         }
     }
 
+
     /**
      * 将单个酒店的QTech响应数据转换为XRoom列表
      * 复用单酒店报价的转换逻辑，用于多酒店报价场景
@@ -2683,8 +2714,10 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             // 用于存储扩展信息的映射关系
             // 使用sectionUniqueId作为key，classUniqueId支持存储多个值 ,用于最后的校验对应关系是否正确
             Map<String, List<String>> sectionUniqueIdToClassUniqueIdListMap = new HashMap<>();
-            // 使用 房型ID_房价ID_餐型编码_是否可退_sectionUniqueId 作为 key, 价格作为 value ，相同的key只保留最低价
+            // 使用 sectionUniqueId 作为 key, 价格作为 value ，相同的key只保留最低价
+            Map<String, BigDecimal> sectionUniqueIdToPriceMap = new HashMap<>();
             Map<String, BigDecimal> uniqueIdToPriceMap = new HashMap<>();
+
 
 
             // 遍历每个房型属性
@@ -2706,6 +2739,8 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
                 XRoom xRoom = new XRoom();
 
+                //临时传递 sectionUniqueId
+                xRoom.setExt(prop.getSectionUniqueId());
 
                 for (QTechSearchResponse.RoomRate roomRate : roomRates) {
                     logger.debug("[AsianOverlandAdapter.convertHotelToXRooms] 处理房型: ID={}, 类型={}, 餐型={}, 价格={}, 状态={}",
@@ -2721,6 +2756,8 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                     if (StrUtil.isBlank(roomName)) {
                         roomName = roomRate.getRoomType();
                     }
+
+
 
                     // 生成房型编码： 房型名称，处理特殊字符用下划线连接
                     String roomCodeRaw = roomName;
@@ -2748,8 +2785,23 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                     List<XRatePlan> ratePlans = new ArrayList<>();
                     XRatePlan ratePlan = new XRatePlan();
 
+                    //是否可退款
+                    ratePlan.setCancelable(prop.getRefundable());
+
+                    QTechSearchResponse.Policies policies = prop.getPolicies();
+                    if (policies == null) {
+                        logger.warn("[AsianOverlandAdapter.convertHotelToXRooms] 酒店{}无取消规则数据", hotel.getHotelId());
+                        ratePlan.setCancelable(false); //无法确认取消规则时，设置为不可取消
+                    }
+
+                    List<QTechSearchResponse.CancellationPolicy> cancellationPolicy = policies.getCancellationPolicy();
+                    if (cancellationPolicy == null || cancellationPolicy.isEmpty()) {
+                        logger.warn("[AsianOverlandAdapter.convertHotelToXRooms] 酒店{}无取消规则列表数据", hotel.getHotelId());
+                        ratePlan.setCancelable(false); //无法确认取消规则时，设置为不可取消
+                    }
+
                     // 是否可退
-                    String isRefundable = prop.getRefundable() ? "1" : "0";
+                    String isRefundable = ratePlan.getCancelable() ? "1" : "0";
 
                     // 生成房型价格计划编码： 房型编码+餐型+是否可退，处理特殊字符用下划线连接
                     String ratePlanCodeRaw = finalRoomCode + " " + roomRate.getMealCode() + " " + isRefundable;
@@ -2761,9 +2813,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                     // 如果处理后的编码超过64字符，使用MD5
                     String finalRatePlanCode = ratePlanCode.length() > 64 ? MD5Util.string2MD5(ratePlanCode) : ratePlanCode;
 
-
-                    ///临时传递： classUniqueId
-                    ratePlan.setExt(roomRate.getClassUniqueId());
 
                     ratePlan.setRatePlanId(finalRatePlanCode);
                     ratePlan.setRatePlanName(roomRate.getRoomType());
@@ -2792,20 +2841,12 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
                     ratePlan.setInstantConfirm(false);  //需要调用取消规则接口确费后才能 立即预定
 
-                    QTechSearchResponse.Policies policies = prop.getPolicies();
-                    if (policies == null) {
-                        logger.warn("[AsianOverlandAdapter.convertHotelToXRooms] 酒店{}无取消规则数据", hotel.getHotelId());
-                        continue;
-                    }
+                    // 收集扩展信息映射关系 - 支持同一个sectionUniqueId对应多个classUniqueId
+                    sectionUniqueIdToClassUniqueIdListMap.computeIfAbsent(prop.getSectionUniqueId(), k -> new ArrayList<>())
+                            .add(roomRate.getClassUniqueId());
 
-                    List<QTechSearchResponse.CancellationPolicy> cancellationPolicy = policies.getCancellationPolicy();
-                    if (cancellationPolicy == null || cancellationPolicy.isEmpty()) {
-                        logger.warn("[AsianOverlandAdapter.convertHotelToXRooms] 酒店{}无取消规则列表数据", hotel.getHotelId());
-                        continue;
-                    }
-
-                    //是否可退款
-                    ratePlan.setCancelable(prop.getRefundable());
+                    // 收集价格映射关系
+                    sectionUniqueIdToPriceMap.computeIfAbsent(prop.getSectionUniqueId(), k -> prop.getDisplayRoomRate());
 
 
                     // 使用 房型ID_房价ID_餐型_早餐_午餐_晚餐_是否可退_sectionUniqueId 作为 key, 房型组合总价作为 value
@@ -2816,18 +2857,17 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                         BigDecimal orgPrice = uniqueIdToPriceMap.get(uniqueKey);
                         logger.debug("[AsianOverlandAdapter.convertHotelToXRooms] 检测到重复的唯一Key: {}，价格：{}", uniqueKey, orgPrice);
                         //判断最新的价格是否比先前存储的价格便宜，如果最新的价格便宜，则更新价格，否则保持原有价格不变
-                        if (roomRate.getRoomRate().compareTo(orgPrice) < 0) {
-                            uniqueIdToPriceMap.put(uniqueKey, roomRate.getRoomRate());
-                            logger.debug("[AsianOverlandAdapter.convertHotelToXRooms] 更新价格为更低值: {}，新价格：{}", uniqueKey, roomRate.getRoomRate());
+                        if (prop.getDisplayRoomRate().compareTo(orgPrice) < 0) {
+                            uniqueIdToPriceMap.put(uniqueKey, prop.getDisplayRoomRate());
+                            logger.debug("[AsianOverlandAdapter.convertHotelToXRooms] 更新价格为更低值: {}，新价格：{}", uniqueKey, prop.getDisplayRoomRate());
                         }
                     } else {
-                        uniqueIdToPriceMap.put(uniqueKey, roomRate.getRoomRate());
+                        uniqueIdToPriceMap.put(uniqueKey, prop.getDisplayRoomRate());
                     }
 
 
-                    // 收集扩展信息映射关系 - 支持同一个sectionUniqueId对应多个classUniqueId
-                    sectionUniqueIdToClassUniqueIdListMap.computeIfAbsent(prop.getSectionUniqueId(), k -> new ArrayList<>())
-                            .add(roomRate.getClassUniqueId());
+
+
 
                     // 设置取消规则
                     if (ratePlan.getCancelable()) {
@@ -2836,57 +2876,59 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
                         // 找到最早的取消政策开始时间，用于生成免费取消规则
                         String earliestPolicyStartTime = null;
-                        if (!cancellationPolicy.isEmpty()) {
+                        if (cancellationPolicy !=null && !cancellationPolicy.isEmpty()) {
                             earliestPolicyStartTime = cancellationPolicy.stream()
                                     .map(QTechSearchResponse.CancellationPolicy::getStart)
                                     .min(String::compareTo)
                                     .orElse(null);
                         }
 
-                        // 遍历所有取消政策，生成收费取消规则
-                        cancellationPolicy.forEach(policy -> {
-                            XRatePlan.XCancelRule xCancelRule = new XRatePlan.XCancelRule();
+                        if (cancellationPolicy !=null && !cancellationPolicy.isEmpty()) {
+                            // 遍历所有取消政策，生成收费取消规则
+                            cancellationPolicy.forEach(policy -> {
+                                XRatePlan.XCancelRule xCancelRule = new XRatePlan.XCancelRule();
 
-                            xCancelRule.setStartTimeOrig(policy.getStart());
-                            xCancelRule.setEndTimeOrig(policy.getEnd());
+                                xCancelRule.setStartTimeOrig(policy.getStart());
+                                xCancelRule.setEndTimeOrig(policy.getEnd());
 
-                            ZonedDateTime startTime = HeyUtil.convertTimeZone(policy.getStart());
-                            ZonedDateTime endTime = HeyUtil.convertTimeZone(policy.getEnd());
+                                ZonedDateTime startTime = HeyUtil.convertTimeZone(policy.getStart());
+                                ZonedDateTime endTime = HeyUtil.convertTimeZone(policy.getEnd());
 
-                            xCancelRule.setStartTime(HeyUtil.formatZonedDateTimeZone(startTime));
-                            xCancelRule.setEndTime(HeyUtil.formatZonedDateTimeZone(endTime));
+                                xCancelRule.setStartTime(HeyUtil.formatZonedDateTimeZone(startTime));
+                                xCancelRule.setEndTime(HeyUtil.formatZonedDateTimeZone(endTime));
 
-                            xCancelRule.setDeductValue(String.valueOf(policy.getCharges()));
-                            xCancelRule.setDeductType(XEnumDeductType.MONEY);
-                            xCancelRules.add(xCancelRule);
-                        });
+                                xCancelRule.setDeductValue(String.valueOf(policy.getCharges()));
+                                xCancelRule.setDeductType(XEnumDeductType.MONEY);
+                                xCancelRules.add(xCancelRule);
+                            });
 
-                        // 生成免费取消规则：在最早取消政策开始时间之前取消是免费的
-                        if (earliestPolicyStartTime != null) {
-                            XRatePlan.XCancelRule freeCancelRule = new XRatePlan.XCancelRule();
+                            // 生成免费取消规则：在最早取消政策开始时间之前取消是免费的
+                            if (earliestPolicyStartTime != null) {
+                                XRatePlan.XCancelRule freeCancelRule = new XRatePlan.XCancelRule();
 
-                            // 当前时间（上海时区）
-                            ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Asia/Shanghai"));
-                            String nowFormatted = HeyUtil.formatZonedDateTimeZone(now);
+                                // 当前时间（上海时区）
+                                ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Asia/Shanghai"));
+                                String nowFormatted = HeyUtil.formatZonedDateTimeZone(now);
 
-                            // 最早取消政策的开始时间（转换为上海时区）
-                            ZonedDateTime earliestStartTime = HeyUtil.convertTimeZone(earliestPolicyStartTime);
-                            String earliestStartFormatted = HeyUtil.formatZonedDateTimeZone(earliestStartTime);
+                                // 最早取消政策的开始时间（转换为上海时区）
+                                ZonedDateTime earliestStartTime = HeyUtil.convertTimeZone(earliestPolicyStartTime);
+                                String earliestStartFormatted = HeyUtil.formatZonedDateTimeZone(earliestStartTime);
 
-                            // 设置免费取消规则
-                            freeCancelRule.setStartTimeOrig(nowFormatted);
-                            freeCancelRule.setEndTimeOrig(earliestStartFormatted);
-                            freeCancelRule.setStartTime(nowFormatted);
-                            freeCancelRule.setEndTime(earliestStartFormatted);
-                            freeCancelRule.setDeductValue("0");
-                            freeCancelRule.setDeductType(XEnumDeductType.FREE);
+                                // 设置免费取消规则
+                                freeCancelRule.setStartTimeOrig(nowFormatted);
+                                freeCancelRule.setEndTimeOrig(earliestStartFormatted);
+                                freeCancelRule.setStartTime(nowFormatted);
+                                freeCancelRule.setEndTime(earliestStartFormatted);
+                                freeCancelRule.setDeductValue("0");
+                                freeCancelRule.setDeductType(XEnumDeductType.FREE);
 
-                            // 将免费取消规则插入到列表开头（最优先）
-                            xCancelRules.add(0, freeCancelRule);
+                                // 将免费取消规则插入到列表开头（最优先）
+                                xCancelRules.add(0, freeCancelRule);
+                            }
+
+                            //设置取消规则
+                            ratePlan.setCancelRules(xCancelRules);
                         }
-
-                        //设置取消规则
-                        ratePlan.setCancelRules(xCancelRules);
                     }
 
                     //设置 房型 单间的价格
@@ -2894,7 +2936,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                     ratePlan.setBasePrice(String.valueOf(roomRate.getRoomRate()));
 
                     //设置 日价明细
-                    List<QTechSearchResponse.RateBreakup> rateBreakups = roomRate.getRateBreakup();
+                    /*List<QTechSearchResponse.RateBreakup> rateBreakups = roomRate.getRateBreakup();
                     List<XRatePlanDaily> dailyPrices = new ArrayList<>();
                     rateBreakups.forEach(breakup -> {
                         XRatePlanDaily daily = new XRatePlanDaily();
@@ -2902,7 +2944,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                         daily.setDate(breakup.getDate());
                         daily.setPrice(String.valueOf(breakup.getDisplayNightlyRate()));
                         daily.setBasePrice(String.valueOf(breakup.getDisplayNightlyRate()));
-                        daily.setMemberPrice(String.valueOf(breakup.getDisplayNightlyRate()));
                         daily.setQuantity(1);
                         daily.setCurrency(HeyUtil.toXwCurrency(hotel.getRateCurrencyCode()).orElse(XEnumCurrency.USD));
                         daily.setCancelable(prop.getRefundable());
@@ -2923,7 +2964,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
                         dailyPrices.add(daily);
                     });
-                    ratePlan.setDailys(dailyPrices);
+                    ratePlan.setDailys(dailyPrices);*/
 
                     //设置 入住信息
                     ratePlan.setCheckInDate(checkInDate);
@@ -2963,7 +3004,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
             // 1. 验证 sectionUniqueIdToClassUniqueIdListMap 对应关系是否正确
             logger.info("[AsianOverlandAdapter.convertHotelToXRooms] 验证映射关系: sectionUniqueId映射数量={}, uniqueKey去重后数量={}",
-                    sectionUniqueIdToClassUniqueIdListMap.size(), uniqueIdToPriceMap.size());
+                    sectionUniqueIdToClassUniqueIdListMap.size(), sectionUniqueIdToPriceMap.size());
 
             if (logger.isDebugEnabled()) {
                 sectionUniqueIdToClassUniqueIdListMap.forEach((sectionId, classIds) -> {
@@ -2978,7 +3019,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
             // 3. 通过uniqueIdToPriceMap重新实现去重，保留最低价的房型，并更新扩展信息
             // 4. 用迭代器遍历xRooms列表，对每个XRoom对象的ratePlans列表进行处理
-            Iterator<XRoom> roomIterator = xRooms.iterator();
+                Iterator<XRoom> roomIterator = xRooms.iterator();
             while (roomIterator.hasNext()) {
                 XRoom xRoom = roomIterator.next();
 
@@ -2992,9 +3033,23 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                 List<XRatePlan> validRatePlans = new ArrayList<>();
                 Map<String, QTechSearchResponse.RoomRateExt> roomRateExtMap = new HashMap<>();
 
+                String  sectionUniqueId = xRoom.getExt(); // 之前临时存储的sectionUniqueId
+                // 查找匹配的sectionUniqueId
+                String matchedSectionUniqueId = null;
+                if(sectionUniqueIdToPriceMap.containsKey(sectionUniqueId)){
+                    matchedSectionUniqueId = sectionUniqueId;
+                    logger.warn("[AsianOverlandAdapter.convertHotelToXRooms] 找到对应的sectionUniqueId: {} -> {}",
+                            sectionUniqueId, sectionUniqueIdToPriceMap.get(sectionUniqueId));
+                }
+
+                if (matchedSectionUniqueId == null) {
+                    logger.warn("[AsianOverlandAdapter.convertHotelToXRooms] 未找到对应的sectionUniqueId: {}", sectionUniqueId);
+                    continue;
+                }
+
                 while (planIterator.hasNext()) {
                     XRatePlan ratePlan = planIterator.next();
-                    String classUniqueId = ratePlan.getExt(); // 之前存储的classUniqueId
+
 
                     // 根据当前房型信息重新构建uniqueKey进行匹配
                     int mealType = ratePlan.getMealType().getCode();
@@ -3006,20 +3061,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                     String isRefundable = ratePlan.getCancelable() ? "1" : "0";
 
 
-                    // 查找匹配的sectionUniqueId
-                    String matchedSectionUniqueId = null;
-                    for (Map.Entry<String, List<String>> entry : sectionUniqueIdToClassUniqueIdListMap.entrySet()) {
-                        if (entry.getValue().contains(classUniqueId)) {
-                            matchedSectionUniqueId = entry.getKey();
-                            break;
-                        }
-                    }
-
-                    if (matchedSectionUniqueId == null) {
-                        logger.warn("[AsianOverlandAdapter.convertHotelToXRooms] 未找到classUniqueId对应的sectionUniqueId: {}", classUniqueId);
-                        continue;
-                    }
-
                     // 重新构建uniqueKey
                     String reconstructedUniqueKey = xRoom.getRoomId().toLowerCase() + "_" + ratePlan.getRatePlanId().toLowerCase() + "_" +
                             mealCode + "_" + isRefundable + "_" + matchedSectionUniqueId;
@@ -3028,9 +3069,12 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                     if (validUniqueKeys.contains(reconstructedUniqueKey)) {
                         BigDecimal lowestPrice = uniqueIdToPriceMap.get(reconstructedUniqueKey);
 
+                        // 计算当前房型的单价 = 总价 / 房间数量
+                        // 为了避免供应商的报价，多个房间单价相乘后与总价不一致的问题，直接使用总价除以房间数量
+                        BigDecimal currentPrice = NumberUtil.div(lowestPrice,xRoom.getRoomQuantity(),2);
                         // 更新价格计划的价格为最低价
-                        ratePlan.setPrice(String.valueOf(lowestPrice));
-                        ratePlan.setBasePrice(String.valueOf(lowestPrice));
+                        ratePlan.setPrice(String.valueOf(currentPrice));
+                        ratePlan.setBasePrice(String.valueOf(currentPrice));
 
                         validRatePlans.add(ratePlan);
 
