@@ -375,7 +375,12 @@ public class StaticDataSyncService {
     private SyncStats batchUpsertHotels(List<Map<String, String>> rows, Long supplierId, String supplierCode) {
         int deleted = deleteBySupplier(Hotel.class, supplierId, supplierCode);
         logger.info("已清理旧酒店数据，supplierId={}, supplierCode={}, 删除行数={}", supplierId, supplierCode, deleted);
-        List<Hotel> list = aoStaticDataParser.parseHotels(rows, supplierId, supplierCode);
+
+       Map<Long ,Country> countryMap = countryRepo.findAll().stream()
+                .filter(c -> c.getSupplierId().equals(supplierId) && c.getSupplierCode().equals(supplierCode))
+                .collect(HashMap::new, (m, c) -> m.put(c.getId(), c), HashMap::putAll);
+
+        List<Hotel> list = aoStaticDataParser.parseHotels(rows, supplierId, supplierCode,countryMap);
         SaveResult sr = saveInBatchesReturnCount(list, hotelRepo);
         return new SyncStats(rows.size(), sr.saved, rows.size() - list.size(), sr.errors, sr.errorMsg);
     }

@@ -16,7 +16,7 @@ public interface StaticDataParser {
 
     List<City> parseCities(List<Map<String, String>> rows, Long supplierId, String supplierCode);
 
-    List<Hotel> parseHotels(List<Map<String, String>> rows, Long supplierId, String supplierCode);
+    List<Hotel> parseHotels(List<Map<String, String>> rows, Long supplierId, String supplierCode, Map<Long ,Country> countryMap);
 
     List<Nationality> parseNationalities(List<Map<String, String>> rows, Long supplierId, String supplierCode);
 

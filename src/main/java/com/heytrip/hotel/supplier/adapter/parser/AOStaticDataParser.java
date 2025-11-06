@@ -1,5 +1,6 @@
 package com.heytrip.hotel.supplier.adapter.parser;
 
+import cn.hutool.core.util.StrUtil;
 import com.heytrip.hotel.supplier.entity.*;
 import com.heytrip.hotel.supplier.utils.MD5Util;
 import org.slf4j.Logger;
@@ -61,7 +62,9 @@ public class AOStaticDataParser implements StaticDataParser {
     }
 
     @Override
-    public List<Hotel> parseHotels(List<Map<String, String>> rows, Long supplierId, String supplierCode) {
+    public List<Hotel> parseHotels(List<Map<String, String>> rows, Long supplierId, String supplierCode, Map<Long, Country> countryMap) {
+
+
         List<Hotel> list = new ArrayList<>();
         for (Map<String, String> row : rows) {
             String hotelCode = val(row, "Id");
@@ -79,6 +82,16 @@ public class AOStaticDataParser implements StaticDataParser {
             e.setCityCode(val(row, "city_code"));
             e.setCity(val(row, "city_name"));
             e.setCountryId(val(row, "country_code"));
+
+            // 补充国家名称和代码
+            if(StrUtil.isNotBlank(e.getCountryId())){
+                Country country = countryMap.getOrDefault(Long.parseLong(e.getCountryId()),null);
+                if(country != null){
+                    e.setCountryCode(country.getCountryCode());
+                    e.setCountry(country.getCountryName());
+                }
+            }
+
             e.setHeroImg(val(row, "main_image"));
             e.setDescription(val(row, "short_desc"));
             e.setLongDesc(val(row, "long_desc"));
