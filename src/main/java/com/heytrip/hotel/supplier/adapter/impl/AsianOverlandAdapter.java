@@ -516,9 +516,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                         }
                     });
 
-            if(StrUtil.isBlank(input.getQuery())){
-                throw SupplierException.missingParameter(getSafeSupplierName(), "缺少查询参数，无法报价");
-            }
+
 
             // 住客国籍  "query": "{\"Nationality\":\"CN\"}",
             if(StrUtil.isNotBlank(input.getQuery()) && input.getQuery().contains("Nationality")){
@@ -817,9 +815,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             }
         });
 
-        if(StrUtil.isBlank(input.getQuery())){
-            throw SupplierException.missingParameter(getSafeSupplierName(), "缺少查询参数，无法报价");
-        }
+
         // 入住人国籍  "query": "{\"Nationality\":\"CN\"}",
         if(StrUtil.isNotBlank(input.getQuery()) && input.getQuery().contains("Nationality")){
             // 解析国籍和居住国
@@ -1200,9 +1196,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                 }
             });
 
-            if(StrUtil.isBlank(input.getQuery())){
-                throw SupplierException.missingParameter(getSafeSupplierName(), "缺少查询参数，无法报价");
-            }
             // 入住人国籍  "query": "{\"Nationality\":\"CN\"}",
             if(StrUtil.isNotBlank(input.getQuery()) && input.getQuery().contains("Nationality")){
                 // 解析国籍和居住国
@@ -1434,9 +1427,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                     throw SupplierException.invalidParameter(getSafeSupplierName(), "酒店ID无效，无法获取酒店信息");
                 }
             });
-            if(StrUtil.isBlank(input.getQuery())){
-                throw SupplierException.missingParameter(getSafeSupplierName(), "缺少查询参数，无法报价");
-            }
+
             // 入住人国籍  "query": "{\"Nationality\":\"CN\"}",
             if(StrUtil.isNotBlank(input.getQuery()) && input.getQuery().contains("Nationality")){
                 // 解析国籍和居住国
