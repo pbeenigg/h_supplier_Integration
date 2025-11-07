@@ -25,9 +25,14 @@ import com.heytrip.hotel.supplier.client.HttpClientService;
 import com.heytrip.hotel.supplier.dto.qtech.req.*;
 import com.heytrip.hotel.supplier.dto.qtech.resp.*;
 import com.heytrip.hotel.supplier.dto.supplier.SupplierAuth;
+import com.heytrip.hotel.supplier.entity.Hotel;
+import com.heytrip.hotel.supplier.entity.Nationality;
 import com.heytrip.hotel.supplier.entity.SupplierConfig;
 import com.heytrip.hotel.supplier.enums.QTechBookingStatusEnum;
 import com.heytrip.hotel.supplier.exception.SupplierException;
+import com.heytrip.hotel.supplier.repository.CountryRepository;
+import com.heytrip.hotel.supplier.repository.HotelRepository;
+import com.heytrip.hotel.supplier.repository.NationalityRepository;
 import com.heytrip.hotel.supplier.utils.HeyUtil;
 import com.heytrip.hotel.supplier.utils.MD5Util;
 import jakarta.annotation.PostConstruct;
@@ -74,6 +79,16 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             "Kuala Lumpur", "Penang", "Johor Bahru", "Malacca", "Ipoh", "Kota Kinabalu", "Kuching",
             "Dubai", "Singapore", "Bangkok", "Manila", "Jakarta"
     );
+    private final CountryRepository countryRepository;
+    private final NationalityRepository nationalityRepository;
+    private final HotelRepository hotelRepository;
+
+
+    public AsianOverlandAdapter(CountryRepository countryRepository,NationalityRepository nationalityRepository,HotelRepository hotelRepository) {
+        this.countryRepository = countryRepository;
+        this.nationalityRepository = nationalityRepository;
+        this.hotelRepository = hotelRepository;
+    }
 
     /**
      * 初始化适配器
@@ -485,18 +500,47 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             // 币种，默认 USD
             req.setSelCurrency(StrUtil.isBlank(input.getCurrency()) ? "USD" : input.getCurrency());
 
-            //从当前酒店详细里获取 : 目的地国家/目的地城市/国籍/居住国
-            staticDataQueryService.getHotelByHotelCode(getSafeSupplierId(), getSafeSupplierName(), input.getHotelId())
-                    .ifPresent(hotel -> {
+            //设置 : 目的地国家/目的地城市/国籍/居住国
+            Optional<Hotel> hotelOptional = hotelRepository.findBySupplierIdAndSupplierCodeAndHotelCode(
+                    getSafeSupplierId(), getSafeSupplierName(), input.getHotelId());
+            hotelOptional.ifPresent(hotel -> {
                         if (hotel != null) {
-                            String country = String.valueOf(hotel.getCountryId());
+                            String countryCode = hotel.getCountryId();
+                            String cityCode = hotel.getCityCode();
                             //String country = "138"; //TODO  测试
-                            req.setSelNationality(country);
-                            req.setCountryOfResidence(country);
+                            req.setSelNationality(countryCode);
+                            req.setSelCountry(countryCode);
+                            req.setSelCity(cityCode);
                         } else {
                             throw SupplierException.invalidParameter(getSafeSupplierName(), "酒店ID无效，无法获取酒店信息");
                         }
                     });
+
+            if(StrUtil.isBlank(input.getQuery())){
+                throw SupplierException.missingParameter(getSafeSupplierName(), "缺少查询参数，无法报价");
+            }
+
+            // 住客国籍  "query": "{\"Nationality\":\"CN\"}",
+            if(StrUtil.isNotBlank(input.getQuery()) && input.getQuery().contains("Nationality")){
+                // 解析国籍和居住国
+                Map<String, String> queryMap = HeyUtil.parseQueryString(input.getQuery());
+                String Nationality = queryMap.get("Nationality");
+                if (StrUtil.isNotBlank(Nationality)) {
+                    Optional<Nationality> nationalityOptional =  nationalityRepository.findBySupplierIdAndSupplierCodeAndIsoCode(getSafeSupplierId(), getSafeSupplierName(), Nationality);
+                    if(nationalityOptional.isPresent()){
+                        Nationality national = nationalityOptional.get();
+                        String nationalityId = national.getNationalityCode();
+                        req.setCountryOfResidence(nationalityId);
+                    }else{
+                        throw SupplierException.invalidParameter(getSafeSupplierName(), "国籍代码无效，无法报价");
+                    }
+                }else {
+                    throw SupplierException.missingParameter(getSafeSupplierName(), "缺少查询参数国籍，无法报价");
+                }
+            }else{
+                throw SupplierException.missingParameter(getSafeSupplierName(), "缺少查询参数国籍，无法报价");
+            }
+
 
             // 房间明细与房间数
             List<QTechSearchRequest.RoomDetail> details = HeyUtil.buildQTechRoomDetails(input.getOccupancy());
@@ -602,10 +646,37 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                         .ifPresent(hotel -> {
                             if (hotel != null && ObjUtil.isNotNull(hotel.getCountryId())) {
                                 req.setSelNationality(String.valueOf(hotel.getCountryId()));
-                                req.setCountryOfResidence(String.valueOf(hotel.getCountryId()));
+                                req.setSelCountry(String.valueOf(hotel.getCountryId()));
+                                req.setSelCity(hotel.getCity());
                             }
                         });
             });
+
+
+            if(StrUtil.isBlank(input.getQuery())){
+                throw SupplierException.missingParameter(getSafeSupplierName(), "缺少查询参数，无法报价");
+            }
+            // 入住人国籍  "query": "{\"Nationality\":\"CN\"}",
+            if(StrUtil.isNotBlank(input.getQuery()) && input.getQuery().contains("Nationality")){
+                // 解析国籍和居住国
+                Map<String, String> queryMap = HeyUtil.parseQueryString(input.getQuery());
+                String Nationality = queryMap.get("Nationality");
+                if (StrUtil.isNotBlank(Nationality)) {
+                    Optional<Nationality> nationalityOptional =  nationalityRepository.findBySupplierIdAndSupplierCodeAndIsoCode(getSafeSupplierId(), getSafeSupplierName(), Nationality);
+                    if(nationalityOptional.isPresent()){
+                        Nationality national = nationalityOptional.get();
+                        String nationalityId = national.getNationalityCode();
+                        req.setCountryOfResidence(nationalityId);
+                    }else{
+                        throw SupplierException.invalidParameter(getSafeSupplierName(), "国籍代码无效，无法报价");
+                    }
+                }else {
+                    throw SupplierException.missingParameter(getSafeSupplierName(), "缺少查询参数国籍，无法报价");
+                }
+            }else{
+                throw SupplierException.missingParameter(getSafeSupplierName(), "缺少查询参数国籍，无法报价");
+            }
+
 
             // 房间明细与房间数
             List<QTechSearchRequest.RoomDetail> details = HeyUtil.buildQTechRoomDetails(input.getOccupancy());
@@ -727,18 +798,45 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
         // 币种，默认 USD
         searchRequest.setSelCurrency(StrUtil.isBlank(input.getCurrency()) ? "USD" : input.getCurrency());
 
-        // 设置国家信息
-        staticDataQueryService.getHotelByHotelCode(getSafeSupplierId(), getSafeSupplierName(), searchRequest.getHotelIds())
-                .ifPresent(hotel -> {
-                    if (hotel != null) {
-                        String country = String.valueOf(hotel.getCountryId());
-                        //String country = "138"; //TODO  测试
-                        searchRequest.setSelNationality(country);
-                        searchRequest.setCountryOfResidence(country);
-                    } else {
-                        throw SupplierException.invalidParameter(getSafeSupplierName(), "酒店ID无效，无法获取酒店信息");
-                    }
-                });
+        //设置 : 目的地国家/目的地城市/国籍/居住国
+        Optional<Hotel> hotelOptional = hotelRepository.findBySupplierIdAndSupplierCodeAndHotelCode(
+                getSafeSupplierId(), getSafeSupplierName(), input.getHotelId());
+        hotelOptional.ifPresent(hotel -> {
+            if (hotel != null) {
+                String countryCode = hotel.getCountryId();
+                String cityCode = hotel.getCityCode();
+                //String country = "138"; //TODO  测试
+                searchRequest.setSelNationality(countryCode);
+                searchRequest.setSelCountry(countryCode);
+                searchRequest.setSelCity(cityCode);
+            } else {
+                throw SupplierException.invalidParameter(getSafeSupplierName(), "酒店ID无效，无法获取酒店信息");
+            }
+        });
+
+        if(StrUtil.isBlank(input.getQuery())){
+            throw SupplierException.missingParameter(getSafeSupplierName(), "缺少查询参数，无法报价");
+        }
+        // 入住人国籍  "query": "{\"Nationality\":\"CN\"}",
+        if(StrUtil.isNotBlank(input.getQuery()) && input.getQuery().contains("Nationality")){
+            // 解析国籍和居住国
+            Map<String, String> queryMap = HeyUtil.parseQueryString(input.getQuery());
+            String Nationality = queryMap.get("Nationality");
+            if (StrUtil.isNotBlank(Nationality)) {
+                Optional<Nationality> nationalityOptional =  nationalityRepository.findBySupplierIdAndSupplierCodeAndIsoCode(getSafeSupplierId(), getSafeSupplierName(), Nationality);
+                if(nationalityOptional.isPresent()){
+                    Nationality national = nationalityOptional.get();
+                    String nationalityId = national.getNationalityCode();
+                    searchRequest.setCountryOfResidence(nationalityId);
+                }else{
+                    throw SupplierException.invalidParameter(getSafeSupplierName(), "国籍代码无效，无法报价");
+                }
+            }else {
+                throw SupplierException.missingParameter(getSafeSupplierName(), "缺少查询参数国籍，无法报价");
+            }
+        }else{
+            throw SupplierException.missingParameter(getSafeSupplierName(), "缺少查询参数国籍，无法报价");
+        }
 
         // 房间明细与房间数
         List<QTechSearchRequest.RoomDetail> roomDetails = HeyUtil.buildQTechRoomDetails(input.getOccupancy());
@@ -995,7 +1093,8 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                     .ifPresent(hotel -> {
                         if (hotel != null && ObjUtil.isNotNull(hotel.getCountryId())) {
                             req.setSelNationality(String.valueOf(hotel.getCountryId()));
-                            req.setCountryOfResidence(String.valueOf(hotel.getCountryId()));
+                            req.setSelCountry(String.valueOf(hotel.getCountryId()));
+                            req.setSelCity(String.valueOf(hotel.getCityId()));
                         }
                     });
         });
@@ -1079,15 +1178,45 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             // 币种，默认 USD
             req.setSelCurrency(StrUtil.isBlank(input.getCurrency()) ? "USD" : input.getCurrency());
 
-            //从当前酒店详细里获取 : 目的地国家/目的地城市/国籍/居住国
-            staticDataQueryService.getHotelByHotelCode(getSafeSupplierId(), getSafeSupplierName(), input.getHotelId())
-                    .ifPresent(hotel -> {
-                        if (hotel != null) {
-                            String country = String.valueOf(hotel.getCountryId());
-                            req.setSelNationality(country);
-                            req.setCountryOfResidence(country);
-                        }
-                    });
+            //设置 : 目的地国家/目的地城市/国籍/居住国
+            Optional<Hotel> hotelOptional = hotelRepository.findBySupplierIdAndSupplierCodeAndHotelCode(
+                    getSafeSupplierId(), getSafeSupplierName(), input.getHotelId());
+            hotelOptional.ifPresent(hotel -> {
+                if (hotel != null) {
+                    String countryCode = hotel.getCountryId();
+                    String cityCode = hotel.getCityCode();
+                    //String country = "138"; //TODO  测试
+                    req.setSelNationality(countryCode);
+                    req.setSelCountry(countryCode);
+                    req.setSelCity(cityCode);
+                } else {
+                    throw SupplierException.invalidParameter(getSafeSupplierName(), "酒店ID无效，无法获取酒店信息");
+                }
+            });
+
+            if(StrUtil.isBlank(input.getQuery())){
+                throw SupplierException.missingParameter(getSafeSupplierName(), "缺少查询参数，无法报价");
+            }
+            // 入住人国籍  "query": "{\"Nationality\":\"CN\"}",
+            if(StrUtil.isNotBlank(input.getQuery()) && input.getQuery().contains("Nationality")){
+                // 解析国籍和居住国
+                Map<String, String> queryMap = HeyUtil.parseQueryString(input.getQuery());
+                String Nationality = queryMap.get("Nationality");
+                if (StrUtil.isNotBlank(Nationality)) {
+                    Optional<Nationality> nationalityOptional =  nationalityRepository.findBySupplierIdAndSupplierCodeAndIsoCode(getSafeSupplierId(), getSafeSupplierName(), Nationality);
+                    if(nationalityOptional.isPresent()){
+                        Nationality national = nationalityOptional.get();
+                        String nationalityId = national.getNationalityCode();
+                        req.setCountryOfResidence(nationalityId);
+                    }else{
+                        throw SupplierException.invalidParameter(getSafeSupplierName(), "国籍代码无效，无法报价");
+                    }
+                }else {
+                    throw SupplierException.missingParameter(getSafeSupplierName(), "缺少查询参数国籍，无法报价");
+                }
+            }else{
+                throw SupplierException.missingParameter(getSafeSupplierName(), "缺少查询参数国籍，无法报价");
+            }
 
             // 房间明细与房间数
             List<QTechSearchRequest.RoomDetail> details = HeyUtil.buildQTechRoomDetails(input.getOccupancy());
@@ -1198,6 +1327,19 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                 logger.warn("[AsianOverlandAdapter.orderCheck] 房型不可退订: {}", policyResponse.getRefundPolicyText());
             }
 
+            /**
+             * 合同备注
+             * 如果该酒店有任何特殊规则、政策或附加费用，将在本属性中提及。它可能包括预订说明或重要信息。
+             *
+             */
+            if(StrUtil.isNotBlank(policyResponse.getContractComment())){
+                logger.debug("[AsianOverlandAdapter.orderCheck] 取消规则 - 合同备注: {}", policyResponse.getContractComment());
+                matchedRoom.getRatePlans().forEach(rp -> {
+                        rp.setDescription(policyResponse.getContractComment());
+                });
+            }
+
+
             // 6. 价格对比验证（必须相等）
             BigDecimal searchTotalPrice = targetHotel.getTotalCharges();
             BigDecimal policyTotalPrice = policyResponse.getTotalBookingAmount();
@@ -1268,15 +1410,44 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             // 币种，默认 USD
             req.setSelCurrency(StrUtil.isBlank(input.getCurrency()) ? "USD" : input.getCurrency());
 
-            //从当前酒店详细里获取 : 目的地国家/目的地城市/国籍/居住国
-            staticDataQueryService.getHotelByHotelCode(getSafeSupplierId(), getSafeSupplierName(), input.getHotelId())
-                    .ifPresent(hotel -> {
-                        if (hotel != null) {
-                            String country = String.valueOf(hotel.getCountryId());
-                            req.setSelNationality(country);
-                            req.setCountryOfResidence(country);
-                        }
-                    });
+            //设置 : 目的地国家/目的地城市/国籍/居住国
+            Optional<Hotel> hotelOptional = hotelRepository.findBySupplierIdAndSupplierCodeAndHotelCode(
+                    getSafeSupplierId(), getSafeSupplierName(), input.getHotelId());
+            hotelOptional.ifPresent(hotel -> {
+                if (hotel != null) {
+                    String countryCode = hotel.getCountryId();
+                    String cityCode = hotel.getCityCode();
+                    //String country = "138"; //TODO  测试
+                    req.setSelNationality(countryCode);
+                    req.setSelCountry(countryCode);
+                    req.setSelCity(cityCode);
+                } else {
+                    throw SupplierException.invalidParameter(getSafeSupplierName(), "酒店ID无效，无法获取酒店信息");
+                }
+            });
+            if(StrUtil.isBlank(input.getQuery())){
+                throw SupplierException.missingParameter(getSafeSupplierName(), "缺少查询参数，无法报价");
+            }
+            // 入住人国籍  "query": "{\"Nationality\":\"CN\"}",
+            if(StrUtil.isNotBlank(input.getQuery()) && input.getQuery().contains("Nationality")){
+                // 解析国籍和居住国
+                Map<String, String> queryMap = HeyUtil.parseQueryString(input.getQuery());
+                String Nationality = queryMap.get("Nationality");
+                if (StrUtil.isNotBlank(Nationality)) {
+                    Optional<Nationality> nationalityOptional =  nationalityRepository.findBySupplierIdAndSupplierCodeAndIsoCode(getSafeSupplierId(), getSafeSupplierName(), Nationality);
+                    if(nationalityOptional.isPresent()){
+                        Nationality national = nationalityOptional.get();
+                        String nationalityId = national.getNationalityCode();
+                        req.setCountryOfResidence(nationalityId);
+                    }else{
+                        throw SupplierException.invalidParameter(getSafeSupplierName(), "国籍代码无效，无法报价");
+                    }
+                }else {
+                    throw SupplierException.missingParameter(getSafeSupplierName(), "缺少查询参数国籍，无法报价");
+                }
+            }else{
+                throw SupplierException.missingParameter(getSafeSupplierName(), "缺少查询参数国籍，无法报价");
+            }
 
             // 房间明细与房间数
             List<QTechSearchRequest.RoomDetail> details = HeyUtil.buildQTechRoomDetails(input.getOccupancy());

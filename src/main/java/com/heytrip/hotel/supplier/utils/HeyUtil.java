@@ -2,6 +2,7 @@ package com.heytrip.hotel.supplier.utils;
 
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.util.StrUtil;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.heytrip.common.enums.XEnumCurrency;
 import com.heytrip.hotel.supplier.dto.qtech.req.QTechSearchRequest;
 import jakarta.servlet.http.HttpServletRequest;
@@ -32,6 +33,60 @@ public class HeyUtil {
     public static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     public static final DateTimeFormatter DATE_FORMATTER_Z = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss Z");
     private static final DateTimeFormatter DATE_FORMATTER_ISO = DateTimeFormatter.ISO_DATE_TIME;
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
+
+
+    /**
+     * 解析查询字符串为键值对映射
+     *
+     * @param query 查询字符串，如 " "query": "{\"Nationality\":\"CN\"}" | "query": "Nationality=CN&City=guangzhou" "
+     * @return 键值对映射
+     */
+    public static  Map<String,String> parseQueryString(String query) {
+        Map<String, String> result = new HashMap<>();
+        if (StrUtil.isBlank(query)) {
+            return result;
+        }
+
+        // 移除可能的外层引号
+        String trimmed = query.trim();
+        if ((trimmed.startsWith("\"") && trimmed.endsWith("\"")) ||
+                (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+            trimmed = trimmed.substring(1, trimmed.length() - 1).trim();
+        }
+
+        // 处理转义的引号: {\"Nationality\":\"CN\"} -> {"Nationality":"CN"}
+        trimmed = trimmed.replace("\\\"", "\"");
+
+        // 尝试解析为 JSON 对象
+        try {
+            // 使用ObjectMapper解析JSON字符串为Map<String, Object>，然后转换为Map<String, String>
+            @SuppressWarnings("unchecked")
+            Map<String, Object> tempMap = MAPPER.readValue(trimmed, Map.class);
+            // 将所有值转换为字符串
+            for (Map.Entry<String, Object> entry : tempMap.entrySet()) {
+                result.put(entry.getKey(), entry.getValue() != null ? String.valueOf(entry.getValue()) : null);
+            }
+            return result;
+        } catch (Exception e) {
+            logger.warn("无法解析为JSON，尝试键值对格式: {}", trimmed);
+        }
+
+        // 按 & 分割键值对
+        String[] pairs = trimmed.split("&");
+        for (String pair : pairs) {
+            String[] keyValue = pair.split("=", 2);
+            if (keyValue.length == 2) {
+                String key = keyValue[0].trim();
+                String value = keyValue[1].trim();
+                result.put(key, value);
+            }
+        }
+
+        return result;
+
+    }
 
 
     /**

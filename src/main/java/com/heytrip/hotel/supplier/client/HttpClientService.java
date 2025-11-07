@@ -488,8 +488,14 @@ public class HttpClientService {
             log.setResponseTimeMs(responseTime);
             log.setErrorMessage(errorMessage);
             log.setIsSuccess(statusCode >= 200 && statusCode < 300);
-            log.setBusinessType("http_client");
+
+
             log.setChannel("api");
+
+            //从requestHeadersJson ｜requestParamsJson ｜ requestData 提取 业务类型相关的字段  关键字（action, businessType）
+            String businessType = extractBusinessType(requestHeadersJson, requestParamsJson, requestData);
+            log.setBusinessType(businessType != null ? businessType : "http_client");
+
 
             // 额外补充字段
             log.setRequestHeaders(requestHeadersJson);
@@ -811,6 +817,81 @@ public class HttpClientService {
         }
         
         return hasPermits && goodSuccessRate;
+    }
+
+    /**
+     * 从请求头、请求参数或请求体中提取业务类型
+     * 优先级：请求头 > 请求参数 > 请求体
+     * 
+     * @param requestHeadersJson 请求头JSON字符串
+     * @param requestParamsJson 请求参数JSON字符串
+     * @param requestBodyJson 请求体JSON字符串
+     * @return 业务类型，如果未找到则返回null
+     */
+    private String extractBusinessType(String requestHeadersJson, String requestParamsJson, String requestBodyJson) {
+        try {
+            // 定义业务类型相关的关键字（按优先级排序）
+            String[] businessTypeKeys = {"businessType", "business_type", "action", "apiAction", "api_action", "operation", "method"};
+            
+            // 1. 优先从请求头中提取
+            String businessType = extractFromJson(requestHeadersJson, businessTypeKeys);
+            if (businessType != null) {
+                logger.debug("[extractBusinessType] 从请求头提取到业务类型: {}", businessType);
+                return businessType;
+            }
+            
+            // 2. 从请求参数中提取
+            businessType = extractFromJson(requestParamsJson, businessTypeKeys);
+            if (businessType != null) {
+                logger.debug("[extractBusinessType] 从请求参数提取到业务类型: {}", businessType);
+                return businessType;
+            }
+            
+            // 3. 从请求体中提取
+            businessType = extractFromJson(requestBodyJson, businessTypeKeys);
+            if (businessType != null) {
+                logger.debug("[extractBusinessType] 从请求体提取到业务类型: {}", businessType);
+                return businessType;
+            }
+            
+            return null;
+        } catch (Exception e) {
+            logger.warn("[extractBusinessType] 提取业务类型失败", e);
+            return null;
+        }
+    }
+
+    /**
+     * 从JSON字符串中提取指定关键字的值
+     * 
+     * @param jsonStr JSON字符串
+     * @param keys 要查找的关键字数组（按优先级排序）
+     * @return 找到的第一个非空值，如果未找到则返回null
+     */
+    private String extractFromJson(String jsonStr, String[] keys) {
+        try {
+            if (jsonStr == null || jsonStr.trim().isEmpty()) {
+                return null;
+            }
+            
+            Map<?, ?> map = MAPPER.readValue(jsonStr, Map.class);
+            
+            // 按优先级遍历关键字
+            for (String key : keys) {
+                Object value = map.get(key);
+                if (value != null) {
+                    String strValue = String.valueOf(value).trim();
+                    if (!strValue.isEmpty() && !"null".equalsIgnoreCase(strValue)) {
+                        return strValue;
+                    }
+                }
+            }
+            
+            return null;
+        } catch (Exception e) {
+            logger.debug("[extractFromJson] JSON解析失败: {}", e.getMessage());
+            return null;
+        }
     }
 
 }

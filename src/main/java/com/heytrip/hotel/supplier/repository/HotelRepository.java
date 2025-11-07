@@ -1,6 +1,8 @@
 package com.heytrip.hotel.supplier.repository;
 
+import com.heytrip.hotel.supplier.constant.CacheNames;
 import com.heytrip.hotel.supplier.entity.Hotel;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -18,6 +20,8 @@ import java.util.Optional;
  */
 @Repository
 public interface HotelRepository extends JpaRepository<Hotel, Long>, JpaSpecificationExecutor<Hotel> {
+
+    @Cacheable(cacheNames = CacheNames.HOTEL, key = "'ONE:'+ #supplierId + ':' + #supplierCode + ':' + #hotelCode")
     Optional<Hotel> findBySupplierIdAndSupplierCodeAndHotelCode(Long supplierId, String supplierCode, String hotelCode);
     
     List<Hotel> findBySupplierIdAndSupplierCodeAndHotelCodeIn(Long supplierId, String supplierCode, List<String> hotelCodes);
