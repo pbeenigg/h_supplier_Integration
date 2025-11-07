@@ -108,7 +108,7 @@ export default function LogsPage() {
       case 'distribution-call':
         return [...commonFields, 'traceId', 'businessType', 'hotelKey', 'checkInKey', 'checkOutKey']
       case 'supplier':
-        return [...commonFields, 'traceId', 'hotelKey']
+        return [...commonFields, 'traceId', 'hotelKey', 'businessType']
       case 'sync':
         return [...commonFields, 'businessType']
       default:
@@ -124,9 +124,9 @@ export default function LogsPage() {
       case 'distribution-orders':
         return ['createOrder', 'cancelOrder', 'orderCheck', 'modifyOrder']
       case 'supplier':
-        return ['httpClient']
+        return ['hotel_search','hotel_detail','hotel_cancellation_policy','hotel_reservation','booking_detail','get_cancellation_charges','cancel_the_booking']
       case 'sync':
-        return ['countries', 'cities', 'hotels', 'nationality', 'giata']
+        return ['hotel_bookable','countries', 'cities', 'hotels', 'nationality', 'giata']
       default:
         return []
     }
@@ -220,9 +220,10 @@ export default function LogsPage() {
           // API调用日志参数
           if (queryParams.traceId) params.append('traceId', queryParams.traceId)
           if (queryParams.hotelKey) params.append('hotelKey', queryParams.hotelKey)
+          if (queryParams.businessType) params.append('businessType', queryParams.businessType)
           break
         case 'sync':
-          // 同步日志参数 - 无额外参数
+          if (queryParams.businessType) params.append('businessType', queryParams.businessType)
           break
       }
 
@@ -323,8 +324,17 @@ export default function LogsPage() {
       'orderCheck': 'bg-violet-100 text-violet-800',    // 紫罗兰色 - 订单检查
       'getHotel': 'bg-lime-100 text-lime-800',          // 青柠色 - 获取酒店
 
+
+
       // API调用日志 业务类型
-      'httpClient': 'bg-slate-100 text-slate-800',     // 石板色 - HTTP客户端
+      'httpClient': 'bg-slate-100 text-slate-800', // 石板色 - HTTP客户端
+      'hotel_search': 'bg-blue-100 text-blue-800',      // 蓝色 - 酒店搜索
+      'hotel_detail': 'bg-purple-100 text-purple-800',  // 紫色 - 酒店详情
+      'hotel_cancellation_policy': 'bg-pink-100 text-pink-800', // 粉色 - 酒店取消政策
+      'hotel_reservation': 'bg-green-100 text-green-800', // 绿色 - 酒店预订
+      'booking_detail': 'bg-yellow-100 text-yellow-800', // 黄色 - 预订详情
+      'get_cancellation_charges': 'bg-red-100 text-red-800', // 红色 - 获取取消费用
+      'cancel_the_booking' : 'bg-gray-100 text-gray-800', // 灰色 - 取消预订
 
       // 同步日志 业务类型
       'countries': 'bg-pink-100 text-pink-800',         // 粉色 - 国家同步
@@ -332,6 +342,7 @@ export default function LogsPage() {
       'hotels': 'bg-green-100 text-green-800',          // 绿色 - 酒店同步
       'nationality': 'bg-cyan-100 text-cyan-800',       // 青色 - 国籍同步
       'giata': 'bg-purple-100 text-purple-800',         // 紫色 - Giata同步
+      'hotel_bookable': 'bg-teal-100 text-teal-800',    // 青色 - 可预订酒店同步
 
       // 默认样式
       'default': 'bg-gray-100 text-gray-800'            // 灰色 - 默认

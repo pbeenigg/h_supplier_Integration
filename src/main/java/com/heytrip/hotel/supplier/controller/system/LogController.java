@@ -75,6 +75,7 @@ public class LogController {
             @RequestParam(required = false) Long supplierId,
             @RequestParam(required = false) String traceId,
             @RequestParam(required = false) Boolean isSuccess,
+            @RequestParam(required = false) String businessType,
             @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") Date startTime,
             @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") Date endTime,
             @RequestParam(defaultValue = "0") int page,
@@ -113,6 +114,9 @@ public class LogController {
                 }
                 if (endTime != null) {
                     predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("createdAt"), endTime));
+                }
+                if (businessType != null && !businessType.trim().isEmpty()) {
+                    predicates.add(criteriaBuilder.equal(root.get("businessType"), businessType));
                 }
 
                 return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
