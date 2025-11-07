@@ -531,14 +531,17 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                         Nationality national = nationalityOptional.get();
                         String nationalityId = national.getNationalityCode();
                         req.setCountryOfResidence(nationalityId);
-                    }else{
-                        throw SupplierException.invalidParameter(getSafeSupplierName(), "国籍代码无效，无法报价");
                     }
-                }else {
-                    throw SupplierException.missingParameter(getSafeSupplierName(), "缺少查询参数国籍，无法报价");
                 }
-            }else{
-                throw SupplierException.missingParameter(getSafeSupplierName(), "缺少查询参数国籍，无法报价");
+            }
+            if(StrUtil.isBlank(req.getCountryOfResidence())){
+                //默认设置为中国国籍  CN
+                Optional<Nationality> nationalityOptional =  nationalityRepository.findBySupplierIdAndSupplierCodeAndIsoCode(getSafeSupplierId(), getSafeSupplierName(), "CN");
+                if(nationalityOptional.isPresent()){
+                    Nationality national = nationalityOptional.get();
+                    String nationalityId = national.getNationalityCode();
+                    req.setCountryOfResidence(nationalityId);
+                }
             }
 
 
@@ -828,14 +831,17 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                     Nationality national = nationalityOptional.get();
                     String nationalityId = national.getNationalityCode();
                     searchRequest.setCountryOfResidence(nationalityId);
-                }else{
-                    throw SupplierException.invalidParameter(getSafeSupplierName(), "国籍代码无效，无法报价");
                 }
-            }else {
-                throw SupplierException.missingParameter(getSafeSupplierName(), "缺少查询参数国籍，无法报价");
             }
-        }else{
-            throw SupplierException.missingParameter(getSafeSupplierName(), "缺少查询参数国籍，无法报价");
+        }
+        if(StrUtil.isBlank(searchRequest.getCountryOfResidence())){
+            //默认设置为中国国籍  CN
+            Optional<Nationality> nationalityOptional =  nationalityRepository.findBySupplierIdAndSupplierCodeAndIsoCode(getSafeSupplierId(), getSafeSupplierName(), "CN");
+            if(nationalityOptional.isPresent()){
+                Nationality national = nationalityOptional.get();
+                String nationalityId = national.getNationalityCode();
+                searchRequest.setCountryOfResidence(nationalityId);
+            }
         }
 
         // 房间明细与房间数
@@ -1208,14 +1214,17 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                         Nationality national = nationalityOptional.get();
                         String nationalityId = national.getNationalityCode();
                         req.setCountryOfResidence(nationalityId);
-                    }else{
-                        throw SupplierException.invalidParameter(getSafeSupplierName(), "国籍代码无效，无法报价");
                     }
-                }else {
-                    throw SupplierException.missingParameter(getSafeSupplierName(), "缺少查询参数国籍，无法报价");
                 }
-            }else{
-                throw SupplierException.missingParameter(getSafeSupplierName(), "缺少查询参数国籍，无法报价");
+            }
+            if(StrUtil.isBlank(req.getCountryOfResidence())){
+                //默认设置为中国国籍  CN
+                Optional<Nationality> nationalityOptional =  nationalityRepository.findBySupplierIdAndSupplierCodeAndIsoCode(getSafeSupplierId(), getSafeSupplierName(), "CN");
+                if(nationalityOptional.isPresent()){
+                    Nationality national = nationalityOptional.get();
+                    String nationalityId = national.getNationalityCode();
+                    req.setCountryOfResidence(nationalityId);
+                }
             }
 
             // 房间明细与房间数
@@ -1439,14 +1448,17 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                         Nationality national = nationalityOptional.get();
                         String nationalityId = national.getNationalityCode();
                         req.setCountryOfResidence(nationalityId);
-                    }else{
-                        throw SupplierException.invalidParameter(getSafeSupplierName(), "国籍代码无效，无法报价");
                     }
-                }else {
-                    throw SupplierException.missingParameter(getSafeSupplierName(), "缺少查询参数国籍，无法报价");
                 }
-            }else{
-                throw SupplierException.missingParameter(getSafeSupplierName(), "缺少查询参数国籍，无法报价");
+            }
+            if(StrUtil.isBlank(req.getCountryOfResidence())){
+                //默认设置为中国国籍  CN
+                Optional<Nationality> nationalityOptional =  nationalityRepository.findBySupplierIdAndSupplierCodeAndIsoCode(getSafeSupplierId(), getSafeSupplierName(), "CN");
+                if(nationalityOptional.isPresent()){
+                    Nationality national = nationalityOptional.get();
+                    String nationalityId = national.getNationalityCode();
+                    req.setCountryOfResidence(nationalityId);
+                }
             }
 
             // 房间明细与房间数
