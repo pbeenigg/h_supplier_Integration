@@ -105,7 +105,7 @@ public class StaticDataSyncService {
         SupplierFtp ftp = parseFtpConfig(sc.getFtpConfig());
         logger.info("开始静态数据同步，supplierId={}, supplierCode={}", supplierId, supplierCode);
         if(recentSyncMap.getOrDefault(COUNTRIES, false) == Boolean.FALSE) {
-            //syncOne(() -> syncCountries(ftp, supplierId, supplierCode), supplierId, supplierCode, COUNTRIES, ftp.getCountriesPath());
+            syncOne(() -> syncCountries(ftp, supplierId, supplierCode), supplierId, supplierCode, COUNTRIES, ftp.getCountriesPath());
         }
         if(recentSyncMap.getOrDefault(CITIES, false) == Boolean.FALSE){
             syncOne(() -> syncCities(ftp, supplierId, supplierCode), supplierId, supplierCode, CITIES, ftp.getCitiesPath());
@@ -359,7 +359,13 @@ public class StaticDataSyncService {
     private SyncStats batchUpsertCountries(List<Map<String, String>> rows, Long supplierId, String supplierCode) {
         int deleted = deleteBySupplier(Country.class, supplierId, supplierCode);
         logger.info("已清理旧国家数据，supplierId={}, supplierCode={}, 删除行数={}", supplierId, supplierCode, deleted);
-        List<Country> list = aoStaticDataParser.parseCountries(rows, supplierId, supplierCode);
+
+        // 预加载国家简码，供解析时关联使用
+        Map<String ,String> isoMap = nationalityRepo.findAll().stream()
+                .filter(c -> c.getSupplierId().equals(supplierId) && c.getSupplierCode().equals(supplierCode))
+                .collect(HashMap::new, (m, c) -> m.put(c.getNationalityCode(), c.getIsoCode()), HashMap::putAll);
+
+        List<Country> list = aoStaticDataParser.parseCountries(rows, supplierId, supplierCode,isoMap);
         SaveResult sr = saveInBatchesReturnCount(list, countryRepo);
         return new SyncStats(rows.size(), sr.saved, rows.size() - list.size(), sr.errors, sr.errorMsg);
     }
@@ -375,10 +381,10 @@ public class StaticDataSyncService {
     private SyncStats batchUpsertHotels(List<Map<String, String>> rows, Long supplierId, String supplierCode) {
         int deleted = deleteBySupplier(Hotel.class, supplierId, supplierCode);
         logger.info("已清理旧酒店数据，supplierId={}, supplierCode={}, 删除行数={}", supplierId, supplierCode, deleted);
-
-       Map<Long ,Country> countryMap = countryRepo.findAll().stream()
+        // 预加载国家数据，供解析时关联使用
+       Map<String ,Country> countryMap = countryRepo.findAll().stream()
                 .filter(c -> c.getSupplierId().equals(supplierId) && c.getSupplierCode().equals(supplierCode))
-                .collect(HashMap::new, (m, c) -> m.put(c.getId(), c), HashMap::putAll);
+                .collect(HashMap::new, (m, c) -> m.put(c.getCountryId(), c), HashMap::putAll);
 
         List<Hotel> list = aoStaticDataParser.parseHotels(rows, supplierId, supplierCode,countryMap);
         SaveResult sr = saveInBatchesReturnCount(list, hotelRepo);

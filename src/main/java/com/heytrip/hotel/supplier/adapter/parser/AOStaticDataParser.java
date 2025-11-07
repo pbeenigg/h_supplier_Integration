@@ -24,18 +24,24 @@ public class AOStaticDataParser implements StaticDataParser {
     private static final Logger logger = LoggerFactory.getLogger(AOStaticDataParser.class);
 
     @Override
-    public List<Country> parseCountries(List<Map<String, String>> rows, Long supplierId, String supplierCode) {
+    public List<Country> parseCountries(List<Map<String, String>> rows, Long supplierId, String supplierCode,Map<String ,String> isoMap) {
         List<Country> list = new ArrayList<>();
         for (Map<String, String> row : rows) {
             String countryCode = val(row, "country_code");
             if (isBlank(countryCode)) {
                 continue;
             }
+
             Country e = new Country();
             e.setSupplierId(supplierId);
             e.setSupplierCode(supplierCode);
             e.setCountryId(countryCode);
             e.setCountryName(val(row, "country_name"));
+
+            if(isoMap != null && isoMap.containsKey(countryCode)){
+                e.setCountryCode(isoMap.get(countryCode));
+            }
+
             list.add(e);
         }
         return list;
@@ -62,7 +68,7 @@ public class AOStaticDataParser implements StaticDataParser {
     }
 
     @Override
-    public List<Hotel> parseHotels(List<Map<String, String>> rows, Long supplierId, String supplierCode, Map<Long, Country> countryMap) {
+    public List<Hotel> parseHotels(List<Map<String, String>> rows, Long supplierId, String supplierCode, Map<String, Country> countryMap) {
 
 
         List<Hotel> list = new ArrayList<>();
@@ -84,8 +90,8 @@ public class AOStaticDataParser implements StaticDataParser {
             e.setCountryId(val(row, "country_code"));
 
             // 补充国家名称和代码
-            if(StrUtil.isNotBlank(e.getCountryId())){
-                Country country = countryMap.getOrDefault(Long.parseLong(e.getCountryId()),null);
+            if(StrUtil.isNotBlank(e.getCountryId()) && countryMap != null && countryMap.containsKey(e.getCountryId())){
+                Country country = countryMap.getOrDefault(e.getCountryId(),null);
                 if(country != null){
                     e.setCountryCode(country.getCountryCode());
                     e.setCountry(country.getCountryName());

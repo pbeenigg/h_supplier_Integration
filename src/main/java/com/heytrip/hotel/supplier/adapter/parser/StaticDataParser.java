@@ -12,11 +12,11 @@ import java.util.Map;
  */
 public interface StaticDataParser {
 
-    List<Country> parseCountries(List<Map<String, String>> rows, Long supplierId, String supplierCode);
+    List<Country> parseCountries(List<Map<String, String>> rows, Long supplierId, String supplierCode,Map<String ,String> isoMap);
 
     List<City> parseCities(List<Map<String, String>> rows, Long supplierId, String supplierCode);
 
-    List<Hotel> parseHotels(List<Map<String, String>> rows, Long supplierId, String supplierCode, Map<Long ,Country> countryMap);
+    List<Hotel> parseHotels(List<Map<String, String>> rows, Long supplierId, String supplierCode, Map<String ,Country> countryMap);
 
     List<Nationality> parseNationalities(List<Map<String, String>> rows, Long supplierId, String supplierCode);
 
