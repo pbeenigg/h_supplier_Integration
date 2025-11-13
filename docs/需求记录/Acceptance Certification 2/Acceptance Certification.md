@@ -144,7 +144,7 @@
 - Hotel Name: Sh Hotel
 - Hotel Id: OT000732790
 - Order Number: 251107173149595353
-- Booking Id: COH21539
+- Booking Id: 21539
 - Total Charges:  HeyTrip = 576 CNY   AOS = 575.09 CNY
 #### Hotel Booking Details  image   
 ![img_2.png](img_2.png)
@@ -330,7 +330,7 @@
 
 
 
-### 2 Adults + 2 Child × 1 Room, 2 Adults × 1 Room, 1 Adult × 1 Room (Total Rooms: 3)  
+### 2 Adults × 2 Rooms, 1 Adult × 1 Room (Total Rooms: 3)  
 - Hotel Country:  138  迪拜  Dubai
 - Hotel Name: Sh Hotel
 - Hotel Id: OT000732790
@@ -422,4 +422,22 @@
   "endTime": "2025-11-07 09:35:22"
 }
 ```
+
+### Cancelled reservation
+- Booking Id: 21537、 21538、 21539、 21541、 21534
+
+### Modify the submitted authentication rule information
+Reason: Incorrectly filled in
+- 2 Adults + 2 Child × 1 Room, 2 Adults × 1 Room, 1 Adult × 1 Room (Total Rooms: 3)    ->  2 Adults × 2 Rooms, 1 Adult × 1 Room (Total Rooms: 3)
+
+
+### API Request Parameters   ->   Set nationality correctly
+- sel_country  Dubai 138
+- sel_city   138_2649_9013
+- country_of_residence  China 103
+- sel_nationality China 103
+```url
+/ws/index.php?sel_city=138_2649_9013&sel_currency=CNY&availableonly=1&country_of_residence=103&sel_country=138&roomDetails=[{"numberOfAdults":2},{"numberOfAdults":2},{"numberOfAdults":1}]&gzip=no&chk_ratings=1.0,2.0,3.0,4.0,5.0&checkout_date=21/01/2026&timeout=60&password=Welcome@@123&checkin_date=20/01/2026&hotel_ids=OT000732790&action=hotel_search&sel_nationality=103&static_data=1&username=Heytrip_Test&number_of_rooms=3
+```
+
 

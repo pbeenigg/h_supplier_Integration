@@ -79,6 +79,7 @@ DEPLOY_TYPE=full  # backend|web|full
 
 1. **构建阶段**
    - 后端: Maven构建JAR包
+   - 
    - 前端: pnpm构建静态文件
 
 2. **上传阶段**

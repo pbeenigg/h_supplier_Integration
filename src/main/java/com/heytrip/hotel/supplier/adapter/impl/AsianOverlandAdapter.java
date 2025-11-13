@@ -508,7 +508,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                             String countryCode = hotel.getCountryId();
                             String cityCode = hotel.getCityCode();
                             //String country = "138"; //TODO  测试
-                            req.setSelNationality(countryCode);
                             req.setSelCountry(countryCode);
                             req.setSelCity(cityCode);
                         } else {
@@ -529,6 +528,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                         Nationality national = nationalityOptional.get();
                         String nationalityId = national.getNationalityCode();
                         req.setCountryOfResidence(nationalityId);
+                        req.setSelNationality(nationalityId);
                     }
                 }
             }
@@ -539,6 +539,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                     Nationality national = nationalityOptional.get();
                     String nationalityId = national.getNationalityCode();
                     req.setCountryOfResidence(nationalityId);
+                    req.setSelNationality(nationalityId);
                 }
             }
 
@@ -646,7 +647,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                 staticDataQueryService.getHotelByHotelCode(getSafeSupplierId(), getSafeSupplierName(), firstHotelId)
                         .ifPresent(hotel -> {
                             if (hotel != null && ObjUtil.isNotNull(hotel.getCountryId())) {
-                                req.setSelNationality(String.valueOf(hotel.getCountryId()));
                                 req.setSelCountry(String.valueOf(hotel.getCountryId()));
                                 req.setSelCity(hotel.getCity());
                             }
@@ -668,6 +668,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                         Nationality national = nationalityOptional.get();
                         String nationalityId = national.getNationalityCode();
                         req.setCountryOfResidence(nationalityId);
+                        req.setSelNationality(nationalityId);
                     }else{
                         throw SupplierException.invalidParameter(getSafeSupplierName(), "国籍代码无效，无法报价");
                     }
@@ -806,8 +807,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             if (hotel != null) {
                 String countryCode = hotel.getCountryId();
                 String cityCode = hotel.getCityCode();
-                //String country = "138"; //TODO  测试
-                searchRequest.setSelNationality(countryCode);
                 searchRequest.setSelCountry(countryCode);
                 searchRequest.setSelCity(cityCode);
             } else {
@@ -827,6 +826,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                     Nationality national = nationalityOptional.get();
                     String nationalityId = national.getNationalityCode();
                     searchRequest.setCountryOfResidence(nationalityId);
+                    searchRequest.setSelNationality(nationalityId);
                 }
             }
         }
@@ -837,6 +837,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                 Nationality national = nationalityOptional.get();
                 String nationalityId = national.getNationalityCode();
                 searchRequest.setCountryOfResidence(nationalityId);
+                searchRequest.setSelNationality(nationalityId);
             }
         }
 
@@ -1094,7 +1095,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             staticDataQueryService.getHotelByHotelCode(getSafeSupplierId(), getSafeSupplierName(), firstHotelId)
                     .ifPresent(hotel -> {
                         if (hotel != null && ObjUtil.isNotNull(hotel.getCountryId())) {
-                            req.setSelNationality(String.valueOf(hotel.getCountryId()));
                             req.setSelCountry(String.valueOf(hotel.getCountryId()));
                             req.setSelCity(String.valueOf(hotel.getCityId()));
                         }
@@ -1187,8 +1187,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                 if (hotel != null) {
                     String countryCode = hotel.getCountryId();
                     String cityCode = hotel.getCityCode();
-                    //String country = "138"; //TODO  测试
-                    req.setSelNationality(countryCode);
                     req.setSelCountry(countryCode);
                     req.setSelCity(cityCode);
                 } else {
@@ -1207,6 +1205,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                         Nationality national = nationalityOptional.get();
                         String nationalityId = national.getNationalityCode();
                         req.setCountryOfResidence(nationalityId);
+                        req.setSelNationality(nationalityId);
                     }
                 }
             }
@@ -1217,6 +1216,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                     Nationality national = nationalityOptional.get();
                     String nationalityId = national.getNationalityCode();
                     req.setCountryOfResidence(nationalityId);
+                    req.setSelNationality(nationalityId);
                 }
             }
 
@@ -1420,7 +1420,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                     String countryCode = hotel.getCountryId();
                     String cityCode = hotel.getCityCode();
                     //String country = "138"; //TODO  测试
-                    req.setSelNationality(countryCode);
+
                     req.setSelCountry(countryCode);
                     req.setSelCity(cityCode);
                 } else {
@@ -1439,6 +1439,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                         Nationality national = nationalityOptional.get();
                         String nationalityId = national.getNationalityCode();
                         req.setCountryOfResidence(nationalityId);
+                        req.setSelNationality(nationalityId);
                     }
                 }
             }
@@ -1449,6 +1450,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                     Nationality national = nationalityOptional.get();
                     String nationalityId = national.getNationalityCode();
                     req.setCountryOfResidence(nationalityId);
+                    req.setSelNationality(nationalityId);
                 }
             }
 
