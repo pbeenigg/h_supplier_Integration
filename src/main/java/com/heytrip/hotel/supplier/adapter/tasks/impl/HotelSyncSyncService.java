@@ -627,10 +627,10 @@ public class HotelSyncSyncService {
         req.setCheckinDate(checkIn.format(HeyUtil.DATE_FORMATTER_DDMMYYYY));
         req.setCheckoutDate(checkOut.format(HeyUtil.DATE_FORMATTER_DDMMYYYY));
 
-        // 币种，默认 USD
-        req.setSelCurrency("USD");
-        req.setSelNationality("1");
-        req.setCountryOfResidence("1");
+        // 币种，默认 MYR   马来西亚  货币
+        req.setSelCurrency("MYR");
+        req.setSelNationality("119");
+        req.setCountryOfResidence("119");
 
         // 房间明细与房间数 默认 2 个成人
         List<QTechSearchRequest.RoomDetail> details = HeyUtil.buildQTechRoomDetails("2");

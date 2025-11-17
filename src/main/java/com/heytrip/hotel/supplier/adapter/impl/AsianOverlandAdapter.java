@@ -71,8 +71,11 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
     private static final String DEFAULT_SUPPLIER_CODE = "AsianOverland";
 
     // QTECH API 地址
-    private static final String SEARCH_BASE_URL = "http://colosseum.otrams.com:8087";
-    private static final String API_BASE_URL = "https://colosseum.otrams.com";
+    //private static final String SEARCH_BASE_URL = "http://colosseum.otrams.com:8087";
+    //private static final String API_BASE_URL = "https://colosseum.otrams.com";
+
+    private static final String SEARCH_BASE_URL = "http://api.aosconnect.com:8086";
+    private static final String API_BASE_URL = "http://api.aosconnect.com";
 
     // 支持的城市列表（可扩展）
     private static final List<String> SUPPORTED_CITIES = Arrays.asList(
@@ -497,8 +500,9 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                 logger.warn("[AsianOverlandAdapter.getPrice] 输入缺少酒店ID，无法报价");
                 throw SupplierException.missingParameter(getSafeSupplierName(), "输入缺少酒店ID，无法报价");
             }
-            // 币种，默认 USD
-            req.setSelCurrency(StrUtil.isBlank(input.getCurrency()) ? "USD" : input.getCurrency());
+            // 币种，默认 MYR
+            //req.setSelCurrency(StrUtil.isBlank(input.getCurrency()) ? "MYR" : input.getCurrency());
+            req.setSelCurrency("MYR");
 
             //设置 : 目的地国家/目的地城市/国籍/居住国
             Optional<Hotel> hotelOptional = hotelRepository.findBySupplierIdAndSupplierCodeAndHotelCode(
@@ -639,9 +643,9 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                 throw SupplierException.missingParameter(getSafeSupplierName(), "输入缺少酒店ID，无法报价");
             }
 
-            // 币种，默认 USD
-            req.setSelCurrency(StrUtil.isBlank(input.getCurrency()) ? "USD" : input.getCurrency());
-
+            // 币种，默认 MYR
+            //req.setSelCurrency(StrUtil.isBlank(input.getCurrency()) ? "USD" : input.getCurrency());
+            req.setSelCurrency("MYR");
             //尝试从第一个酒店获取国家代码
             Arrays.stream(hotelIds.split(",")).findFirst().ifPresent(firstHotelId -> {
                 staticDataQueryService.getHotelByHotelCode(getSafeSupplierId(), getSafeSupplierName(), firstHotelId)
@@ -797,9 +801,9 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
         if (StrUtil.isBlank(searchRequest.getHotelIds())) {
             throw SupplierException.invalidParameter(getSafeSupplierName(), "输入缺少酒店ID，无法报价");
         }
-        // 币种，默认 USD
-        searchRequest.setSelCurrency(StrUtil.isBlank(input.getCurrency()) ? "USD" : input.getCurrency());
-
+        // 币种，默认 MYR
+        //searchRequest.setSelCurrency(StrUtil.isBlank(input.getCurrency()) ? "USD" : input.getCurrency());
+        searchRequest.setSelCurrency("MYR");
         //设置 : 目的地国家/目的地城市/国籍/居住国
         Optional<Hotel> hotelOptional = hotelRepository.findBySupplierIdAndSupplierCodeAndHotelCode(
                 getSafeSupplierId(), getSafeSupplierName(), input.getHotelId());
@@ -1087,9 +1091,9 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             throw SupplierException.invalidParameter(getSafeSupplierName(), "输入缺少酒店ID，无法报价");
         }
 
-        // 币种，默认 USD
-        req.setSelCurrency(StrUtil.isBlank(input.getCurrency()) ? "USD" : input.getCurrency());
-
+        // 币种，默认 MYR
+        //req.setSelCurrency(StrUtil.isBlank(input.getCurrency()) ? "USD" : input.getCurrency());
+        req.setSelCurrency("MYR");
         //尝试从第一个酒店获取国家代码
         Arrays.stream(hotelIds.split(",")).findFirst().ifPresent(firstHotelId -> {
             staticDataQueryService.getHotelByHotelCode(getSafeSupplierId(), getSafeSupplierName(), firstHotelId)
@@ -1177,9 +1181,9 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                 throw SupplierException.invalidParameter(getSafeSupplierName(), "输入缺少酒店ID");
             }
 
-            // 币种，默认 USD
-            req.setSelCurrency(StrUtil.isBlank(input.getCurrency()) ? "USD" : input.getCurrency());
-
+            // 币种，默认 MYR
+            //req.setSelCurrency(StrUtil.isBlank(input.getCurrency()) ? "USD" : input.getCurrency());
+            req.setSelCurrency("MYR");
             //设置 : 目的地国家/目的地城市/国籍/居住国
             Optional<Hotel> hotelOptional = hotelRepository.findBySupplierIdAndSupplierCodeAndHotelCode(
                     getSafeSupplierId(), getSafeSupplierName(), input.getHotelId());
@@ -1409,8 +1413,9 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                 return result;
             }
 
-            // 币种，默认 USD
-            req.setSelCurrency(StrUtil.isBlank(input.getCurrency()) ? "USD" : input.getCurrency());
+            // 币种，默认 MYR
+            //req.setSelCurrency(StrUtil.isBlank(input.getCurrency()) ? "USD" : input.getCurrency());
+            req.setSelCurrency("MYR");
 
             //设置 : 目的地国家/目的地城市/国籍/居住国
             Optional<Hotel> hotelOptional = hotelRepository.findBySupplierIdAndSupplierCodeAndHotelCode(
@@ -1593,7 +1598,8 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
 
             // 币种，默认 USD
-            req.setSelCurrency("USD");
+            //req.setSelCurrency("USD");
+            req.setSelCurrency("MYR");
 
             //从当前酒店详细里获取 : 目的地国家/目的地城市/国籍/居住国
             staticDataQueryService.getHotelByHotelCode(getSafeSupplierId(), getSafeSupplierName(), hotelId)
@@ -1868,7 +1874,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             if (totalPrice != null) {
                 response.setTotalPrice(totalPrice);
                 response.setTotalBasePrice(totalPrice); // 成本价暂时设为相同
-                response.setCurrency(input.getCurrency()); // QTECH默认使用USD
+                response.setCurrency(input.getCurrency()); // QTECH默认使用MYR
                 response.setExt("" + JSONUtil.toJsonStr(reservationResponse) + ""); // 保存原始响应
             }
         }
@@ -1921,7 +1927,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                 response.setTotalPrice(totalPrice);
                 response.setTotalBasePrice(totalPrice); // 成本价暂时设为相同
                 response.setCurrency(detailResponse.getBookingDetail().getCurrencyCode() != null ?
-                        detailResponse.getBookingDetail().getCurrencyCode() : "USD");
+                        detailResponse.getBookingDetail().getCurrencyCode() : "MYR");
             }
         }
 
@@ -2996,7 +3002,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                     ratePlan.setAvailable(roomRate.getAvailable());
 
                     //货币种类
-                    ratePlan.setCurrency(HeyUtil.toXwCurrency(hotel.getRateCurrencyCode()).orElse(XEnumCurrency.USD));
+                    ratePlan.setCurrency(HeyUtil.toXwCurrency(hotel.getRateCurrencyCode()).orElse(XEnumCurrency.MYR));
                     // 预付方式
                     ratePlan.setPayType(XEnumPayType.PREPAID);
                     //餐食类型 未知
@@ -3447,7 +3453,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             // 设置价格信息
             if (detail.getTotalCharges() != null) {
                 response.setTotalPrice(detail.getTotalCharges());
-                response.setCurrency(detail.getCurrencyCode() != null ? detail.getCurrencyCode() : "USD");
+                response.setCurrency(detail.getCurrencyCode() != null ? detail.getCurrencyCode() : "MYR");
             }
 
             // 设置  预定ID  和 分销商系统订单号  预定确认号

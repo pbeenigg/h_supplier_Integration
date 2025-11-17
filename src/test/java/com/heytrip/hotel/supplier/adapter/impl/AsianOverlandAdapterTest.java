@@ -106,7 +106,7 @@ class AsianOverlandAdapterTest {
         request.setCheckoutDate("16/12/2025");
         request.setNumberOfRooms(1);
 
-        request.setSelCurrency("USD");
+        request.setSelCurrency("MYR");
         request.setSelCountry("138");
         request.setSelCity("71649");
         request.setCountryOfResidence("1");
