@@ -29,7 +29,10 @@ public class AOStaticDataParser implements StaticDataParser {
         for (Map<String, String> row : rows) {
             String countryCode = val(row, "country_code");
             if (isBlank(countryCode)) {
-                continue;
+                countryCode = val(row, "code");
+                if (isBlank(countryCode)) {
+                    continue;
+                }
             }
 
             Country e = new Country();
@@ -75,7 +78,10 @@ public class AOStaticDataParser implements StaticDataParser {
         for (Map<String, String> row : rows) {
             String hotelCode = val(row, "Id");
             if (isBlank(hotelCode)) {
-                continue;
+                hotelCode = val(row, "system_id");
+                if (isBlank(hotelCode)) {
+                    continue;
+                }
             }
             Hotel e = new Hotel();
             e.setSupplierId(supplierId);
@@ -87,11 +93,21 @@ public class AOStaticDataParser implements StaticDataParser {
             e.setHotelName(val(row, "NAME"));
             e.setCityCode(val(row, "city_code"));
             e.setCity(val(row, "city_name"));
-            e.setCountryId(val(row, "country_code"));
+            
+            // 设置country_id，限制长度为100字符
+            String countryIdStr = val(row, "country_code");
+            if(StrUtil.isNotBlank(countryIdStr)){
+                if(countryIdStr.length() > 100){
+                    logger.warn("国家编号超长({}字符)，已截断: {}, 酒店编号: {}", 
+                        countryIdStr.length(), countryIdStr.substring(0, 50) + "...", hotelCode);
+                    countryIdStr = countryIdStr.substring(0, 100);
+                }
+                e.setCountryId(countryIdStr);
+            }
 
             // 补充国家名称和代码
             if(StrUtil.isNotBlank(e.getCountryId()) && countryMap != null && countryMap.containsKey(e.getCountryId())){
-                Country country = countryMap.getOrDefault(e.getCountryId(),null);
+                Country country = countryMap.get(e.getCountryId());
                 if(country != null){
                     e.setCountryCode(country.getCountryCode());
                     e.setCountry(country.getCountryName());

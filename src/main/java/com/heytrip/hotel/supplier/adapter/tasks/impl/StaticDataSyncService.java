@@ -104,21 +104,34 @@ public class StaticDataSyncService {
 
         SupplierFtp ftp = parseFtpConfig(sc.getFtpConfig());
         logger.info("开始静态数据同步，supplierId={}, supplierCode={}", supplierId, supplierCode);
-        if(recentSyncMap.getOrDefault(COUNTRIES, false) == Boolean.FALSE) {
-            syncOne(() -> syncCountries(ftp, supplierId, supplierCode), supplierId, supplierCode, COUNTRIES, ftp.getCountriesPath());
-        }
-        if(recentSyncMap.getOrDefault(CITIES, false) == Boolean.FALSE){
-            syncOne(() -> syncCities(ftp, supplierId, supplierCode), supplierId, supplierCode, CITIES, ftp.getCitiesPath());
-        }
+        
+        // 第一阶段：并行同步基础数据（国籍、GIATA映射、城市）
+        logger.info("【第一阶段】开始同步基础数据：国籍、GIATA映射、城市");
         if(recentSyncMap.getOrDefault(NATIONALITY, false) == Boolean.FALSE) {
             syncOne(() -> syncNationalities(ftp, supplierId, supplierCode), supplierId, supplierCode, NATIONALITY, ftp.getNationalityPath());
         }
         if(recentSyncMap.getOrDefault(GIATA, false) == Boolean.FALSE) {
             syncOne(() -> syncGiata(ftp, supplierId, supplierCode), supplierId, supplierCode, GIATA, ftp.getGiataLocalPath());
         }
+        if(recentSyncMap.getOrDefault(CITIES, false) == Boolean.FALSE){
+            syncOne(() -> syncCities(ftp, supplierId, supplierCode), supplierId, supplierCode, CITIES, ftp.getCitiesPath());
+        }
+        logger.info("【第一阶段】基础数据同步完成");
+        
+        // 第二阶段：同步国家数据（依赖城市数据）
+        logger.info("【第二阶段】开始同步国家数据");
+        if(recentSyncMap.getOrDefault(COUNTRIES, false) == Boolean.FALSE) {
+            syncOne(() -> syncCountries(ftp, supplierId, supplierCode), supplierId, supplierCode, COUNTRIES, ftp.getCountriesPath());
+        }
+        logger.info("【第二阶段】国家数据同步完成");
+        
+        // 第三阶段：同步酒店数据（依赖国家数据）
+        logger.info("【第三阶段】开始同步酒店数据");
         if(recentSyncMap.getOrDefault(HOTELS, false) == Boolean.FALSE) {
             syncOne(() -> syncHotels(ftp, supplierId, supplierCode), supplierId, supplierCode, HOTELS, ftp.getHotelsPath());
         }
+        logger.info("【第三阶段】酒店数据同步完成");
+        
         logger.info("静态数据同步完成，supplierId={}, supplierCode={}", supplierId, supplierCode);
         // 同步完成后，清理静态数据相关缓存，避免读取到陈旧数据
         try {

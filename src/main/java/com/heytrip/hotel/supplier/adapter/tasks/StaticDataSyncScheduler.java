@@ -55,7 +55,7 @@ public class StaticDataSyncScheduler {
             } catch (Exception e) {
                 logger.warn("[初始] 静态数据同步失败: {}", e.getMessage());
             }
-        }, 5, TimeUnit.MINUTES);
+        }, 5, TimeUnit.SECONDS);
     }
 
     /**

@@ -60,19 +60,19 @@ public class Hotel {
     @Comment("酒店本地化名称(国际)")
     private String localeName;
 
-    @Column(name = "country_code", length = 20)
+    @Column(name = "country_code", length = 100)
     @Comment("国家代码(国家简码)")
     private String countryCode;
 
-    @Column(name = "country_id", length = 20)
+    @Column(name = "country_id")
     @Comment("国家编号（国家ID）")
     private String countryId;
 
-    @Column(name = "country", length = 100)
+    @Column(name = "country")
     @Comment("国家名称")
     private String country;
 
-    @Column(name = "city_code", length = 50)
+    @Column(name = "city_code")
     @Comment("城市代码")
     private String cityCode;
 
@@ -80,7 +80,7 @@ public class Hotel {
     @Comment("城市编号")
     private Integer cityId;
 
-    @Column(name = "city", length = 200)
+    @Column(name = "city")
     @Comment("城市")
     private String city;
 
