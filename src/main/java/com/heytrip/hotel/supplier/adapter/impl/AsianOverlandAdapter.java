@@ -75,7 +75,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
     //private static final String API_BASE_URL = "https://colosseum.otrams.com";
 
     private static final String SEARCH_BASE_URL = "http://api.aosconnect.com:8086";
-    private static final String API_BASE_URL = "http://api.aosconnect.com";
+    private static final String API_BASE_URL = "https://apiproduction.aosconnect.com";
 
     // 支持的城市列表（可扩展）
     private static final List<String> SUPPORTED_CITIES = Arrays.asList(
@@ -1329,9 +1329,10 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             }
 
             // 5. 退订状态
-            if (!"Refundable".equalsIgnoreCase(policyResponse.getRefundPolicyText())) {
+            if (policyResponse.getRefundPolicyText()!=null && !"Refundable".equalsIgnoreCase(policyResponse.getRefundPolicyText())) {
                 logger.warn("[AsianOverlandAdapter.orderCheck] 房型不可退订: {}", policyResponse.getRefundPolicyText());
             }
+            logger.warn("[AsianOverlandAdapter.orderCheck] 免费取消时间（小时）: {}", policyResponse.getCancellationHours());
 
             /**
              * 合同备注
