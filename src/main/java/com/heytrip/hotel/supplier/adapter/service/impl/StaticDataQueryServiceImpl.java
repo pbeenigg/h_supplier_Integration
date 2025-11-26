@@ -715,8 +715,8 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
         xRoom.setDescription(room.getDescription());
         
         // 床型信息
-        xRoom.setBedTypeDesc(room.getBedTypeDesc());
-        xRoom.setBedTypeDescEn(room.getBedTypeDescEn());
+        //xRoom.setBedTypeDesc(room.getBedTypeDesc());
+        //xRoom.setBedTypeDescEn(room.getBedTypeDescEn());
         xRoom.setBedWidth(room.getBedWidth());
         
         // 房型属性

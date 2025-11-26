@@ -533,7 +533,7 @@ public class HotelSyncSyncService {
         bookable.setSupplierCode(supplierCode);
 
         // 当供应商酒店ID超过64字符，使用原始ID的SHA-256（64位十六进制）作为 hotelCodeMd5；否则直接使用原始ID
-        String hotelCodeMd5 = hotel.getHotelId().length() > 64 ? MD5Util.string2MD5(hotel.getHotelId()) : hotel.getHotelId();
+        String hotelCodeMd5 = hotel.getHotelId().length() > 32 ? MD5Util.string2MD5(hotel.getHotelId()) : hotel.getHotelId();
         bookable.setHotelCode(hotel.getHotelId());
         bookable.setHotelCodeMd5(hotelCodeMd5);
 
@@ -656,7 +656,7 @@ public class HotelSyncSyncService {
         String hotelCode = hotel.getHotelId();
         hotelEntity.setHotelCode(hotelCode);
         // 当供应商酒店ID超过64字符，使用原始ID的SHA-256（64位十六进制）作为 hotelCodeMd5；否则直接使用原始ID
-        String hotelCodeMd5 = hotelCode.length() > 64 ? MD5Util.string2MD5(hotelCode) : hotelCode;
+        String hotelCodeMd5 = hotelCode.length() > 32 ? MD5Util.string2MD5(hotelCode) : hotelCode;
         hotelEntity.setHotelCodeMd5(hotelCodeMd5);
 
         hotelEntity.setHotelName(hotel.getHotelName());
@@ -708,16 +708,16 @@ public class HotelSyncSyncService {
                 .replaceAll("^_|_$", ""); // 去掉首尾的下划线
 
         // 如果处理后的编码超过64字符，使用MD5
-        String finalRoomCode = roomCode.length() > 64 ? MD5Util.string2MD5(roomCode) : roomCode;
-        String roomCodeMd5 = finalRoomCode.length() > 64 ? MD5Util.string2MD5(finalRoomCode) : finalRoomCode;
+        String finalRoomCode = roomCode.length() > 32 ? MD5Util.string2MD5(roomCode) : roomCode;
+        String roomCodeMd5 = MD5Util.string2MD5(finalRoomCode);
 
         roomEntity.setRoomCode(finalRoomCode);
         roomEntity.setRoomCodeMd5(roomCodeMd5);
         roomEntity.setRoomName(roomName);
         roomEntity.setRoomNameEn(roomName);
         roomEntity.setDescription(roomRate.getRoomType());
-        roomEntity.setBedTypeDesc(roomRate.getRoomCategory());
-        roomEntity.setBedTypeDescEn(roomRate.getRoomCategory());
+        //roomEntity.setBedTypeDesc(roomRate.getRoomCategory());
+        //roomEntity.setBedTypeDescEn(roomRate.getRoomCategory());
 
         // 设置价格信息
         if (roomRate.getRoomRate() != null) {
@@ -1040,8 +1040,8 @@ public class HotelSyncSyncService {
         existing.setRoomName(newRoom.getRoomName());
         existing.setRoomNameEn(newRoom.getRoomNameEn());
         existing.setDescription(newRoom.getDescription());
-        existing.setBedTypeDesc(newRoom.getBedTypeDesc());
-        existing.setBedTypeDescEn(newRoom.getBedTypeDescEn());
+        //existing.setBedTypeDesc(newRoom.getBedTypeDesc());
+        //existing.setBedTypeDescEn(newRoom.getBedTypeDescEn());
         existing.setMinPrice(newRoom.getMinPrice());
         existing.setMinBasePrice(newRoom.getMinBasePrice());
         existing.setNoSmoking(newRoom.getNoSmoking());

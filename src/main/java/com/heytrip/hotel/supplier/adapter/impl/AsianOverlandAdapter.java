@@ -2949,14 +2949,13 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                             .replaceAll("_+", "_")  // 合并连续的下划线
                             .replaceAll("^_|_$", ""); // 去掉首尾的下划线
 
-                    // 如果处理后的编码超过64字符，使用MD5
-                    String finalRoomCode = roomCode.length() > 64 ? MD5Util.string2MD5(roomCode) : roomCode;
-
+                    // 如果处理后的编码超过32字符，使用MD5
+                    String finalRoomCode =  MD5Util.string2MD5(roomCode);
 
                     xRoom.setRoomId(finalRoomCode);
                     xRoom.setRoomName(roomRate.getRoomCategory());
                     xRoom.setRoomNameEn(roomRate.getRoomCategory());
-                    xRoom.setBedTypeDescEn(roomRate.getRoomType());
+                    //xRoom.setBedTypeDescEn(roomRate.getRoomType());
                     xRoom.setRoomQuantity(roomNum != null ? roomNum : 1);
 
                     // 禁烟
@@ -2993,9 +2992,8 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                             .replaceAll("_+", "_")  // 合并连续的下划线
                             .replaceAll("^_|_$", ""); // 去掉首尾的下划线
 
-                    // 如果处理后的编码超过64字符，使用MD5
-                    String finalRatePlanCode = ratePlanCode.length() > 64 ? MD5Util.string2MD5(ratePlanCode) : ratePlanCode;
-
+                    // 如果处理后的编码超过32字符，使用MD5
+                    String finalRatePlanCode = MD5Util.string2MD5(ratePlanCode);
 
                     ratePlan.setRatePlanId(finalRatePlanCode);
                     ratePlan.setRatePlanName(roomRate.getRoomType());

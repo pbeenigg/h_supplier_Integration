@@ -88,7 +88,7 @@ public class AOStaticDataParser implements StaticDataParser {
             e.setSupplierCode(supplierCode);
             e.setHotelCode(hotelCode);
             // 当供应商酒店ID超过64字符，使用原始ID的SHA-256（64位十六进制）作为 hotelCodeMd5；否则直接使用原始ID
-            String hotelCodeMd5 = hotelCode.length() > 64 ? MD5Util.string2MD5(hotelCode) : hotelCode;
+            String hotelCodeMd5 = hotelCode.length() > 32 ? MD5Util.string2MD5(hotelCode) : hotelCode;
             e.setHotelCodeMd5(hotelCodeMd5);
             e.setHotelName(val(row, "NAME"));
             e.setCityCode(val(row, "city_code"));

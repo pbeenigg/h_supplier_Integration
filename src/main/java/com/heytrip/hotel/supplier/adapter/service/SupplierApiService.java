@@ -12,6 +12,7 @@ import com.heytrip.hotel.supplier.entity.Hotel;
 import com.heytrip.hotel.supplier.entity.HotelBookable;
 import com.heytrip.hotel.supplier.entity.Room;
 import com.heytrip.hotel.supplier.repository.HotelBookableRepository;
+import com.heytrip.hotel.supplier.repository.HotelRepository;
 import jakarta.persistence.criteria.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,6 +69,9 @@ public class SupplierApiService implements ISupplierApiService {
 
     @Autowired
     private HotelBookableRepository hotelBookableRepository;
+
+    @Autowired
+    private HotelRepository hotelRepository;
 
     // ================================== 静态数据类查询接口入口 ==================================
 
@@ -203,6 +207,16 @@ public class SupplierApiService implements ISupplierApiService {
     public Result<List<String>> getBookableHotelIds(String supplierType, int pageIndex, int pageSize, String ext) {
         logger.info("[getBookableHotelIds] supplierType={}, pageIndex={}, pageSize={}, ext={}", supplierType, pageIndex, pageSize, ext);
 
+        /**
+         * ext 参数
+         * 扩展参数,json字符串格式方便后续扩展
+         * ext:扩展参数 ext={"status":1}
+         * status -1:可售（有效，不管是否有价） 1:有价 默认值-1
+         */
+
+        ///  ext : status = -1 查询可售酒店（不管是否有价）   调用  hotelRepository  酒店表
+        ///  ext : status = 1 查询有价酒店    调用  hotelBookableRepository 酒店有价表
+
         try {
             var adapter = adapterManager.getAdapterByName(supplierType);
             if (adapter == null) {
@@ -213,53 +227,163 @@ public class SupplierApiService implements ISupplierApiService {
             Long supplierId = adapter.getSupplierId();
             String supplierCode = adapter.getSupplierName();
 
-            // 构建分页参数，限制pageSize最大100
-            Pageable pageable = PageRequest.of(Math.max(pageIndex, 0), Math.min(Math.max(pageSize, 1), 100));
-
-
-
-            // 构建Specification查询条件（必须条件：supplierId + supplierCode + isBookable=true）
-            Specification<HotelBookable> spec = (root, query, criteriaBuilder) -> {
-                List<Predicate> predicates = new ArrayList<>();
-                // 必须条件：supplierId
-                predicates.add(criteriaBuilder.equal(root.get("supplierId"), supplierId));
-                // 必须条件：supplierCode
-                predicates.add(criteriaBuilder.equal(root.get("supplierCode"), supplierCode));
-                // 必须条件：isBookable = true
-                predicates.add(criteriaBuilder.equal(root.get("isBookable"), true));
-                
-                // 按创建时间倒序排列
-                query.orderBy(criteriaBuilder.desc(root.get("createdAt")));
-                
-                return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
-            };
-
-            // 执行分页查询
-            Page<HotelBookable> pageData = hotelBookableRepository.findAll(spec, pageable);
+            // 解析ext参数，获取status值，默认为-1（查询所有可售酒店）
+            int status = parseStatusFromExt(ext);
             
-            // 提取酒店代码列表
-            List<String> hotelCodes = pageData.getContent().stream()
-                    .map(HotelBookable::getHotelCode)
-                    .collect(Collectors.toList());
+            logger.info("[getBookableHotelIds] 解析ext参数，status={}, 查询类型={}", 
+                    status, status == 1 ? "有价酒店(HotelBookable)" : "可售酒店(Hotel)");
 
-            logger.info("[getBookableHotelIds] 查询完成，supplierType={}, supplierId={}, supplierCode={}, pageIndex={}, pageSize={}, totalElements={}, currentPageSize={}",
-                    supplierType, supplierId, supplierCode, pageIndex, pageSize, pageData.getTotalElements(), hotelCodes.size());
+            // 构建分页参数
+            // 注意：外部传入的pageIndex可能从1开始，需要转换为从0开始
+            // 如果pageIndex<=0，则使用0（第一页）
+            int actualPageIndex = pageIndex <= 0 ? 0 : pageIndex - 1;
+            Pageable pageable = PageRequest.of(actualPageIndex, pageSize);
+            
+            logger.debug("[getBookableHotelIds] 分页参数转换：传入pageIndex={}, 实际查询pageIndex={}, pageSize={}", 
+                    pageIndex, actualPageIndex, pageSize);
 
-            // 构建分页信息
-            PageDto resultPage = new PageDto(
-                pageData.getNumber() + 1, // 当前页(从1开始)
-                pageData.getSize(), // 每页行数
-                (int) pageData.getTotalElements(), // 总记录数
-                pageData.getTotalPages() // 总页数
-            );
-
-            return Result.ok(hotelCodes, resultPage);
+            // 根据status值决定查询哪个表
+            if (status == 1) {
+                // status=1: 查询有价酒店，使用HotelBookable表
+                return queryBookableHotels(supplierId, supplierCode, supplierType, pageIndex, pageSize, pageable);
+            } else {
+                // status=-1或其他: 查询所有可售酒店，使用Hotel表
+                return queryAllHotels(supplierId, supplierCode, supplierType, pageIndex, pageSize, pageable);
+            }
 
         } catch (Exception e) {
             logger.error("[getBookableHotelIds] 查询可售酒店列表失败，supplierType={}, pageIndex={}, pageSize={}",
                     supplierType, pageIndex, pageSize, e);
             return Result.ok(Collections.emptyList());
         }
+    }
+
+    /**
+     * 解析ext参数中的status值
+     * @param ext JSON字符串，例如：{"status":1}
+     * @return status值，默认-1
+     */
+    private int parseStatusFromExt(String ext) {
+        if (ext == null || ext.trim().isEmpty()) {
+            return -1; // 默认值
+        }
+        
+        try {
+            // 简单的JSON解析，提取status字段
+            // 支持格式：{"status":1} 或 {"status": 1}
+            String trimmed = ext.trim();
+            if (trimmed.contains("\"status\"")) {
+                int startIdx = trimmed.indexOf("\"status\"");
+                int colonIdx = trimmed.indexOf(":", startIdx);
+                if (colonIdx > 0) {
+                    String afterColon = trimmed.substring(colonIdx + 1).trim();
+                    // 提取数字部分
+                    StringBuilder numStr = new StringBuilder();
+                    for (char c : afterColon.toCharArray()) {
+                        if (c == '-' || Character.isDigit(c)) {
+                            numStr.append(c);
+                        } else if (numStr.length() > 0) {
+                            break;
+                        }
+                    }
+                    if (numStr.length() > 0) {
+                        return Integer.parseInt(numStr.toString());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            logger.warn("[parseStatusFromExt] 解析ext参数失败，使用默认值-1, ext={}", ext, e);
+        }
+        
+        return -1; // 解析失败返回默认值
+    }
+
+    /**
+     * 查询有价酒店（从HotelBookable表）
+     * status=1时调用
+     */
+    private Result<List<String>> queryBookableHotels(Long supplierId, String supplierCode, 
+                                                      String supplierType, int pageIndex, int pageSize, 
+                                                      Pageable pageable) {
+        // 构建Specification查询条件（必须条件：supplierId + supplierCode + isBookable=true）
+        Specification<HotelBookable> spec = (root, query, criteriaBuilder) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            // 必须条件：supplierId
+            predicates.add(criteriaBuilder.equal(root.get("supplierId"), supplierId));
+            // 必须条件：supplierCode
+            predicates.add(criteriaBuilder.equal(root.get("supplierCode"), supplierCode));
+            // 必须条件：isBookable = true
+            predicates.add(criteriaBuilder.equal(root.get("isBookable"), true));
+            
+            // 按主键ID倒序排列（更可靠，避免createdAt为NULL的情况）
+            query.orderBy(criteriaBuilder.desc(root.get("id")));
+            
+            return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
+        };
+
+        // 执行分页查询
+        Page<HotelBookable> pageData = hotelBookableRepository.findAll(spec, pageable);
+        
+        // 提取酒店代码列表
+        List<String> hotelCodes = pageData.getContent().stream()
+                .map(HotelBookable::getHotelCode)
+                .collect(Collectors.toList());
+
+        logger.info("[getBookableHotelIds] 查询有价酒店完成，supplierType={}, supplierId={}, supplierCode={}, pageIndex={}, pageSize={}, totalElements={}, currentPageSize={}",
+                supplierType, supplierId, supplierCode, pageIndex, pageSize, pageData.getTotalElements(), hotelCodes.size());
+
+        // 构建分页信息
+        PageDto resultPage = new PageDto(
+            pageData.getNumber() + 1, // 当前页(从1开始)
+            pageData.getSize(), // 每页行数
+            (int) pageData.getTotalElements(), // 总记录数
+            pageData.getTotalPages() // 总页数
+        );
+
+        return Result.ok(hotelCodes, resultPage);
+    }
+
+    /**
+     * 查询所有可售酒店（从Hotel表）
+     * status=-1或其他值时调用
+     */
+    private Result<List<String>> queryAllHotels(Long supplierId, String supplierCode, 
+                                                  String supplierType, int pageIndex, int pageSize, 
+                                                  Pageable pageable) {
+        // 构建Specification查询条件（必须条件：supplierId + supplierCode）
+        Specification<Hotel> spec = (root, query, criteriaBuilder) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            // 必须条件：supplierId
+            predicates.add(criteriaBuilder.equal(root.get("supplierId"), supplierId));
+            // 必须条件：supplierCode
+            predicates.add(criteriaBuilder.equal(root.get("supplierCode"), supplierCode));
+            
+            // 按主键ID倒序排列（更可靠，避免createdAt为NULL的情况）
+            query.orderBy(criteriaBuilder.desc(root.get("id")));
+            
+            return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
+        };
+
+        // 执行分页查询
+        Page<Hotel> pageData = hotelRepository.findAll(spec, pageable);
+        
+        // 提取酒店代码列表
+        List<String> hotelCodes = pageData.getContent().stream()
+                .map(Hotel::getHotelCode)
+                .collect(Collectors.toList());
+
+        logger.info("[getBookableHotelIds] 查询所有可售酒店完成，supplierType={}, supplierId={}, supplierCode={}, pageIndex={}, pageSize={}, totalElements={}, currentPageSize={}",
+                supplierType, supplierId, supplierCode, pageIndex, pageSize, pageData.getTotalElements(), hotelCodes.size());
+
+        // 构建分页信息
+        PageDto resultPage = new PageDto(
+            pageData.getNumber() + 1, // 当前页(从1开始)
+            pageData.getSize(), // 每页行数
+            (int) pageData.getTotalElements(), // 总记录数
+            pageData.getTotalPages() // 总页数
+        );
+
+        return Result.ok(hotelCodes, resultPage);
     }
 
 
