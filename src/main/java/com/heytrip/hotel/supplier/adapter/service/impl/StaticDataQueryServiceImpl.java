@@ -261,7 +261,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
     @Override
     @Cacheable(cacheNames = CacheNames.ROOM, key = "#supplierId + ':' + #supplierCode + ':' + #hotelCode + ':' + #roomCode + ':' + #page + ':' + #size")
     public Page<XRoom> pageRooms(Long supplierId, String supplierCode, String hotelCode, String roomCode, int page, int size) {
-        Pageable pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100));
+        Pageable pageable = PageRequest.of(Math.max(page, 0), size);
         Specification<Room> spec = (root, q, cb) -> {
             List<Predicate> ps = new ArrayList<>();
             ps.add(cb.equal(root.get("supplierId"), supplierId));
@@ -709,7 +709,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
         XRoom xRoom = new XRoom();
         
         // 基础信息
-        xRoom.setRoomId(room.getRoomCode());
+        xRoom.setRoomId(room.getRoomCodeMd5());
         xRoom.setRoomName(room.getRoomName());
         xRoom.setRoomNameEn(room.getRoomNameEn());
         xRoom.setDescription(room.getDescription());

@@ -13,6 +13,7 @@ import com.heytrip.hotel.supplier.entity.HotelBookable;
 import com.heytrip.hotel.supplier.entity.Room;
 import com.heytrip.hotel.supplier.repository.HotelBookableRepository;
 import com.heytrip.hotel.supplier.repository.HotelRepository;
+import com.heytrip.hotel.supplier.utils.HeyUtil;
 import jakarta.persistence.criteria.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -228,7 +229,24 @@ public class SupplierApiService implements ISupplierApiService {
             String supplierCode = adapter.getSupplierName();
 
             // 解析ext参数，获取status值，默认为-1（查询所有可售酒店）
-            int status = parseStatusFromExt(ext);
+            int status = -1;
+            Map<String, String> queryMap = HeyUtil.parseQueryString(ext);
+            // 兼容多种大小写形式：status、Status、STATUS
+            String statusValue = null;
+            for (String key : queryMap.keySet()) {
+                if ("status".equalsIgnoreCase(key)) {
+                    statusValue = queryMap.get(key);
+                    break;
+                }
+            }
+            
+            if (statusValue != null) {
+                try {
+                    status = Integer.parseInt(statusValue);
+                } catch (Exception nfe) {
+                    logger.warn("[getBookableHotelIds] 解析status参数失败，使用默认值-1, ext={}, statusValue={}", ext, statusValue, nfe);
+                }
+            }
             
             logger.info("[getBookableHotelIds] 解析ext参数，status={}, 查询类型={}", 
                     status, status == 1 ? "有价酒店(HotelBookable)" : "可售酒店(Hotel)");
@@ -258,45 +276,7 @@ public class SupplierApiService implements ISupplierApiService {
         }
     }
 
-    /**
-     * 解析ext参数中的status值
-     * @param ext JSON字符串，例如：{"status":1}
-     * @return status值，默认-1
-     */
-    private int parseStatusFromExt(String ext) {
-        if (ext == null || ext.trim().isEmpty()) {
-            return -1; // 默认值
-        }
-        
-        try {
-            // 简单的JSON解析，提取status字段
-            // 支持格式：{"status":1} 或 {"status": 1}
-            String trimmed = ext.trim();
-            if (trimmed.contains("\"status\"")) {
-                int startIdx = trimmed.indexOf("\"status\"");
-                int colonIdx = trimmed.indexOf(":", startIdx);
-                if (colonIdx > 0) {
-                    String afterColon = trimmed.substring(colonIdx + 1).trim();
-                    // 提取数字部分
-                    StringBuilder numStr = new StringBuilder();
-                    for (char c : afterColon.toCharArray()) {
-                        if (c == '-' || Character.isDigit(c)) {
-                            numStr.append(c);
-                        } else if (numStr.length() > 0) {
-                            break;
-                        }
-                    }
-                    if (numStr.length() > 0) {
-                        return Integer.parseInt(numStr.toString());
-                    }
-                }
-            }
-        } catch (Exception e) {
-            logger.warn("[parseStatusFromExt] 解析ext参数失败，使用默认值-1, ext={}", ext, e);
-        }
-        
-        return -1; // 解析失败返回默认值
-    }
+
 
     /**
      * 查询有价酒店（从HotelBookable表）

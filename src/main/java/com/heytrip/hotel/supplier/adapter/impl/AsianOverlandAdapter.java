@@ -522,17 +522,20 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
 
             // 住客国籍  "query": "{\"Nationality\":\"CN\"}",
-            if(StrUtil.isNotBlank(input.getQuery()) && input.getQuery().contains("Nationality")){
+            if(StrUtil.isNotBlank(input.getQuery())){
                 // 解析国籍和居住国
                 Map<String, String> queryMap = HeyUtil.parseQueryString(input.getQuery());
-                String Nationality = queryMap.get("Nationality");
-                if (StrUtil.isNotBlank(Nationality)) {
-                    Optional<Nationality> nationalityOptional =  nationalityRepository.findBySupplierIdAndSupplierCodeAndIsoCode(getSafeSupplierId(), getSafeSupplierName(), Nationality);
-                    if(nationalityOptional.isPresent()){
-                        Nationality national = nationalityOptional.get();
-                        String nationalityId = national.getNationalityCode();
-                        req.setCountryOfResidence(nationalityId);
-                        req.setSelNationality(nationalityId);
+                for (String key : queryMap.keySet()) {
+                    if ("nationality".equalsIgnoreCase(key)) {
+                        String nationality = queryMap.get(key);
+                        Optional<Nationality> nationalityOptional =  nationalityRepository.findBySupplierIdAndSupplierCodeAndIsoCode(getSafeSupplierId(), getSafeSupplierName(), nationality);
+                        if(nationalityOptional.isPresent()){
+                            Nationality national = nationalityOptional.get();
+                            String nationalityId = national.getNationalityCode();
+                            req.setCountryOfResidence(nationalityId);
+                            req.setSelNationality(nationalityId);
+                        }
+                        break;
                     }
                 }
             }
@@ -652,35 +655,40 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                         .ifPresent(hotel -> {
                             if (hotel != null && ObjUtil.isNotNull(hotel.getCountryId())) {
                                 req.setSelCountry(String.valueOf(hotel.getCountryId()));
-                                req.setSelCity(hotel.getCity());
+                                req.setSelCity(String.valueOf(hotel.getCityId()));
                             }
                         });
             });
 
 
-            if(StrUtil.isBlank(input.getQuery())){
-                throw SupplierException.missingParameter(getSafeSupplierName(), "缺少查询参数，无法报价");
-            }
-            // 入住人国籍  "query": "{\"Nationality\":\"CN\"}",
-            if(StrUtil.isNotBlank(input.getQuery()) && input.getQuery().contains("Nationality")){
+
+            // 住客国籍  "query": "{\"Nationality\":\"CN\"}",
+            if(StrUtil.isNotBlank(input.getQuery())){
                 // 解析国籍和居住国
                 Map<String, String> queryMap = HeyUtil.parseQueryString(input.getQuery());
-                String Nationality = queryMap.get("Nationality");
-                if (StrUtil.isNotBlank(Nationality)) {
-                    Optional<Nationality> nationalityOptional =  nationalityRepository.findBySupplierIdAndSupplierCodeAndIsoCode(getSafeSupplierId(), getSafeSupplierName(), Nationality);
-                    if(nationalityOptional.isPresent()){
-                        Nationality national = nationalityOptional.get();
-                        String nationalityId = national.getNationalityCode();
-                        req.setCountryOfResidence(nationalityId);
-                        req.setSelNationality(nationalityId);
-                    }else{
-                        throw SupplierException.invalidParameter(getSafeSupplierName(), "国籍代码无效，无法报价");
+                for (String key : queryMap.keySet()) {
+                    if ("nationality".equalsIgnoreCase(key)) {
+                        String nationality = queryMap.get(key);
+                        Optional<Nationality> nationalityOptional =  nationalityRepository.findBySupplierIdAndSupplierCodeAndIsoCode(getSafeSupplierId(), getSafeSupplierName(), nationality);
+                        if(nationalityOptional.isPresent()){
+                            Nationality national = nationalityOptional.get();
+                            String nationalityId = national.getNationalityCode();
+                            req.setCountryOfResidence(nationalityId);
+                            req.setSelNationality(nationalityId);
+                        }
+                        break;
                     }
-                }else {
-                    throw SupplierException.missingParameter(getSafeSupplierName(), "缺少查询参数国籍，无法报价");
                 }
-            }else{
-                throw SupplierException.missingParameter(getSafeSupplierName(), "缺少查询参数国籍，无法报价");
+            }
+            if(StrUtil.isBlank(req.getCountryOfResidence())){
+                //默认设置为中国国籍  CN
+                Optional<Nationality> nationalityOptional =  nationalityRepository.findBySupplierIdAndSupplierCodeAndIsoCode(getSafeSupplierId(), getSafeSupplierName(), "CN");
+                if(nationalityOptional.isPresent()){
+                    Nationality national = nationalityOptional.get();
+                    String nationalityId = national.getNationalityCode();
+                    req.setCountryOfResidence(nationalityId);
+                    req.setSelNationality(nationalityId);
+                }
             }
 
 
@@ -820,7 +828,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
 
         // 入住人国籍  "query": "{\"Nationality\":\"CN\"}",
-        if(StrUtil.isNotBlank(input.getQuery()) && input.getQuery().contains("Nationality")){
+        if(StrUtil.isNotBlank(input.getQuery()) ){
             // 解析国籍和居住国
             Map<String, String> queryMap = HeyUtil.parseQueryString(input.getQuery());
             String Nationality = queryMap.get("Nationality");
@@ -1199,7 +1207,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             });
 
             // 入住人国籍  "query": "{\"Nationality\":\"CN\"}",
-            if(StrUtil.isNotBlank(input.getQuery()) && input.getQuery().contains("Nationality")){
+            if(StrUtil.isNotBlank(input.getQuery())){
                 // 解析国籍和居住国
                 Map<String, String> queryMap = HeyUtil.parseQueryString(input.getQuery());
                 String Nationality = queryMap.get("Nationality");
@@ -1435,7 +1443,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             });
 
             // 入住人国籍  "query": "{\"Nationality\":\"CN\"}",
-            if(StrUtil.isNotBlank(input.getQuery()) && input.getQuery().contains("Nationality")){
+            if(StrUtil.isNotBlank(input.getQuery()) ){
                 // 解析国籍和居住国
                 Map<String, String> queryMap = HeyUtil.parseQueryString(input.getQuery());
                 String Nationality = queryMap.get("Nationality");
@@ -1646,7 +1654,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             }
 
         } catch (Exception e) {
-            logger.error("[AsianOverlandAdapter.getHotelRoomOrigContent] 获取原始报价失败", e);
+            logger.error("[AsianOverlandAdapter.getHotelRoomOrigContent] 获取原始数据失败", e);
             throw SupplierException.invalidParameter(getSafeSupplierName(), "获取原始数据失败: " + e.getMessage());
         }
     }

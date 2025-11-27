@@ -2,7 +2,9 @@ package com.heytrip.hotel.supplier.utils;
 
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.util.StrUtil;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.heytrip.common.enums.XEnumCurrency;
 import com.heytrip.hotel.supplier.dto.qtech.req.QTechSearchRequest;
 import jakarta.servlet.http.HttpServletRequest;
@@ -33,7 +35,16 @@ public class HeyUtil {
     public static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     public static final DateTimeFormatter DATE_FORMATTER_Z = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss Z");
     private static final DateTimeFormatter DATE_FORMATTER_ISO = DateTimeFormatter.ISO_DATE_TIME;
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+
+    /**
+     * 配置ObjectMapper
+     * - 使用小驼峰命名策略（lowerCamelCase）：将JSON中的字段名转换为小驼峰格式
+     * - 忽略未知属性：解析JSON时忽略Java类中不存在的字段
+     */
+    private static final ObjectMapper MAPPER = new ObjectMapper()
+            .setPropertyNamingStrategy(PropertyNamingStrategies.LOWER_CAMEL_CASE)
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
 
 
 
