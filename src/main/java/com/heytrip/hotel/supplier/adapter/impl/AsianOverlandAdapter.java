@@ -35,6 +35,7 @@ import com.heytrip.hotel.supplier.repository.HotelRepository;
 import com.heytrip.hotel.supplier.repository.NationalityRepository;
 import com.heytrip.hotel.supplier.utils.HeyUtil;
 import com.heytrip.hotel.supplier.utils.MD5Util;
+import com.heytrip.hotel.supplier.utils.OccupancyStats;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
 import lombok.Builder;
@@ -598,7 +599,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             // 搜索唯一标识
             String searchUniqueId = resp.getSearchUniqueId();
 
-            List<XRoom> xRooms = convertHotelToXRooms(targetHotel, input.getCheckInDate(), input.getCheckOutDate(), input.getRoomNum(), searchUniqueId);
+            List<XRoom> xRooms = convertHotelToXRooms(targetHotel, input.getCheckInDate(), input.getCheckOutDate(), input.getRoomNum(), searchUniqueId,input.getOccupancy());
 
             if (xRooms.isEmpty()) {
                 logger.warn("[AsianOverlandAdapter.getPrice] 酒店{}转换后无有效房型数据", targetHotel.getHotelId());
@@ -728,7 +729,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             // 处理每个酒店的报价数据
             for (QTechSearchResponse.Hotel hotel : hotelList) {
                 String hotelId = hotel.getHotelId();
-                List<XRoom> xRooms = convertHotelToXRooms(hotel, input.getCheckInDate(), input.getCheckOutDate(), input.getRoomNum(), searchUniqueId);
+                List<XRoom> xRooms = convertHotelToXRooms(hotel, input.getCheckInDate(), input.getCheckOutDate(), input.getRoomNum(), searchUniqueId,input.getOccupancy());
 
                 if (!xRooms.isEmpty()) {
                     result.put(hotelId, xRooms);
@@ -758,7 +759,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
         ///  2. 调用 bookHotel 方法执行预订。
         ///  3. 处理预订响应，转换为 XCreateOrderResponse 格式返回。
         ///  4. 通过搜索酒店接口，可以拿到最新价格，可预定状态，搜索唯一标识（searchUniqueId），房型唯一标识（sectionUniqueId）等信息。  拿到了才能去调用预定酒店接口
-        ///  5. 预定成功后，如若预定接口在（3s ~ 10s）还未响应成功， 就异步调用订单详情接口，获取最终的订单状态和信息。 然后预定立即返回给渠道状态 （预定中 ｜预定成功 ｜预定失败）
+        ///  5. 预定成功后，如若预定接口在（180s）还未响应成功， 就异步调用订单详情接口，获取最终的订单状态和信息。 然后预定立即返回给渠道状态 （预定中 ｜预定成功 ｜预定失败）
         ///
         ///使用限制与规则
         /// 1.每笔预订的夜数：最多 30 晚
@@ -827,21 +828,25 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
         });
 
 
-        // 入住人国籍  "query": "{\"Nationality\":\"CN\"}",
-        if(StrUtil.isNotBlank(input.getQuery()) ){
+        // 住客国籍  "query": "{\"Nationality\":\"CN\"}",
+        if(StrUtil.isNotBlank(input.getQuery())){
             // 解析国籍和居住国
             Map<String, String> queryMap = HeyUtil.parseQueryString(input.getQuery());
-            String Nationality = queryMap.get("Nationality");
-            if (StrUtil.isNotBlank(Nationality)) {
-                Optional<Nationality> nationalityOptional =  nationalityRepository.findBySupplierIdAndSupplierCodeAndIsoCode(getSafeSupplierId(), getSafeSupplierName(), Nationality);
-                if(nationalityOptional.isPresent()){
-                    Nationality national = nationalityOptional.get();
-                    String nationalityId = national.getNationalityCode();
-                    searchRequest.setCountryOfResidence(nationalityId);
-                    searchRequest.setSelNationality(nationalityId);
+            for (String key : queryMap.keySet()) {
+                if ("nationality".equalsIgnoreCase(key)) {
+                    String nationality = queryMap.get(key);
+                    Optional<Nationality> nationalityOptional =  nationalityRepository.findBySupplierIdAndSupplierCodeAndIsoCode(getSafeSupplierId(), getSafeSupplierName(), nationality);
+                    if(nationalityOptional.isPresent()){
+                        Nationality national = nationalityOptional.get();
+                        String nationalityId = national.getNationalityCode();
+                        searchRequest.setCountryOfResidence(nationalityId);
+                        searchRequest.setSelNationality(nationalityId);
+                    }
+                    break;
                 }
             }
         }
+
         if(StrUtil.isBlank(searchRequest.getCountryOfResidence())){
             //默认设置为中国国籍  CN
             Optional<Nationality> nationalityOptional =  nationalityRepository.findBySupplierIdAndSupplierCodeAndIsoCode(getSafeSupplierId(), getSafeSupplierName(), "CN");
@@ -892,7 +897,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
             // 使用共用的转换方法
             QTechSearchResponse.Hotel targetHotel = targetHotelOpt.get();
-            List<XRoom> xRooms = convertHotelToXRooms(targetHotel, input.getCheckInDate(), input.getCheckOutDate(), input.getRoomNum(), searchUniqueId);
+            List<XRoom> xRooms = convertHotelToXRooms(targetHotel, input.getCheckInDate(), input.getCheckOutDate(), input.getRoomNum(), searchUniqueId,input.getOccupancy());
 
             if (xRooms.isEmpty()) {
                 logger.warn("[AsianOverlandAdapter.createOrder] 酒店{}转换后无有效房型数据", targetHotel.getHotelId());
@@ -1210,14 +1215,17 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             if(StrUtil.isNotBlank(input.getQuery())){
                 // 解析国籍和居住国
                 Map<String, String> queryMap = HeyUtil.parseQueryString(input.getQuery());
-                String Nationality = queryMap.get("Nationality");
-                if (StrUtil.isNotBlank(Nationality)) {
-                    Optional<Nationality> nationalityOptional =  nationalityRepository.findBySupplierIdAndSupplierCodeAndIsoCode(getSafeSupplierId(), getSafeSupplierName(), Nationality);
-                    if(nationalityOptional.isPresent()){
-                        Nationality national = nationalityOptional.get();
-                        String nationalityId = national.getNationalityCode();
-                        req.setCountryOfResidence(nationalityId);
-                        req.setSelNationality(nationalityId);
+                for (String key : queryMap.keySet()) {
+                    if ("nationality".equalsIgnoreCase(key)) {
+                        String nationality = queryMap.get(key);
+                        Optional<Nationality> nationalityOptional =  nationalityRepository.findBySupplierIdAndSupplierCodeAndIsoCode(getSafeSupplierId(), getSafeSupplierName(), nationality);
+                        if(nationalityOptional.isPresent()){
+                            Nationality national = nationalityOptional.get();
+                            String nationalityId = national.getNationalityCode();
+                            req.setCountryOfResidence(nationalityId);
+                            req.setSelNationality(nationalityId);
+                        }
+                        break;
                     }
                 }
             }
@@ -1276,7 +1284,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             String searchUniqueId = searchResponse.getSearchUniqueId();
             // 使用共用的转换方法
             QTechSearchResponse.Hotel targetHotel = targetHotelOpt.get();
-            List<XRoom> xRooms = convertHotelToXRooms(targetHotel, input.getCheckInDate(), input.getCheckOutDate(), input.getRoomNum(), searchUniqueId);
+            List<XRoom> xRooms = convertHotelToXRooms(targetHotel, input.getCheckInDate(), input.getCheckOutDate(), input.getRoomNum(), searchUniqueId,input.getOccupancy());
 
             if (xRooms.isEmpty()) {
                 logger.warn("[AsianOverlandAdapter.orderCheck] 酒店{}转换后无有效房型数据", targetHotel.getHotelId());
@@ -1443,17 +1451,20 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             });
 
             // 入住人国籍  "query": "{\"Nationality\":\"CN\"}",
-            if(StrUtil.isNotBlank(input.getQuery()) ){
+            if(StrUtil.isNotBlank(input.getQuery())){
                 // 解析国籍和居住国
                 Map<String, String> queryMap = HeyUtil.parseQueryString(input.getQuery());
-                String Nationality = queryMap.get("Nationality");
-                if (StrUtil.isNotBlank(Nationality)) {
-                    Optional<Nationality> nationalityOptional =  nationalityRepository.findBySupplierIdAndSupplierCodeAndIsoCode(getSafeSupplierId(), getSafeSupplierName(), Nationality);
-                    if(nationalityOptional.isPresent()){
-                        Nationality national = nationalityOptional.get();
-                        String nationalityId = national.getNationalityCode();
-                        req.setCountryOfResidence(nationalityId);
-                        req.setSelNationality(nationalityId);
+                for (String key : queryMap.keySet()) {
+                    if ("nationality".equalsIgnoreCase(key)) {
+                        String nationality = queryMap.get(key);
+                        Optional<Nationality> nationalityOptional =  nationalityRepository.findBySupplierIdAndSupplierCodeAndIsoCode(getSafeSupplierId(), getSafeSupplierName(), nationality);
+                        if(nationalityOptional.isPresent()){
+                            Nationality national = nationalityOptional.get();
+                            String nationalityId = national.getNationalityCode();
+                            req.setCountryOfResidence(nationalityId);
+                            req.setSelNationality(nationalityId);
+                        }
+                        break;
                     }
                 }
             }
@@ -1506,7 +1517,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
                     // 使用共用的转换方法
                     QTechSearchResponse.Hotel targetHotel = targetHotelOpt.get();
-                    List<XRoom> xRooms = convertHotelToXRooms(targetHotel, input.getCheckInDate(), input.getCheckOutDate(), input.getRoomNum(), searchUniqueId);
+                    List<XRoom> xRooms = convertHotelToXRooms(targetHotel, input.getCheckInDate(), input.getCheckOutDate(), input.getRoomNum(), searchUniqueId,input.getOccupancy());
 
                     if (xRooms.isEmpty()) {
                         throw SupplierException.notFound(getSafeSupplierName(), "无有效房型数据");
@@ -1665,7 +1676,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
      * 执行预定流程：预定接口 + 超时处理 + 订单详情轮询
      * <p>
      * 流程说明：
-     * 1. 提交预定请求，设置超时时间（180s）
+     * 1. 提交预定请求，设置超时时间（接口要求：180s） 设置 200秒
      * 2. 如果预定接口超时或失败，异步调用订单详情接口
      * 3. 使用agentRefNo轮询订单详情，每隔3秒调用一次，最多10次
      * 4. 根据最终状态返回：预定中｜预定成功｜预定失败
@@ -1679,9 +1690,9 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
         logger.info("[AsianOverlandAdapter.executeBookingWithTimeoutAndPolling] 开始执行预定流程，订单号: {}", agentRefNo);
 
 
-        // 1. 提交预定请求，设置超时时间为8秒
+        // 1. 提交预定请求，设置超时时间为180秒
         QTechReservationResponse reservationResponse = this.bookHotel(reservationRequest)
-                .timeout(Duration.ofSeconds(180), Mono.error(SupplierException.invalidParameter(getSafeSupplierName(), "预定接口调用超时")))
+                .timeout(Duration.ofSeconds(200), Mono.error(SupplierException.invalidParameter(getSafeSupplierName(), "预定接口调用超时")))
                 .doOnError(e -> logger.error("预定接口调用失败: {}", e.getMessage()))
                 .onErrorMap(e -> SupplierException.invalidParameter(getSafeSupplierName(), "[AsianOverlandAdapter.executeBookingWithTimeoutAndPolling] 预定接口调用失败:" + e.getMessage()))
                 .block();
@@ -2864,7 +2875,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
      * @param roomNum      房间数量
      * @return 转换后的房型列表
      */
-    private List<XRoom> convertHotelToXRooms(QTechSearchResponse.Hotel hotel, LocalDateTime checkInDate, LocalDateTime checkOutDate, Integer roomNum, String searchUniqueId) {
+    private List<XRoom> convertHotelToXRooms(QTechSearchResponse.Hotel hotel, LocalDateTime checkInDate, LocalDateTime checkOutDate, Integer roomNum, String searchUniqueId,String occupancy) {
 
 
         try {
@@ -2878,6 +2889,8 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                 logger.warn("[AsianOverlandAdapter.convertHotelToXRooms] 酒店{}无房型属性数据", hotel.getHotelId());
                 return xRooms;
             }
+
+
 
             // 只处理Type=Selection的房型属性
             List<QTechSearchResponse.HotelProperty> targetHotelPropList = properties.stream()
@@ -3014,21 +3027,25 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                     ratePlan.setPayType(XEnumPayType.PREPAID);
                     //餐食类型 未知
                     ratePlan.setMealType(XMealType.UNKNOWN);
+
+                    // 解析总入住人数
+                    Integer  totalPeople =OccupancyStats.parseOccupancy(occupancy);
                     // 是否带餐食
                     if (roomRate.getMealBasis().contains("Breakfast") || roomRate.getRoomType().contains("Breakfast") || roomRate.getMealCode().contains("BB")) {
-                        ratePlan.setBreakfast(1);
+                        ratePlan.setBreakfast(totalPeople);
                         ratePlan.setMealType(XMealType.SPECIFY);
                     }
                     if (roomRate.getMealBasis().contains("Lunch") || roomRate.getRoomType().contains("Lunch") || roomRate.getMealCode().contains("LB")) {
-                        ratePlan.setLunch(1);
+                        ratePlan.setLunch(totalPeople);
                         ratePlan.setMealType(XMealType.SPECIFY);
                     }
                     if (roomRate.getMealBasis().contains("Dinner") || roomRate.getRoomType().contains("Dinner") || roomRate.getMealCode().contains("DB")) {
-                        ratePlan.setDinner(1);
+                        ratePlan.setDinner(totalPeople);
                         ratePlan.setMealType(XMealType.SPECIFY);
                     }
 
-                    ratePlan.setInstantConfirm(false);  //需要调用取消规则接口确费后才能 立即预定
+                    //在下预定订单的时候， 如果接口能成功返回是否预定成功的状态，就属于即时确认，否则属于非立即确认
+                    ratePlan.setInstantConfirm(true);
 
                     // 收集扩展信息映射关系 - 支持同一个sectionUniqueId对应多个classUniqueId
                     sectionUniqueIdToClassUniqueIdListMap.computeIfAbsent(prop.getSectionUniqueId(), k -> new ArrayList<>())

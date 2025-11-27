@@ -757,7 +757,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
         // 默认值设置（这些字段在静态数据中通常没有具体值，需要在报价时填充）
         xRatePlan.setAvailable(0); // 可售数量需要从实时报价获取，默认为0
         xRatePlan.setCancelable(false); // 是否可取消需要从实时报价获取，默认为false
-        xRatePlan.setInstantConfirm(false); // 是否即时确认需要从实时报价获取，默认为false
+        xRatePlan.setInstantConfirm(false); // 是否即时确认需要从实时报价获取，默认为false，需要调用取消规则接口确费后才能 立即预定
         
         // 餐食标识（需要根据meal字段解析）
         if (ratePlan.getMeal() != null) {

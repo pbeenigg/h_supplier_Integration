@@ -708,7 +708,7 @@ public class HotelSyncSyncService {
                 .replaceAll("^_|_$", ""); // 去掉首尾的下划线
 
         // 如果处理后的编码超过64字符，使用MD5
-        String finalRoomCode = roomCode.length() > 32 ? MD5Util.string2MD5(roomCode) : roomCode;
+        String finalRoomCode =roomCode;
         String roomCodeMd5 = MD5Util.string2MD5(finalRoomCode);
 
         roomEntity.setRoomCode(finalRoomCode);
