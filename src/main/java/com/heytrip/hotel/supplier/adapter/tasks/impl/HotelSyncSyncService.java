@@ -2,6 +2,7 @@ package com.heytrip.hotel.supplier.adapter.tasks.impl;
 
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.collection.ListUtil;
+import cn.hutool.core.util.NumberUtil;
 import cn.hutool.core.util.StrUtil;
 import com.heytrip.common.enums.XEnumNoSmoking;
 import com.heytrip.common.response.base.XHotel;
@@ -15,6 +16,7 @@ import com.heytrip.hotel.supplier.entity.*;
 import com.heytrip.hotel.supplier.repository.*;
 import com.heytrip.hotel.supplier.utils.HeyUtil;
 import com.heytrip.hotel.supplier.utils.MD5Util;
+import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -29,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -99,8 +102,16 @@ public class HotelSyncSyncService {
     @Resource
     private PlatformTransactionManager transactionManager;
 
-    @Resource
     private TransactionTemplate transactionTemplate;
+
+    /**
+     * 初始化 TransactionTemplate
+     */
+    @PostConstruct
+    public void init() {
+        this.transactionTemplate = new TransactionTemplate(transactionManager);
+        logger.info("[HotelSyncSyncService.init] TransactionTemplate 初始化完成");
+    }
 
     /**
      * 初始化线程池（懒加载）
@@ -696,33 +707,36 @@ public class HotelSyncSyncService {
 
         //房型编码 ：通过酒店ID+ 房型名称   例如：  OT000005002+SUPERIOR, KING BED, BALCONY   （处理掉特殊字符，用_连接）
         String roomName = roomRate.getRoomCategory();
-        if (StrUtil.isBlank(roomName)) {
-            roomName = roomRate.getRoomType();
-        }
 
         // 生成房型编码： 房型名称，处理特殊字符用下划线连接
-        String roomCodeRaw = roomName;
+        // 提取真实的房型名称（移除动态标识、括号内容、特殊分隔符等）
+        String realRoomName = asianOverlandAdapter.extractRealRoomName(roomName);
+        logger.debug("[HotelSyncSyncService.buildRoomEntity] 原始房型名称: {}, 处理后房型名称: {}", roomName, realRoomName);
+
         // 处理特殊字符：保留字母、数字、中文，其他字符替换为下划线，连续的下划线合并为一个
-        String roomCode = roomCodeRaw.replaceAll("[^a-zA-Z0-9\\u4e00-\\u9fa5]+", "_")
+      /*  String roomCode = realRoomName.replaceAll("[^a-zA-Z0-9\\u4e00-\\u9fa5]+", "_")
                 .replaceAll("_+", "_")  // 合并连续的下划线
-                .replaceAll("^_|_$", ""); // 去掉首尾的下划线
+                .replaceAll("^_|_$", ""); // 去掉首尾的下划线*/
 
         // 如果处理后的编码超过64字符，使用MD5
-        String finalRoomCode =roomCode;
-        String roomCodeMd5 = MD5Util.string2MD5(finalRoomCode);
+        //String finalRoomCode = roomCode;
+        String roomCodeMd5 = MD5Util.string2MD5(realRoomName);
 
-        roomEntity.setRoomCode(finalRoomCode);
+        roomEntity.setRoomCode(realRoomName);
         roomEntity.setRoomCodeMd5(roomCodeMd5);
-        roomEntity.setRoomName(roomName);
-        roomEntity.setRoomNameEn(roomName);
+        roomEntity.setRoomName(realRoomName);
+        roomEntity.setRoomNameEn(realRoomName);
         roomEntity.setDescription(roomRate.getRoomType());
         //roomEntity.setBedTypeDesc(roomRate.getRoomCategory());
         //roomEntity.setBedTypeDescEn(roomRate.getRoomCategory());
 
         // 设置价格信息
         if (roomRate.getRoomRate() != null) {
-            roomEntity.setMinPrice(roomRate.getRoomRate());
-            roomEntity.setMinBasePrice(roomRate.getRoomRate());
+            // 计算单间最低价格，保留2位小数，使用四舍五入
+            BigDecimal minPrice = NumberUtil.div(roomRate.getRoomRate(), 1, 2, RoundingMode.HALF_UP);
+
+            roomEntity.setMinPrice(minPrice);
+            roomEntity.setMinBasePrice(minPrice);
         }
 
         // 禁烟信息判断

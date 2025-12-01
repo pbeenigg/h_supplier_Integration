@@ -165,6 +165,12 @@ public class QTechSearchResponse extends QTechBaseResponse {
          */
         private String roomId;
 
+
+        /**
+         * 房型名称
+         */
+        private String roomName;
+
         /**
          * 本次请求会话ID
          * 每个搜索唯一ID只能用于一次预订，并且从搜索时间起20分钟内有效
@@ -182,26 +188,69 @@ public class QTechSearchResponse extends QTechBaseResponse {
 
 
         /**
+         * 具体房类
+         */
+        @JsonProperty("extDetail")
+        private List<RoomRateExtDetail> extDetail;
+
+
+
+    }
+
+    @Data
+    public static class RoomRateExtDetail {
+        /**
+         * 房间数
+         */
+        private Integer  roomNumber;
+
+        /**
+         * 是否可退款  1 - 可退款，0 - 不可退款
+         */
+        private Boolean  refundable;
+
+        /**
+         * 餐型代码
+         */
+        private String mealCode;
+
+        /**
+         * 房型类别
+         */
+        private String roomCategory;
+
+        /**
+         * 成人数
+         */
+        private Integer numberOfAdults;
+
+        /**
+         * 儿童数
+         */
+        private String numberOfChild;
+
+        /**
+         * 房类ID
+         */
+        private String roomClassId;
+
+        /**
          * 价格计划ID
          */
         private String ratePlanId;
-
-        /**
-         * 具体房类ID (随时变、动态ID )
-         */
-        @JsonProperty("ClassUniqueId")
-        private List<String> classUniqueId;
 
         /**
          * 总价
          */
         private BigDecimal price;
 
+
     }
 
 
 
-        /**
+
+    /**
      * 房型详情
      */
     @Data

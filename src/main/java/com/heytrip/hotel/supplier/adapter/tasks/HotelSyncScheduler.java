@@ -69,10 +69,10 @@ public class HotelSyncScheduler {
 
 
     /**
-     * 每2天凌晨4点定时同步
+     * 每2小时定时同步
      *
      */
-    @Scheduled(cron = "0 0 4 */2 * ?")
+    @Scheduled(cron = "0 0 */2 * * ?")
     public void SyncTasks() {
         try {
             logger.info("[定时] 开始执行 AsianOverland 静态数据同步");
@@ -106,8 +106,8 @@ public class HotelSyncScheduler {
         if (syncLog.isPresent()) {
             SyncLog lastLog = syncLog.get();
             long hoursSinceLastSync = lastLog.getCreatedAt().until(LocalDateTime.now(), ChronoUnit.HOURS);
-            if (hoursSinceLastSync < 48) {
-                logger.info("{}供应商，距离上次酒店可售状态同步仅 {} 小时，未达到 48 小时，跳过本次同步", AO_SUPPLIER_CODE,hoursSinceLastSync);
+            if (hoursSinceLastSync < 2) {
+                logger.info("{}供应商，距离上次酒店可售状态同步仅 {} 小时，未达到 2 小时，跳过本次同步", AO_SUPPLIER_CODE,hoursSinceLastSync);
                 return;
             }else {
                 logger.info("{}供应商，距离上次酒店可售状态同步已 {} 小时，开始执行本次同步",AO_SUPPLIER_CODE, hoursSinceLastSync);
