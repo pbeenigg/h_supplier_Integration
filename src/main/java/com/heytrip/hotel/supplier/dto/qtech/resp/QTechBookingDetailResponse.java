@@ -178,7 +178,7 @@ public class QTechBookingDetailResponse extends QTechBaseResponse {
          * 代理价格
          */
         @JsonProperty("AgentRate")
-        private String agentRate;
+        private BigDecimal agentRate;
         
         /**
          * 代理参考号

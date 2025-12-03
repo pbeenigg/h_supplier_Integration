@@ -44,7 +44,7 @@ public class OrdersController {
     @ApiLog(businessType = "createOrder",
             recordOrderDetail = true,
             extractFields = {"supplierType","distributorOrderId","supplierOrderId", "hotelId", "checkInDate", "checkOutDate",
-                    "roomId", "ratePlanId", "occupancy", "roomNum", "currency", "salePrice","totalPrice"},
+                    "roomId", "ratePlanId", "occupancy", "roomNum", "currency", "salePrice","totalBasePrice","cancelable","cancelFee"},
             description = "创建订单")
     public Result<XCreateOrderResponse> createOrder(@RequestBody XCreateOrderRequest request) {
         return supplierApiService.createOrder(request);

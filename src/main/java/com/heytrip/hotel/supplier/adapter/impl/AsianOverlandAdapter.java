@@ -24,12 +24,14 @@ import com.heytrip.hotel.supplier.client.HttpClientService;
 import com.heytrip.hotel.supplier.dto.qtech.req.*;
 import com.heytrip.hotel.supplier.dto.qtech.resp.*;
 import com.heytrip.hotel.supplier.dto.supplier.SupplierAuth;
+import com.heytrip.hotel.supplier.entity.DistributionOrdersLog;
 import com.heytrip.hotel.supplier.entity.Hotel;
 import com.heytrip.hotel.supplier.entity.Nationality;
 import com.heytrip.hotel.supplier.entity.SupplierConfig;
 import com.heytrip.hotel.supplier.enums.QTechBookingStatusEnum;
 import com.heytrip.hotel.supplier.exception.SupplierException;
 import com.heytrip.hotel.supplier.repository.CountryRepository;
+import com.heytrip.hotel.supplier.repository.DistributionOrdersLogRepository;
 import com.heytrip.hotel.supplier.repository.HotelRepository;
 import com.heytrip.hotel.supplier.repository.NationalityRepository;
 import com.heytrip.hotel.supplier.utils.HeyUtil;
@@ -47,6 +49,8 @@ import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.time.*;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -86,12 +90,14 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
     private final CountryRepository countryRepository;
     private final NationalityRepository nationalityRepository;
     private final HotelRepository hotelRepository;
+    private final DistributionOrdersLogRepository ordersLogRepository;
 
 
-    public AsianOverlandAdapter(CountryRepository countryRepository, NationalityRepository nationalityRepository, HotelRepository hotelRepository) {
+    public AsianOverlandAdapter(CountryRepository countryRepository, NationalityRepository nationalityRepository, HotelRepository hotelRepository, DistributionOrdersLogRepository ordersLogRepository) {
         this.countryRepository = countryRepository;
         this.nationalityRepository = nationalityRepository;
         this.hotelRepository = hotelRepository;
+        this.ordersLogRepository = ordersLogRepository;
     }
 
     /**
@@ -608,16 +614,50 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                         targetHotel.getHotelId(), xRooms.size());
             }
 
+            // 对每个房型下的价格计划进行去重（按 ratePlanId）
+            int totalRatePlansBeforeDedupe = 0;
+            int totalRatePlansAfterDedupe = 0;
+            for (XRoom xRoom : xRooms) {
+                List<XRatePlan> ratePlans = xRoom.getRatePlans();
+                if (ratePlans != null && !ratePlans.isEmpty()) {
+                    totalRatePlansBeforeDedupe += ratePlans.size();
+                    
+                    // 使用 LinkedHashMap 按 ratePlanId 去重，保留第一个出现的价格计划
+                    Map<String, XRatePlan> ratePlanMap = new LinkedHashMap<>();
+                    for (XRatePlan ratePlan : ratePlans) {
+                        if (ratePlan != null && StrUtil.isNotBlank(ratePlan.getRatePlanId())) {
+                            // 只保留第一个出现的，后续相同 ratePlanId 的忽略
+                            ratePlanMap.putIfAbsent(ratePlan.getRatePlanId(), ratePlan);
+                        }
+                    }
+                    
+                    // 更新为去重后的价格计划列表
+                    List<XRatePlan> deduplicatedRatePlans = new ArrayList<>(ratePlanMap.values());
+                    xRoom.setRatePlans(deduplicatedRatePlans);
+                    totalRatePlansAfterDedupe += deduplicatedRatePlans.size();
+                    
+                    if (ratePlans.size() != deduplicatedRatePlans.size()) {
+                        logger.info("[AsianOverlandAdapter.getPrice] 房型 {} 价格计划去重: {} -> {}",
+                                xRoom.getRoomId(), ratePlans.size(), deduplicatedRatePlans.size());
+                    }
+                }
+            }
+            
+            if (totalRatePlansBeforeDedupe != totalRatePlansAfterDedupe) {
+                logger.info("[AsianOverlandAdapter.getPrice] 酒店 {} 价格计划总体去重: {} -> {}",
+                        targetHotel.getHotelId(), totalRatePlansBeforeDedupe, totalRatePlansAfterDedupe);
+            }
+
             // 过滤指定房型ID（如果有提供）
             if (StrUtil.isBlank(input.getRoomId())) {
                 return xRooms;
             } else {
-                return xRooms.stream().filter(r -> r.getRoomId().equalsIgnoreCase(input.getRoomId())).collect(Collectors.toList());
-
+                List<XRoom>  selectXRooms =  xRooms.stream().filter(r -> r.getRoomId().equalsIgnoreCase(input.getRoomId())).collect(Collectors.toList());
+                return selectXRooms;
             }
         } catch (Exception ex) {
-            logger.error("[AsianOverlandAdapter.getPrice] 获取报价失败", ex);
-            throw SupplierException.invalidParameter(getSafeSupplierName(), "获取报价失败: " + ex.getMessage());
+            logger.error("[AsianOverlandAdapter.getPrice] 获取单酒店报价失败", ex);
+            throw SupplierException.invalidParameter(getSafeSupplierName(), "获取单酒店报价失败: " + ex.getMessage());
         }
     }
 
@@ -730,6 +770,40 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                 String hotelId = hotel.getHotelId();
                 List<XRoom> xRooms = convertHotelToXRooms(hotel, input.getCheckInDate(), input.getCheckOutDate(), input.getRoomNum(), searchUniqueId, input.getOccupancy(), true);
 
+                // 对每个房型下的价格计划进行去重（按 ratePlanId）
+                int totalRatePlansBeforeDedupe = 0;
+                int totalRatePlansAfterDedupe = 0;
+                for (XRoom xRoom : xRooms) {
+                    List<XRatePlan> ratePlans = xRoom.getRatePlans();
+                    if (ratePlans != null && !ratePlans.isEmpty()) {
+                        totalRatePlansBeforeDedupe += ratePlans.size();
+
+                        // 使用 LinkedHashMap 按 ratePlanId 去重，保留第一个出现的价格计划
+                        Map<String, XRatePlan> ratePlanMap = new LinkedHashMap<>();
+                        for (XRatePlan ratePlan : ratePlans) {
+                            if (ratePlan != null && StrUtil.isNotBlank(ratePlan.getRatePlanId())) {
+                                // 只保留第一个出现的，后续相同 ratePlanId 的忽略
+                                ratePlanMap.putIfAbsent(ratePlan.getRatePlanId(), ratePlan);
+                            }
+                        }
+
+                        // 更新为去重后的价格计划列表
+                        List<XRatePlan> deduplicatedRatePlans = new ArrayList<>(ratePlanMap.values());
+                        xRoom.setRatePlans(deduplicatedRatePlans);
+                        totalRatePlansAfterDedupe += deduplicatedRatePlans.size();
+
+                        if (ratePlans.size() != deduplicatedRatePlans.size()) {
+                            logger.info("[AsianOverlandAdapter.getPrices] 房型 {} 价格计划去重: {} -> {}",
+                                    xRoom.getRoomId(), ratePlans.size(), deduplicatedRatePlans.size());
+                        }
+                    }
+                }
+
+                if (totalRatePlansBeforeDedupe != totalRatePlansAfterDedupe) {
+                    logger.info("[AsianOverlandAdapter.getPrices] 酒店 {} 价格计划总体去重: {} -> {}",
+                            hotelId, totalRatePlansBeforeDedupe, totalRatePlansAfterDedupe);
+                }
+
                 if (!xRooms.isEmpty()) {
                     result.put(hotelId, xRooms);
                     logger.debug("[AsianOverlandAdapter.getPrices] 酒店{}转换完成，房型数量：{}", hotelId, xRooms.size());
@@ -742,8 +816,8 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             return result;
 
         } catch (Exception e) {
-            logger.error("[AsianOverlandAdapter.getPriceOrig] 获取原始报价失败", e);
-            throw SupplierException.invalidParameter(getSafeSupplierName(), "获取原始报价失败: " + e.getMessage());
+            logger.error("[AsianOverlandAdapter.getPrices] 获取多酒店报价失败", e);
+            throw SupplierException.invalidParameter(getSafeSupplierName(), "获取多酒店报价失败: " + e.getMessage());
         }
     }
 
@@ -766,7 +840,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
         /// 3.儿童年龄：0-12 岁
         /// 4.每间房最多儿童数：3 名
         /// 5.服务日期不应超过未来 365 天
-
 
 
         // 组装 QTechSearchRequest
@@ -950,7 +1023,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             }
 
 
-
             // 第三步：从房型扩展信息里获取 房型唯一标识（sectionUniqueId）和 房间类型ID（classUniqueId）
             QTechSearchResponse.RoomRateExt roomRateExt = JSONUtil.toBean(matchedRoom.getExt(), QTechSearchResponse.RoomRateExt.class);
             if (roomRateExt == null) {
@@ -995,6 +1067,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
             // 执行预定流程：预定接口 + 超时处理 + 订单详情轮询
             XCreateOrderResponse orderResponse = executeBookingWithTimeoutAndPolling(reservationRequest, input);
+
 
             return orderResponse;
 
@@ -1049,6 +1122,54 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
         logger.info("[AsianOverlandAdapter.cancelOrder] 订单允许取消，取消费用: {} {}",
                 chargesResponse.getCancellationCharge(), chargesResponse.getDisplayCurrencyCode());
 
+        // 更新订单日志中的取消费用和退款金额
+        DistributionOrdersLog ordersLog = null;
+        try {
+            ordersLog = ordersLogRepository.findBySupplierBookingKeyAndBusinessTypeAndIsSuccess(chargesRequest.getBookingId(), "createOrder", true);
+            if (ordersLog != null) {
+                // 获取取消费用和订单总金额
+                BigDecimal cancellationCharge = chargesResponse.getCancellationCharge();
+                BigDecimal totalAmount = ordersLog.getTotalAmount();
+
+                // 防御性编程：确保金额有效
+                if (cancellationCharge == null) {
+                    logger.warn("[AsianOverlandAdapter.cancelOrder] 取消费用为空，设置为0");
+                    cancellationCharge = BigDecimal.ZERO;
+                }
+                if (totalAmount == null) {
+                    logger.warn("[AsianOverlandAdapter.cancelOrder] 订单总金额为空，设置为0");
+                    totalAmount = BigDecimal.ZERO;
+                }
+
+                // 计算退款金额 = 订单总额 - 取消费用，保留2位小数
+                BigDecimal refundAmount = totalAmount.subtract(cancellationCharge)
+                        .setScale(2, RoundingMode.HALF_UP);
+
+                // 确保退款金额不为负数
+                if (refundAmount.compareTo(BigDecimal.ZERO) < 0) {
+                    logger.warn("[AsianOverlandAdapter.cancelOrder] 计算的退款金额为负数: {}, 设置为0。订单总额: {}, 取消费用: {}",
+                            refundAmount, totalAmount, cancellationCharge);
+                    refundAmount = BigDecimal.ZERO;
+                }
+
+                // 更新订单日志
+                ordersLog.setCancelAmount(cancellationCharge);
+                ordersLog.setRefundable("yes".equalsIgnoreCase(chargesResponse.getAllowCancel()));
+                ordersLog.setRefundAmount(refundAmount);
+
+                ordersLogRepository.save(ordersLog);
+
+                logger.info("[AsianOverlandAdapter.cancelOrder] 订单日志已更新 - 订单号: {}, 总金额: {}, 取消费用: {}, 退款金额: {}",
+                        chargesRequest.getBookingId(), totalAmount, cancellationCharge, refundAmount);
+            } else {
+                logger.warn("[AsianOverlandAdapter.cancelOrder] 未找到创建订单日志，订单号: {}", chargesRequest.getBookingId());
+            }
+        } catch (Exception e) {
+            logger.error("[AsianOverlandAdapter.cancelOrder] 更新订单日志失败，订单号: {}, 错误: {}", chargesRequest.getBookingId(), e.getMessage(), e);
+            // 不抛出异常，避免影响取消流程
+        }
+
+
         // 4. 执行取消预订
         QTechCancellationBookingRequest cancelRequest = new QTechCancellationBookingRequest();
         cancelRequest.setBookingId(input.getSupplierOrderId());
@@ -1067,7 +1188,12 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
         }
 
         // 6. 构建成功响应
-        return buildCancelSuccessResponse(input.getSupplierOrderId(), chargesResponse, cancellationResponse);
+        XCancelOrderResponse response = buildCancelSuccessResponse(input.getSupplierOrderId(), chargesResponse, cancellationResponse);
+        if (ordersLog != null) {
+            response.setRefundFee(ordersLog.getRefundAmount());
+        }
+
+        return response;
 
 
     }
@@ -1397,6 +1523,9 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                     matchedRatePlan.getRatePlanId(), matchedRatePlan.getRatePlanName(),
                     matchedRatePlan.getPrice(), matchedRatePlan.getCurrency());
 
+            //匹配选定价格计划后，重新设置到房型对象中
+            matchedRoom.setRatePlans(List.of(matchedRatePlan));
+
             // 第三步：从房型扩展信息里获取 房型唯一标识（sectionUniqueId）和 房间类型ID（classUniqueId）
             QTechSearchResponse.RoomRateExt roomRateExt = JSONUtil.toBean(matchedRoom.getExt(), QTechSearchResponse.RoomRateExt.class);
             if (roomRateExt == null) {
@@ -1488,7 +1617,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                     input.getCheckOutDate().toString(),
                     policyTotalPrice.toString()
             );
-
             // 9. 构建成功响应
             XOrderCheckResponse response = new XOrderCheckResponse();
             response.setRoom(matchedRoom);
@@ -2424,7 +2552,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
         // 转换回逗号分割的字符串
         return ages.stream()
                 .map(String::valueOf)
-                .collect(java.util.stream.Collectors.joining(","));
+                .collect(Collectors.joining(","));
     }
 
     /**
@@ -2787,8 +2915,8 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
         // 解析儿童数量
         if (lowerPattern.contains("plus")) {
             // 提取plus后面的儿童数量，如 "plus2child" -> 2
-            java.util.regex.Pattern childPattern = java.util.regex.Pattern.compile("plus(\\d+)child");
-            java.util.regex.Matcher childMatcher = childPattern.matcher(lowerPattern);
+            Pattern childPattern = Pattern.compile("plus(\\d+)child");
+            Matcher childMatcher = childPattern.matcher(lowerPattern);
             if (childMatcher.find()) {
                 numberOfChild = Integer.parseInt(childMatcher.group(1));
             } else if (lowerPattern.contains("pluschild")) {
@@ -3373,7 +3501,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                     }
 
                     // 计算单间价格：总价 / 房间数量
-                    BigDecimal totalPrice = roomRate.getRoomRate();
+                    BigDecimal totalPrice = prop.getDisplayRoomRate();
                     Integer numberOfRooms = roomNum;
                     // 防御性编程：确保房间数量有效
                     if (numberOfRooms == null || numberOfRooms <= 0) {
@@ -3431,7 +3559,7 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                 }
                 // 计算单间最低价格，保留2位小数，使用四舍五入
                 BigDecimal minPrice = NumberUtil.div(displayTotalPrice, requestedRoomNum, 2, RoundingMode.HALF_UP);
-                
+
                 logger.debug("[AsianOverlandAdapter.convertHotelToXRooms] 房型最低价计算: hotelId={}, 展示总价={}, 房间数={}, 单间最低价={}",
                         hotel.getHotelId(), displayTotalPrice, requestedRoomNum, minPrice);
                 //设置 房型报价
@@ -4123,7 +4251,6 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
         // 使用现有的枚举值，取消成功可以用CANCELLED表示
         response.setStatus(SupplierOrderStatusEnum.CANCELLED);
         response.setStatusDesc("取消成功");
-        response.setRefundFee(chargesResponse.getCancellationCharge());
         response.setOrigStatusDesc(cancellationResponse.getMessageInfo());
 
         // 记录取消费用响应的信息
@@ -4217,20 +4344,82 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
             response.setConfirmNo(detail.getBookingReference());
 
 
+            response.setTotalPrice(detail.getAgentRate());
+
+
             response.setCheckInDate(HeyUtil.parseToLocalDateTime(detail.getCheckInDate()));
             response.setCheckOutDate(HeyUtil.parseToLocalDateTime(detail.getCheckOutDate()));
             response.setBookDate(HeyUtil.parseToLocalDateTime(detail.getBookingDate()));
-            response.setLatestArrivalTime(HeyUtil.parseToLocalDateTime(detail.getExpirationDate()));
+            //response.setLatestArrivalTime(HeyUtil.parseToLocalDateTime(detail.getExpirationDate()));
 
             response.setRoomNum(Integer.parseInt(detail.getTotalRooms() != null ? detail.getTotalRooms() : "1"));
             response.setDesc(detail.getSpecialRemark());
             response.setContactName(detail.getLeaderFirstName() + " " + detail.getLeaderLastName());
+
+            response.setCurrency(detail.getCurrencyCode());
+
+            // 查询订单日志获取取消费用和退款金额
+            // 降级查询策略：
+            // 1. 优先使用 supplierOrderId 查询（供应商订单号）
+            // 2. 如果查询不到，使用 distributorOrderId 查询（分销商订单号）
+            DistributionOrdersLog ordersLog = null;
+            // 第一步：优先使用 supplierOrderId 查询
+            if (StrUtil.isNotBlank(supplierOrderId)) {
+                ordersLog = ordersLogRepository.findBySupplierBookingKeyAndBusinessTypeAndIsSuccess(
+                        supplierOrderId, "createOrder", true);
+                
+                if (ordersLog != null) {
+                    logger.debug("[AsianOverlandAdapter.buildQuerySuccessResponse] 通过supplierOrderId查询到订单日志: {}", supplierOrderId);
+                } else {
+                    logger.debug("[AsianOverlandAdapter.buildQuerySuccessResponse] 通过supplierOrderId未查询到订单日志: {}", supplierOrderId);
+                }
+            }
+            
+            // 第二步：如果第一步未查询到，使用 distributorOrderId 降级查询
+            if (ordersLog == null && StrUtil.isNotBlank(distributorOrderId)) {
+                ordersLog = ordersLogRepository.findByDistributionOrdersKeyAndBusinessTypeAndIsSuccess(
+                        distributorOrderId, "createOrder", true);
+                
+                if (ordersLog != null) {
+                    logger.debug("[AsianOverlandAdapter.buildQuerySuccessResponse] 通过distributorOrderId查询到订单日志: {}", distributorOrderId);
+                } else {
+                    logger.warn("[AsianOverlandAdapter.buildQuerySuccessResponse] 通过distributorOrderId仍未查询到订单日志: {}", distributorOrderId);
+                }
+            }
+            
+            // 第三步：根据查询结果设置订单金额和退款信息
+            if (ordersLog != null) {
+                // 设置订单总金额
+                BigDecimal totalAmount = ordersLog.getTotalAmount();
+                if (totalAmount != null) {
+                    response.setTotalPrice(totalAmount);
+                }
+                
+                // 只有在订单未确认的情况下，才设置退款金额
+                if (!SupplierOrderStatusEnum.CONFIRMED.equals(response.getStatus())) {
+                    BigDecimal refundAmount = ordersLog.getRefundAmount();
+                    response.setRefundFee(refundAmount != null ? refundAmount : BigDecimal.ZERO);
+                    
+                    logger.debug("[AsianOverlandAdapter.buildQuerySuccessResponse] 订单状态非确认，设置退款金额: {}", refundAmount);
+                }
+            } else {
+                // 未查询到订单日志，设置默认值
+                logger.warn("[AsianOverlandAdapter.buildQuerySuccessResponse] 未查询到订单日志，supplierOrderId: {}, distributorOrderId: {}",
+                        supplierOrderId, distributorOrderId);
+            }
 
 
             response.setHotelName(detail.getHotelName());
             response.setHotelId(detail.getLocalHotelId());
             response.setHotelPhone(detail.getHotelPhone());
             response.setHotelAddress(detail.getCountryName() + detail.getCityId() + detail.getHotelAddress1());
+
+
+            List<QTechBookingDetailResponse.RoomDetail> roomDetails = detail.getRoomDetail();
+            if (roomDetails != null && !roomDetails.isEmpty()) {
+                QTechBookingDetailResponse.RoomDetail roomDetail = roomDetails.get(0);
+                response.setRoomName(roomDetail.getRoomTypeDescription());
+            }
 
 
             // 记录详细信息到日志（因为XQueryOrderResponse可能没有这些字段）

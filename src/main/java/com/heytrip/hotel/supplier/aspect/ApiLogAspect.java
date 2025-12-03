@@ -425,10 +425,11 @@ public class ApiLogAspect {
         mapping.put("roomNum", "RoomNum");
 
         // 价格相关字段映射
-        mapping.put("totalAmount", "SalePrice");
-        mapping.put("totalAmount", "TotalPrice");
-        mapping.put("salePrice", "SalePrice");
+        mapping.put("totalAmount", "totalBasePrice");
         mapping.put("totalPrice", "TotalPrice");
+        mapping.put("salePrice", "SalePrice");
+        mapping.put("salesAmount", "SalePrice");
+
 
         // 其他字段映射
         mapping.put("currency", "Currency");
@@ -486,7 +487,8 @@ public class ApiLogAspect {
                 orderData.setRateKey(HeyUtil.getStringValue(fields, "ratePlanId"));
                 orderData.setCurrency(HeyUtil.getStringValue(fields, "currency"));
                 orderData.setNational(HeyUtil.getStringValue(fields, "national"));
-                orderData.setTotalAmount(HeyUtil.getBigDecimalValue(fields, "salePrice"));
+                orderData.setTotalAmount(HeyUtil.getBigDecimalValue(fields, "totalBasePrice"));
+                orderData.setSaleAmount(HeyUtil.getBigDecimalValue(fields, "salePrice"));
                 orderData.setOccupancy(HeyUtil.getStringValue(fields, "occupancy"));
                 orderData.setRooms(HeyUtil.getIntValue(fields, "roomNum", 1));
 

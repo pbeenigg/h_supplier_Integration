@@ -45,6 +45,9 @@ public interface DistributionOrdersLogRepository extends JpaRepository<Distribut
      */
     List<DistributionOrdersLog> findBySupplierBookingKey(String supplierBookingKey);
 
+    DistributionOrdersLog findBySupplierBookingKeyAndBusinessTypeAndIsSuccess(String supplierBookingKey,String businessType,boolean isSuccess);
+    DistributionOrdersLog findByDistributionOrdersKeyAndBusinessTypeAndIsSuccess(String distributionOrdersKey,String businessType,boolean isSuccess);
+
     /**
      * 根据业务类型和时间范围查询
      */

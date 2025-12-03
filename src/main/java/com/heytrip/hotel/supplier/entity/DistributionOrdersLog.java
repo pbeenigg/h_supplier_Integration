@@ -95,8 +95,24 @@ public class DistributionOrdersLog {
     private String national;
 
     @Column(name = "total_amount", precision = 10, scale = 2)
-    @Comment("总金额")
+    @Comment("总订单金额")
     private BigDecimal totalAmount;
+
+    @Column(name = "sale_amount", precision = 10, scale = 2)
+    @Comment("销售总金额")
+    private BigDecimal saleAmount;
+
+    @Column(name = "cancel_amount", precision = 10, scale = 2)
+    @Comment("取消预定金额")
+    private BigDecimal cancelAmount;
+
+    @Column(name = "refund_amount", precision = 10, scale = 2)
+    @Comment("退款金额")
+    private BigDecimal refundAmount;
+
+    @Column(name = "refundable")
+    @Comment("是否可退款 0-可退款 1-可退款")
+    private Boolean refundable = false;
 
     @Column(name = "distribution_orders_key", length = 100)
     @Comment("分销商订单号标识")

@@ -76,6 +76,11 @@ public class OrderLogData {
     private BigDecimal totalAmount;
 
     /**
+     * 销售总金额
+     */
+    private BigDecimal saleAmount;
+
+    /**
      * 分销商订单号标识，分销商系统的订单唯一标识
      */
     private String distributionOrdersKey;

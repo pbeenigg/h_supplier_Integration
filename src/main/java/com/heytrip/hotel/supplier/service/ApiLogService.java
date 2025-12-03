@@ -165,6 +165,7 @@ public class ApiLogService {
                 ordersLog.setCurrency(orderData.getCurrency());
                 ordersLog.setNational(orderData.getNational());
                 ordersLog.setTotalAmount(orderData.getTotalAmount());
+                ordersLog.setSaleAmount(orderData.getSaleAmount());
                 ordersLog.setDistributionOrdersKey(orderData.getDistributionOrdersKey());
                 ordersLog.setSupplierBookingKey(orderData.getSupplierBookingKey());
                 ordersLog.setBookingStatus(orderData.getBookingStatus());
