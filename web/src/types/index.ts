@@ -338,6 +338,10 @@ export interface DistributionOrdersLog {
   currency: string
   national?: string
   totalAmount: number
+  saleAmount?: number
+  refundAmount?: number
+  cancelAmount?: number
+  refundable?: number | boolean
   distributionOrdersKey: string
   supplierBookingKey?: string
   bookingStatus?: string

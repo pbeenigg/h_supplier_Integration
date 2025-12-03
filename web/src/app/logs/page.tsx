@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { CopyableText } from '@/components/ui/copyable-text'
 import MainLayout from '@/components/layout/main-layout'
 import { apiClient } from '@/lib/api-client'
 import type {
@@ -362,6 +363,44 @@ export default function LogsPage() {
     }
 
     return styles[status] || styles.default
+  }
+
+  const formatAmountWithCurrency = (amount?: number | null, currency?: string) => {
+    if (amount === null || amount === undefined) {
+      return '-'
+    }
+    const currencySuffix = currency ? ` ${currency}` : ''
+    return `${amount}${currencySuffix}`
+  }
+
+  const normalizeRefundable = (value?: number | boolean | string | null) => {
+    if (value === null || value === undefined) {
+      return undefined
+    }
+    if (typeof value === 'boolean') {
+      return value
+    }
+    const numericValue = Number(value)
+    if (Number.isNaN(numericValue)) {
+      return undefined
+    }
+    return numericValue === 1
+  }
+
+  const getRefundableLabel = (value?: number | boolean | string | null) => {
+    const normalized = normalizeRefundable(value)
+    if (normalized === undefined) {
+      return '-'
+    }
+    return normalized ? '可退' : '不可退'
+  }
+
+  const getRefundableStyles = (value?: number | boolean | string | null) => {
+    const normalized = normalizeRefundable(value)
+    if (normalized === undefined) {
+      return 'bg-gray-100 text-gray-800'
+    }
+    return normalized ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
   }
 
   // 全局HTTP状态码颜色设置函数
@@ -1371,8 +1410,12 @@ export default function LogsPage() {
                             <th className="text-left py-3 px-4 font-medium text-gray-900">入住/离店</th>
                             <th className="text-left py-3 px-4 font-medium text-gray-1200">分销商订单号</th>
                             <th className="text-left py-3 px-4 font-medium text-gray-900">供应商订单号</th>
-                            <th className="text-left py-3 px-4 font-medium text-gray-900">总金额</th>
-                            <th className="text-left py-3 px-4 font-medium text-gray-900">预订状态</th>
+                            <th className="text-left py-3 px-4 font-medium text-gray-900">订单金额</th>
+                            <th className="text-left py-3 px-4 font-medium text-gray-900">销售金额</th>
+                            <th className="text-left py-3 px-4 font-medium text-gray-900">退款金额</th>
+                            <th className="text-left py-3 px-4 font-medium text-gray-900">取消金额</th>
+                            <th className="text-left py-3 px-4 font-medium text-gray-900">是否可退</th>
+                          
                           </>
                         )}
 
@@ -1399,16 +1442,22 @@ export default function LogsPage() {
                         <tr key={log.id} className="border-b hover:bg-gray-50">
                           <td className="py-3 px-4">{log.id}</td>
                           <td className="py-3 px-4">{log.supplierCode}</td>
-                          <td className="py-3 px-4 font-mono text-sm min-w-[100px] max-w-[180px] truncate" title={log.traceId || '-'}>
-                            {log.traceId || '-'}
+                          <td className="py-3 px-4">
+                            <CopyableText 
+                              text={log.traceId || '-'} 
+                              className="font-mono text-sm min-w-[100px] max-w-[180px]" 
+                            />
                           </td>
                           <td className="py-3 px-4">{getStatusBadge(log.isSuccess)}</td>
 
                           {/* 供应商调用日志数据 */}
                           {activeTab === 'supplier' && (
                             <>
-                              <td className="py-3 px-4 font-mono text-xs max-w-[150px] truncate" title={log.apiEndpoint}>
-                                {log.apiEndpoint}
+                              <td className="py-3 px-4">
+                                <CopyableText 
+                                  text={log.apiEndpoint} 
+                                  className="font-mono text-xs max-w-[150px]" 
+                                />
                               </td>
                               <td className="py-3 px-4">
                                 <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${getHttpMethodStyles(log.httpMethod)}`}>
@@ -1443,15 +1492,23 @@ export default function LogsPage() {
                           {/* 分销调用日志数据 */}
                           {activeTab === 'distribution-call' && (
                             <>
-                              <td className="py-3 px-4 font-mono text-xs max-w-[150px] truncate" title={log.apiEndpoint}>
-                                {log.apiEndpoint}
+                              <td className="py-3 px-4">
+                                <CopyableText 
+                                  text={log.apiEndpoint} 
+                                  className="font-mono text-xs max-w-[150px]" 
+                                />
                               </td>
                               <td className="py-3 px-4">
                                 <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${getBusinessTypeStyles(log.businessType)}`}>
                                   {log.businessType}
                                 </span>
                               </td>
-                              <td className="py-3 px-4 font-mono text-sm">{log.hotelKey}</td>
+                              <td className="py-3 px-4">
+                                <CopyableText 
+                                  text={log.hotelKey} 
+                                  className="font-mono text-sm max-w-[150px]" 
+                                />
+                              </td>
                               <td className="py-3 px-4">
                                 <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${getHttpStatusStyles(log.responseStatus)}`}>
                                   {log.responseStatus}
@@ -1469,25 +1526,46 @@ export default function LogsPage() {
                                   {log.businessType}
                                 </span>
                               </td>
-                              <td className="py-3 px-4 font-mono text-sm">{log.hotelKey}</td>
+                              <td className="py-3 px-4">
+                                <CopyableText 
+                                  text={log.hotelKey} 
+                                  className="font-mono text-sm max-w-[150px]" 
+                                />
+                              </td>
                               <td className="py-3 px-4 text-sm">
                                 <div>{log.checkInKey}</div>
                                 <div className="text-gray-500">{log.checkOutKey}</div>
                               </td>
-                              <td className="py-3 px-4 font-mono text-sm min-w-[100px] max-w-[180px] truncate" title={log.distributionOrdersKey}>
-                                {log.distributionOrdersKey}
-                              </td>
-                              <td className="py-3 px-4 ffont-mono text-sm min-w-[100px] max-w-[150px] truncate" title={log.supplierBookingKey}>
-                                {log.supplierBookingKey}
-                              </td>
-                              <td className="py-3 px-4 font-semibold">
-                                {log.totalAmount} {log.currency}
+                              <td className="py-3 px-4">
+                                <CopyableText 
+                                  text={log.distributionOrdersKey} 
+                                  className="font-mono text-sm min-w-[100px] max-w-[180px]" 
+                                />
                               </td>
                               <td className="py-3 px-4">
-                                <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${getBookingStatusStyles(log.bookingStatus)}`}>
-                                  {log.bookingStatus}
+                                <CopyableText 
+                                  text={log.supplierBookingKey} 
+                                  className="font-mono text-sm min-w-[100px] max-w-[150px]" 
+                                />
+                              </td>
+                              <td className="py-3 px-4 font-semibold">
+                                {formatAmountWithCurrency(log.totalAmount, log.currency)}
+                              </td>
+                              <td className="py-3 px-4">
+                                {formatAmountWithCurrency(log.saleAmount, log.currency)}
+                              </td>
+                              <td className="py-3 px-4">
+                                {formatAmountWithCurrency(log.refundAmount, log.currency)}
+                              </td>
+                              <td className="py-3 px-4">
+                                {formatAmountWithCurrency(log.cancelAmount, log.currency)}
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${getRefundableStyles(log.refundable)}`}>
+                                  {getRefundableLabel(log.refundable)}
                                 </span>
                               </td>
+                           
                             </>
                           )}
 
@@ -1677,10 +1755,23 @@ export default function LogsPage() {
                             <p className="mt-1 text-sm text-gray-900 font-semibold">{selectedLog.totalAmount} {selectedLog.currency}</p>
                           </div>
                           <div>
-                            <label className="block text-sm font-medium text-gray-700">预订状态</label>
+                            <label className="block text-sm font-medium text-gray-700">销售金额</label>
+                            <p className="mt-1 text-sm text-gray-900">{formatAmountWithCurrency(selectedLog.saleAmount, selectedLog.currency)}</p>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">退款金额</label>
+                            <p className="mt-1 text-sm text-gray-900">{formatAmountWithCurrency(selectedLog.refundAmount, selectedLog.currency)}</p>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">取消金额</label>
+                            <p className="mt-1 text-sm text-gray-900">{formatAmountWithCurrency(selectedLog.cancelAmount, selectedLog.currency)}</p>
+                          </div>
+                         
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">是否可退</label>
                             <p className="mt-1">
-                              <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${getBookingStatusStyles(selectedLog.bookingStatus)}`}>
-                                {selectedLog.bookingStatus}
+                              <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${getRefundableStyles(selectedLog.refundable)}`}>
+                                {getRefundableLabel(selectedLog.refundable)}
                               </span>
                             </p>
                           </div>
