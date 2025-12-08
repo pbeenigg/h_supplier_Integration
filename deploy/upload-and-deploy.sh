@@ -507,8 +507,8 @@ if [[ "$DEPLOY_TYPE" == "web" || "$DEPLOY_TYPE" == "full" ]]; then
 fi
 
 TMP_REMOTE_SCRIPT="/tmp/upload-deploy-$RANDOM.sh"
-REMOTE_JAR_PATH="${REMOTE_DIR}/deploy/${TARGET_JAR_NAME}"
-REMOTE_DEPLOY_SCRIPT="${REMOTE_DIR}/deploy/deploy-jar.sh"
+REMOTE_JAR_PATH="${REMOTE_DIR}/supplier-aos/${TARGET_JAR_NAME}"
+REMOTE_DEPLOY_SCRIPT="${REMOTE_DIR}/supplier-aos/deploy-jar.sh"
 
 log "步骤 2/5: 测试SSH连接并创建远程目录"
 log_connection_context
@@ -519,75 +519,75 @@ if ! default_ssh "echo 'SSH连接测试成功'"; then
   die "SSH连接失败，请检查服务器地址、端口、用户名和认证信息"
 fi
 
-default_ssh "mkdir -p '${REMOTE_DIR}/deploy' '${REMOTE_DIR}/deploy/web'"
+default_ssh "mkdir -p '${REMOTE_DIR}/supplier-aos' '${REMOTE_DIR}/supplier-aos/web'"
 
 # 根据部署类型上传文件
 if [[ "$DEPLOY_TYPE" == "backend" || "$DEPLOY_TYPE" == "full" ]]; then
   log "步骤 3/5: 上传 Jar 到服务器 -> ${REMOTE_JAR_PATH}"
-  if ! transfer_with_scp "$LOCAL_JAR_PATH" "${SSH_USER}@${HOST}:${REMOTE_DIR}/deploy" "$TARGET_JAR_NAME"; then
+  if ! transfer_with_scp "$LOCAL_JAR_PATH" "${SSH_USER}@${HOST}:${REMOTE_DIR}/supplier-aos" "$TARGET_JAR_NAME"; then
     die "上传 Jar 失败"
   fi
 fi
 
 if [[ "$DEPLOY_TYPE" == "web" || "$DEPLOY_TYPE" == "full" ]]; then
   log "步骤 3/5: 同步前端到服务器"
-  
+
   # 创建远程web目录
-  default_ssh "mkdir -p '${REMOTE_DIR}/deploy/web'"
-  
+  default_ssh "mkdir -p '${REMOTE_DIR}/supplier-aos/web'"
+
   # 方式1: 传输构建产物 + 轻量Dockerfile（推荐）
   if [[ -d "${PROJECT_ROOT}/web/out" ]]; then
     log "传输前端构建产物（out目录）"
-    if ! reliable_transfer "${PROJECT_ROOT}/web/out" "${SSH_USER}@${HOST}:${REMOTE_DIR}/deploy/web/" "web/out"; then
+    if ! reliable_transfer "${PROJECT_ROOT}/web/out" "${SSH_USER}@${HOST}:${REMOTE_DIR}/supplier-aos/web/" "web/out"; then
       die "上传前端构建产物失败"
     fi
-    
+
     # 传输轻量级 Dockerfile 和 nginx 配置
     WEB_RUNTIME_FILES=("Dockerfile")
     for file in "${WEB_RUNTIME_FILES[@]}"; do
       LOCAL_WEB_FILE="${PROJECT_ROOT}/web/${file}"
       if [[ -f "$LOCAL_WEB_FILE" ]]; then
         log "同步运行时文件 web/${file}"
-        if ! transfer_with_scp "$LOCAL_WEB_FILE" "${SSH_USER}@${HOST}:${REMOTE_DIR}/deploy/web/" "web/${file}"; then
+        if ! transfer_with_scp "$LOCAL_WEB_FILE" "${SSH_USER}@${HOST}:${REMOTE_DIR}/supplier-aos/web/" "web/${file}"; then
           log "警告：web/${file} 上传失败，将使用默认配置"
         fi
       fi
     done
-    
+
     log "前端部署采用构建产物模式，无需服务器端构建"
-    
+
   else
     # 方式2: 传输完整源码进行Docker构建（备选）
     log "未找到构建产物，将传输源码进行服务器构建"
-    
+
     WEB_FILES=("Dockerfile" "package.json" "next.config.js" "tailwind.config.js" "tsconfig.json" "postcss.config.js")
     LARGE_WEB_FILES=("pnpm-lock.yaml")
-    
+
     # 传输配置文件
     for file in "${WEB_FILES[@]}"; do
       LOCAL_WEB_FILE="${PROJECT_ROOT}/web/${file}"
       if [[ -f "$LOCAL_WEB_FILE" ]]; then
         log "同步 web/${file}"
-        if ! transfer_with_scp "$LOCAL_WEB_FILE" "${SSH_USER}@${HOST}:${REMOTE_DIR}/deploy/web/" "web/${file}"; then
+        if ! transfer_with_scp "$LOCAL_WEB_FILE" "${SSH_USER}@${HOST}:${REMOTE_DIR}/supplier-aos/web/" "web/${file}"; then
           die "上传 web/${file} 失败"
         fi
       fi
     done
-    
+
     # 传输大文件
     for file in "${LARGE_WEB_FILES[@]}"; do
       LOCAL_WEB_FILE="${PROJECT_ROOT}/web/${file}"
       if [[ -f "$LOCAL_WEB_FILE" ]]; then
         log "同步 web/${file}"
-        if ! reliable_transfer "$LOCAL_WEB_FILE" "${SSH_USER}@${HOST}:${REMOTE_DIR}/deploy/web/${file}" "web/${file}"; then
+        if ! reliable_transfer "$LOCAL_WEB_FILE" "${SSH_USER}@${HOST}:${REMOTE_DIR}/supplier-aos/web/${file}" "web/${file}"; then
           die "上传 web/${file} 失败"
         fi
       fi
     done
-    
+
     # 传输源码目录（压缩方式）
     log "同步 web/src 目录"
-    if ! reliable_transfer "${PROJECT_ROOT}/web/src" "${SSH_USER}@${HOST}:${REMOTE_DIR}/deploy/web/src" "web/src"; then
+    if ! reliable_transfer "${PROJECT_ROOT}/web/src" "${SSH_USER}@${HOST}:${REMOTE_DIR}/supplier-aos/web/src" "web/src"; then
       die "上传 web/src 目录失败"
     fi
   fi
@@ -603,12 +603,12 @@ for file in "${DEPLOY_FILES[@]}"; do
     continue
   fi
   log "同步 deploy/${file}"
-  if ! transfer_with_scp "$LOCAL_DEPLOY_FILE" "${SSH_USER}@${HOST}:${REMOTE_DIR}/deploy/" "deploy/${file}"; then
+  if ! transfer_with_scp "$LOCAL_DEPLOY_FILE" "${SSH_USER}@${HOST}:${REMOTE_DIR}/supplier-aos/" "deploy/${file}"; then
     die "上传 deploy/${file} 失败"
   fi
 done
 
-default_ssh "chmod +x '${REMOTE_DIR}/deploy/deploy-jar.sh'"
+default_ssh "chmod +x '${REMOTE_DIR}/supplier-aos/deploy-jar.sh'"
 
 # 根据部署类型生成部署脚本
 DEPLOY_COMMAND=""
@@ -628,7 +628,7 @@ esac
 default_ssh "cat > '${TMP_REMOTE_SCRIPT}' << 'EOS'
 #!/bin/bash
 set -e
-cd '${REMOTE_DIR}/deploy'
+cd '${REMOTE_DIR}/supplier-aos'
 ${DEPLOY_COMMAND}
 EOS"
 

@@ -28,11 +28,11 @@ RUN mkdir -p /app/logs && chown -R appuser:appuser /app
 USER appuser
 
 # 暴露端口
-EXPOSE 9090
+EXPOSE 19090
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:9090/actuator/health || exit 1
+    CMD curl -f http://localhost:19090/actuator/health || exit 1
 
 # 设置JVM参数
 ENV JAVA_OPTS="-Xmx6g -Xms2g -XX:+UseG1GC -XX:+UseContainerSupport -XX:MaxRAMPercentage=80 -XX:G1HeapRegionSize=16m -XX:MaxGCPauseMillis=200 -Duser.timezone=Asia/Shanghai -Djava.security.egd=file:/dev/./urandom"

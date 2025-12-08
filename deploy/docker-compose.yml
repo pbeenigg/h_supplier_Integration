@@ -36,8 +36,8 @@ services:
   # HeyTrip Supplier Integration Service (JAR包部署)
   heytrip-supplier:
     build:
-      context: ..
-      dockerfile: deploy/Dockerfile
+      context: .
+      dockerfile: Dockerfile
       args:
         JAR_FILE_PATH: ${JAR_FILE_PATH}
       tags:
@@ -50,7 +50,7 @@ services:
       TZ: Asia/Shanghai
       # Spring Boot 基础配置
       SPRING_PROFILES_ACTIVE: prod
-      SERVER_PORT: 9090
+      SERVER_PORT: 19090
       
       # 数据库配置（使用外部数据库）
       DB_URL: jdbc:p6spy:mysql://pc-j6c1oer259zv98w65.rwlb.rds.aliyuncs.com:3306/supplier_pax?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
@@ -83,12 +83,12 @@ services:
       JAVA_OPTS: -Xmx6g -Xms2g -XX:+UseG1GC -XX:+UseContainerSupport -XX:MaxRAMPercentage=80 -XX:G1HeapRegionSize=16m -XX:MaxGCPauseMillis=200 -Duser.timezone=Asia/Shanghai
       
     ports:
-      - "${HOST_PORT:-9090}:9090"
+      - "${HOST_PORT:-19090}:19090"
     volumes:
       - ./logs/app:/app/logs
       - ./csv:/app/csv
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9090/actuator/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:19090/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3

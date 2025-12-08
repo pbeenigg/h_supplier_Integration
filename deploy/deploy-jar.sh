@@ -30,7 +30,7 @@ HeyTrip Supplier Integration 一键部署脚本
   jar文件路径    要部署的JAR包文件路径（--type web时可以为空）
 
 选项:
-  --port PORT       指定后端应用端口 (默认: 9090)
+  --port PORT       指定后端应用端口 (默认: 19090)
   --web-port PORT   指定前端Web端口 (默认: 9091)
   --tag TAG         指定Docker镜像标签 (默认: 自动生成)
   --type TYPE       部署类型: backend|web|full (默认: backend)
@@ -166,7 +166,7 @@ deploy_service() {
 
     local absolute_jar_path project_root relative_jar_path project_version
     absolute_jar_path=$(cd "$(dirname "$jar_file")" && pwd)/$(basename "$jar_file")
-    project_root=$(cd .. && pwd)
+    project_root=$(pwd)
 
     if [[ "$absolute_jar_path" == "$project_root"/* ]]; then
         relative_jar_path="${absolute_jar_path#$project_root/}"
@@ -227,7 +227,7 @@ deploy_full_service() {
 
     local absolute_jar_path project_root relative_jar_path project_version
     absolute_jar_path=$(cd "$(dirname "$jar_file")" && pwd)/$(basename "$jar_file")
-    project_root=$(cd .. && pwd)
+    project_root=$(pwd)
 
     if [[ "$absolute_jar_path" == "$project_root"/* ]]; then
         relative_jar_path="${absolute_jar_path#$project_root/}"
@@ -524,7 +524,7 @@ main() {
     echo "========================================"
 
     local JAR_FILE=""
-    local PORT=9090
+    local PORT=19090
     local WEB_PORT=9091
     local CLEAN=false
     local IMAGE_TAG=""

@@ -3371,17 +3371,22 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
 
                     // 解析总入住人数
                     Integer totalPeople = OccupancyStats.parseOccupancy(occupancy);
+                    // 解析成人人数
+                    Integer adultCount = OccupancyStats.parseAdultCount(occupancy);
+                    // 解析儿童人数
+                    Integer childCount = OccupancyStats.parseChildCount(occupancy);
+
                     // 是否带餐食
                     if (roomRate.getMealBasis().contains("Breakfast") || roomRate.getRoomType().contains("Breakfast") || roomRate.getMealCode().contains("BB")) {
-                        ratePlan.setBreakfast(totalPeople);
+                        ratePlan.setBreakfast(adultCount);
                         ratePlan.setMealType(XMealType.SPECIFY);
                     }
                     if (roomRate.getMealBasis().contains("Lunch") || roomRate.getRoomType().contains("Lunch") || roomRate.getMealCode().contains("LB")) {
-                        ratePlan.setLunch(totalPeople);
+                        ratePlan.setLunch(adultCount);
                         ratePlan.setMealType(XMealType.SPECIFY);
                     }
                     if (roomRate.getMealBasis().contains("Dinner") || roomRate.getRoomType().contains("Dinner") || roomRate.getMealCode().contains("DB")) {
-                        ratePlan.setDinner(totalPeople);
+                        ratePlan.setDinner(adultCount);
                         ratePlan.setMealType(XMealType.SPECIFY);
                     }
 

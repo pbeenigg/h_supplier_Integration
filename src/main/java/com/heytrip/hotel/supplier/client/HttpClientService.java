@@ -101,6 +101,7 @@ public class HttpClientService {
         HttpClient httpClient = HttpClient.create(connectionProvider)
                 .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 30000)   // 连接超时10秒
                 .responseTimeout(Duration.ofSeconds(30))               // 响应超时10秒
+                .compress(true)                                        // 启用HTTP压缩(gzip/deflate)
                 .doOnConnected(conn -> 
                     conn.addHandlerLast(new ReadTimeoutHandler(30))    // 读取超时10秒
                         .addHandlerLast(new WriteTimeoutHandler(30))   // 写入超时10秒
