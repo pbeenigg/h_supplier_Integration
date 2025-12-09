@@ -3370,11 +3370,14 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
                     ratePlan.setMealType(XMealType.UNKNOWN);
 
                     // 解析总入住人数
-                    Integer totalPeople = OccupancyStats.parseOccupancy(occupancy);
+                    //Integer totalPeople = OccupancyStats.parseOccupancy(occupancy);
                     // 解析成人人数
-                    Integer adultCount = OccupancyStats.parseAdultCount(occupancy);
+                    //Integer adultCount = OccupancyStats.parseAdultCount(occupancy);
                     // 解析儿童人数
-                    Integer childCount = OccupancyStats.parseChildCount(occupancy);
+                    //Integer childCount = OccupancyStats.parseChildCount(occupancy);
+
+                    //解析所有房间中最小的单间成人数
+                    Integer adultCount = OccupancyStats.parseMinAdultCountPerRoom(occupancy);
 
                     // 是否带餐食
                     if (roomRate.getMealBasis().contains("Breakfast") || roomRate.getRoomType().contains("Breakfast") || roomRate.getMealCode().contains("BB")) {
