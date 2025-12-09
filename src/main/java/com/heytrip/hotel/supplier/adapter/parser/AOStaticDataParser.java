@@ -2,6 +2,7 @@ package com.heytrip.hotel.supplier.adapter.parser;
 
 import cn.hutool.core.util.StrUtil;
 import com.heytrip.hotel.supplier.entity.*;
+import com.heytrip.hotel.supplier.utils.CoordinateUtil;
 import com.heytrip.hotel.supplier.utils.MD5Util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -120,8 +121,25 @@ public class AOStaticDataParser implements StaticDataParser {
             e.setAddress(val(row, "address"));
             e.setPhone(val(row, "phone"));
             e.setWebsite(val(row, "website"));
-            e.setLatitude(val(row, "latitude"));
-            e.setLongitude(val(row, "longitude"));
+
+
+            ///酒店经纬度解析，处理异常情况， 只保留正确的经纬度数据，如果所有的解析手段都处理不了，则设置为null
+            //1、经度纬度字段可能为空或格式不正确
+            //2、经度纬度字段可能超出合理范围
+            //3、经度纬度字段可能为0
+            //4、经度纬度字段可能存在小数点后过多位数的情况
+            //5、经度纬度字段可能存在负数的情况
+            //6、经度纬度字段可能存在科学计数法表示的情况
+            //7、经度纬度字段可能存在前后空格的情况
+            //8、经度纬度字段可能存在中文符号的情况
+            //9、经度纬度字段可能存在特殊符号的情况
+            //10、经度纬度字段可能存在多余的字符情况
+            ///举例：
+            // 3.162790, 101.711120,17   -> 有逗号 -> 3.162790,101.711120
+            // 3.0848&deg; N , 101.6733&deg; E  -> 有分号字母    和特殊符号 -> 3.0848 , 101.6733
+            // 3.0817076 ,101.5599172,   -> 有多余逗号 -> 3.0817076 ,101.5599172
+            e.setLatitude(CoordinateUtil.parseCoordinate(val(row, "latitude"), "纬度", -90.0, 90.0, hotelCode));
+            e.setLongitude(CoordinateUtil.parseCoordinate(val(row, "longitude"), "经度", -180.0, 180.0, hotelCode));
             e.setRating(val(row, "rating"));
             list.add(e);
         }
@@ -213,6 +231,7 @@ public class AOStaticDataParser implements StaticDataParser {
             return BigDecimal.ZERO;
         }
     }
+
 
 
 }
