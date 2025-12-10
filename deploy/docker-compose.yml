@@ -1,4 +1,3 @@
-version: "3.8"
 name: heytrip-supplier
 
 services:
@@ -104,4 +103,4 @@ services:
 networks:
   heytrip:
     name: heytrip
-    driver: host
+    driver: bridge

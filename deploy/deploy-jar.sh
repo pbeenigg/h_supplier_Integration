@@ -4,8 +4,18 @@
 # 用于直接部署已构建的JAR包到服务器
 # 作者: Pax
 # 版本: 1.0.0
+# 
+# 支持的容器编排工具:
+#   - Docker Compose v2 (docker compose)
+#   - Docker Compose v1 (docker-compose)
+#   - Podman Compose (podman-compose)
 
 set -euo pipefail
+
+# 全局变量：将在 check_dependencies 中设置
+COMPOSE_CMD=""           # 实际使用的 compose 命令
+COMPOSE_TYPE=""          # 编排工具类型描述
+SUPPORTS_PROFILE=true    # 是否支持 --profile 参数（podman-compose 不支持）
 
 # 颜色定义
 RED='\033[0;31m'
@@ -30,15 +40,17 @@ HeyTrip Supplier Integration 一键部署脚本
   jar文件路径    要部署的JAR包文件路径（--type web时可以为空）
 
 选项:
-  --port PORT       指定后端应用端口 (默认: 19090)
-  --web-port PORT   指定前端Web端口 (默认: 9091)
-  --tag TAG         指定Docker镜像标签 (默认: 自动生成)
-  --type TYPE       部署类型: backend|web|full (默认: backend)
-                    backend: 仅部署后端JAR包
-                    web: 仅部署前端Web
-                    full: 部署前后端完整应用
-  --clean           清理旧的容器和镜像
-  --help            显示此帮助信息
+  --port PORT           指定后端应用端口 (默认: 19090)
+  --web-port PORT       指定前端Web端口 (默认: 9091)
+  --tag TAG             指定Docker镜像标签 (默认: 自动生成)
+  --type TYPE           部署类型: backend|web|full (默认: backend)
+                        backend: 仅部署后端JAR包
+                        web: 仅部署前端Web
+                        full: 部署前后端完整应用
+  --compose TOOL        指定编排工具: dockerV1|dockerV2|podman
+                        不指定则自动检测 (优先级: dockerV2 > dockerV1 > podman)
+  --clean               清理旧的容器和镜像
+  --help                显示此帮助信息
 
 示例:
   # 部署后端JAR包（默认）
@@ -52,22 +64,90 @@ HeyTrip Supplier Integration 一键部署脚本
 
   # 自定义端口和标签
   ./deploy-jar.sh app.jar --port 8080 --web-port 3001 --tag v1.0.0 --type full
+
+  # 强制使用 podman-compose
+  ./deploy-jar.sh app.jar --compose podman
+
+  # 强制使用 Docker Compose v2
+  ./deploy-jar.sh app.jar --compose dockerV2
+
+  # 强制使用 Docker Compose v1
+  ./deploy-jar.sh app.jar --compose dockerV1
 EOF
 }
 
 check_dependencies() {
+    local manual_tool="${1:-}"  # 手动指定的编排工具（可选）
+    
     log_info "检查系统依赖..."
 
-    if ! command -v docker &> /dev/null; then
-        log_error "Docker 未安装，请先安装 Docker"
-        exit 1
-    fi
-
-    if ! docker compose version &> /dev/null; then
-        if ! command -v docker-compose &> /dev/null; then
-            log_error "Docker Compose 未安装，请先安装 Docker Compose (v2 或 v1)"
+    # 如果手动指定了编排工具
+    if [[ -n "$manual_tool" ]]; then
+        case "$manual_tool" in
+            dockerV2)
+                if docker compose version &> /dev/null; then
+                    COMPOSE_CMD="docker compose"
+                    COMPOSE_TYPE="Docker Compose v2"
+                    SUPPORTS_PROFILE=true
+                else
+                    log_error "Docker Compose v2 不可用，请检查 Docker 安装"
+                    exit 1
+                fi
+                ;;
+            dockerV1)
+                if command -v docker-compose &> /dev/null; then
+                    COMPOSE_CMD="docker-compose"
+                    COMPOSE_TYPE="Docker Compose v1"
+                    SUPPORTS_PROFILE=true
+                else
+                    log_error "docker-compose 未安装，安装: pip install docker-compose"
+                    exit 1
+                fi
+                ;;
+            podman)
+                if command -v podman-compose &> /dev/null; then
+                    COMPOSE_CMD="podman-compose"
+                    COMPOSE_TYPE="Podman Compose"
+                    SUPPORTS_PROFILE=false  # podman-compose 不支持 --profile
+                else
+                    log_error "podman-compose 未安装，安装: pip install podman-compose"
+                    exit 1
+                fi
+                ;;
+            *)
+                log_error "未知的编排工具: $manual_tool"
+                echo "支持的选项: dockerV1, dockerV2, podman"
+                exit 1
+                ;;
+        esac
+        log_info "手动指定容器编排工具: ${COMPOSE_TYPE}"
+    else
+        # 自动检测（优先级: docker compose > docker-compose > podman-compose）
+        if docker compose version &> /dev/null; then
+            COMPOSE_CMD="docker compose"
+            COMPOSE_TYPE="Docker Compose v2"
+            SUPPORTS_PROFILE=true
+        elif command -v docker-compose &> /dev/null; then
+            COMPOSE_CMD="docker-compose"
+            COMPOSE_TYPE="Docker Compose v1"
+            SUPPORTS_PROFILE=true
+        elif command -v podman-compose &> /dev/null; then
+            COMPOSE_CMD="podman-compose"
+            COMPOSE_TYPE="Podman Compose"
+            SUPPORTS_PROFILE=false  # podman-compose 不支持 --profile
+        else
+            log_error "Compose 未安装，请先安装以下任一工具:"
+            echo "  - Docker Compose v2: 内置于 Docker Desktop"
+            echo "  - Docker Compose v1: pip install docker-compose"
+            echo "  - Podman Compose: pip install podman-compose"
             exit 1
         fi
+        log_info "自动检测到容器编排工具: ${COMPOSE_TYPE}"
+    fi
+
+    log_info "使用命令: ${COMPOSE_CMD}"
+    if [[ "$SUPPORTS_PROFILE" == "false" ]]; then
+        log_warning "当前编排工具不支持 --profile 参数，将使用服务名直接部署"
     fi
 
     if ! command -v curl &> /dev/null; then
@@ -80,8 +160,16 @@ check_dependencies() {
         exit 1
     fi
 
-    if ! docker info &> /dev/null; then
-        log_error "Docker 服务未启动，请启动 Docker 服务"
+    # 检查容器运行时（Docker 或 Podman）
+    if command -v docker &> /dev/null; then
+        if ! docker info &> /dev/null; then
+            log_error "Docker 服务未启动，请启动 Docker 服务"
+            exit 1
+        fi
+    elif command -v podman &> /dev/null; then
+        log_info "使用 Podman 作为容器运行时"
+    else
+        log_error "未找到容器运行时（Docker 或 Podman），请先安装"
         exit 1
     fi
 
@@ -144,7 +232,7 @@ prepare_environment() {
 
 clean_old_deployment() {
     log_info "清理旧的部署..."
-    docker compose -f docker-compose.yml down --remove-orphans 2>/dev/null || true
+    $COMPOSE_CMD -f docker-compose.yml down --remove-orphans 2>/dev/null || true
 
     local image_list
     image_list=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep "^heytrip" || true)
@@ -187,10 +275,19 @@ deploy_service() {
     export IMAGE_TAG="$image_tag"
     export PROJECT_VERSION="$project_version"
 
-    docker compose -f docker-compose.yml --profile backend build --no-cache heytrip-supplier
+    if [[ "$SUPPORTS_PROFILE" == "true" ]]; then
+        $COMPOSE_CMD -f docker-compose.yml --profile backend build --no-cache heytrip-supplier
+    else
+        # podman-compose 不支持 --profile，直接指定服务名
+        $COMPOSE_CMD -f docker-compose.yml build --no-cache heytrip-supplier
+    fi
 
     log_info "启动后端服务..."
-    docker compose -f docker-compose.yml --profile backend up -d heytrip-supplier --force-recreate
+    if [[ "$SUPPORTS_PROFILE" == "true" ]]; then
+        $COMPOSE_CMD -f docker-compose.yml --profile backend up -d heytrip-supplier --force-recreate
+    else
+        $COMPOSE_CMD -f docker-compose.yml up -d heytrip-supplier --force-recreate
+    fi
     log_success "后端服务启动完成"
 }
 
@@ -210,10 +307,18 @@ deploy_web_service() {
         exit 1
     fi
 
-    docker compose -f docker-compose.yml --profile web build --no-cache heytrip-web
+    if [[ "$SUPPORTS_PROFILE" == "true" ]]; then
+        $COMPOSE_CMD -f docker-compose.yml --profile web build --no-cache heytrip-web
+    else
+        $COMPOSE_CMD -f docker-compose.yml build --no-cache heytrip-web
+    fi
 
     log_info "启动前端Web服务..."
-    docker compose -f docker-compose.yml --profile web up -d heytrip-web --force-recreate
+    if [[ "$SUPPORTS_PROFILE" == "true" ]]; then
+        $COMPOSE_CMD -f docker-compose.yml --profile web up -d heytrip-web --force-recreate
+    else
+        $COMPOSE_CMD -f docker-compose.yml up -d heytrip-web --force-recreate
+    fi
     log_success "前端Web服务启动完成"
 }
 
@@ -257,10 +362,20 @@ deploy_full_service() {
         exit 1
     fi
 
-    docker compose -f docker-compose.yml --profile full build --no-cache
+    if [[ "$SUPPORTS_PROFILE" == "true" ]]; then
+        $COMPOSE_CMD -f docker-compose.yml --profile full build --no-cache
+    else
+        # podman-compose: 构建所有服务
+        $COMPOSE_CMD -f docker-compose.yml build --no-cache
+    fi
 
     log_info "启动完整应用服务..."
-    docker compose -f docker-compose.yml --profile full up -d --force-recreate
+    if [[ "$SUPPORTS_PROFILE" == "true" ]]; then
+        $COMPOSE_CMD -f docker-compose.yml --profile full up -d --force-recreate
+    else
+        # podman-compose: 启动所有服务
+        $COMPOSE_CMD -f docker-compose.yml up -d --force-recreate
+    fi
     log_success "完整应用服务启动完成"
 }
 
@@ -299,7 +414,7 @@ check_service_status() {
 
     if [[ "$container_running" = false ]]; then
         log_error "容器启动超时"
-        docker compose -f docker-compose.yml logs heytrip-supplier
+        $COMPOSE_CMD -f docker-compose.yml logs heytrip-supplier
         exit 1
     fi
 
@@ -311,7 +426,7 @@ check_service_status() {
     for i in {1..60}; do
         if ! docker ps --filter "name=heytrip-supplier" --filter "status=running" --format "{{.Names}}" | grep -q "heytrip-supplier"; then
             log_error "容器已停止运行，查看日志:"
-            docker logs heytrip-supplier --tail=20 2>/dev/null || docker compose -f docker-compose.yml logs --tail=20 heytrip-supplier
+            docker logs heytrip-supplier --tail=20 2>/dev/null || $COMPOSE_CMD -f docker-compose.yml logs --tail=20 heytrip-supplier
             exit 1
         fi
 
@@ -346,7 +461,7 @@ check_service_status() {
 
     if [[ "$health_check_passed" = false ]]; then
         log_error "应用启动超时，查看最近日志:"
-        docker compose -f docker-compose.yml logs --tail=50 heytrip-supplier
+        $COMPOSE_CMD -f docker-compose.yml logs --tail=50 heytrip-supplier
         exit 1
     fi
 }
@@ -386,7 +501,7 @@ check_web_service_status() {
 
     if [[ "$container_running" = false ]]; then
         log_error "Web容器启动超时"
-        docker compose -f docker-compose.yml logs heytrip-web
+        $COMPOSE_CMD -f docker-compose.yml logs heytrip-web
         exit 1
     fi
 
@@ -398,7 +513,7 @@ check_web_service_status() {
     for i in {1..30}; do
         if ! docker ps --filter "name=heytrip-web" --filter "status=running" --format "{{.Names}}" | grep -q "heytrip-web"; then
             log_error "Web容器已停止运行，查看日志:"
-            docker logs heytrip-web --tail=20 2>/dev/null || docker compose -f docker-compose.yml logs --tail=20 heytrip-web
+            docker logs heytrip-web --tail=20 2>/dev/null || $COMPOSE_CMD -f docker-compose.yml logs --tail=20 heytrip-web
             exit 1
         fi
 
@@ -425,7 +540,7 @@ check_web_service_status() {
 
     if [[ "$health_check_passed" = false ]]; then
         log_error "Web应用启动超时，查看最近日志:"
-        docker compose -f docker-compose.yml logs --tail=50 heytrip-web
+        $COMPOSE_CMD -f docker-compose.yml logs --tail=50 heytrip-web
         exit 1
     fi
 }
@@ -496,26 +611,52 @@ show_deployment_info() {
 
     echo
     log_info "管理命令:"
-    case "$deploy_type" in
-        "backend")
-            echo "docker compose -f docker-compose.yml --profile backend logs -f  # 查看后端日志"
-            echo "docker compose -f docker-compose.yml --profile backend stop     # 停止后端服务"
-            echo "docker compose -f docker-compose.yml --profile backend start    # 启动后端服务"
-            echo "docker compose -f docker-compose.yml --profile backend down     # 停止并删除后端容器"
-            ;;
-        "web")
-            echo "docker compose -f docker-compose.yml --profile web logs -f      # 查看前端日志"
-            echo "docker compose -f docker-compose.yml --profile web stop         # 停止前端服务"
-            echo "docker compose -f docker-compose.yml --profile web start        # 启动前端服务"
-            echo "docker compose -f docker-compose.yml --profile web down         # 停止并删除前端容器"
-            ;;
-        "full")
-            echo "docker compose -f docker-compose.yml --profile full logs -f     # 查看完整应用日志"
-            echo "docker compose -f docker-compose.yml --profile full stop        # 停止完整应用服务"
-            echo "docker compose -f docker-compose.yml --profile full start       # 启动完整应用服务"
-            echo "docker compose -f docker-compose.yml --profile full down        # 停止并删除完整应用容器"
-            ;;
-    esac
+    
+    if [[ "$SUPPORTS_PROFILE" == "true" ]]; then
+        # Docker Compose v1/v2 支持 --profile
+        case "$deploy_type" in
+            "backend")
+                echo "$COMPOSE_CMD -f docker-compose.yml --profile backend logs -f  # 查看后端日志"
+                echo "$COMPOSE_CMD -f docker-compose.yml --profile backend stop     # 停止后端服务"
+                echo "$COMPOSE_CMD -f docker-compose.yml --profile backend start    # 启动后端服务"
+                echo "$COMPOSE_CMD -f docker-compose.yml --profile backend down     # 停止并删除后端容器"
+                ;;
+            "web")
+                echo "$COMPOSE_CMD -f docker-compose.yml --profile web logs -f      # 查看前端日志"
+                echo "$COMPOSE_CMD -f docker-compose.yml --profile web stop         # 停止前端服务"
+                echo "$COMPOSE_CMD -f docker-compose.yml --profile web start        # 启动前端服务"
+                echo "$COMPOSE_CMD -f docker-compose.yml --profile web down         # 停止并删除前端容器"
+                ;;
+            "full")
+                echo "$COMPOSE_CMD -f docker-compose.yml --profile full logs -f     # 查看完整应用日志"
+                echo "$COMPOSE_CMD -f docker-compose.yml --profile full stop        # 停止完整应用服务"
+                echo "$COMPOSE_CMD -f docker-compose.yml --profile full start       # 启动完整应用服务"
+                echo "$COMPOSE_CMD -f docker-compose.yml --profile full down        # 停止并删除完整应用容器"
+                ;;
+        esac
+    else
+        # podman-compose 不支持 --profile，使用服务名
+        case "$deploy_type" in
+            "backend")
+                echo "$COMPOSE_CMD -f docker-compose.yml logs -f heytrip-supplier     # 查看后端日志"
+                echo "$COMPOSE_CMD -f docker-compose.yml stop heytrip-supplier        # 停止后端服务"
+                echo "$COMPOSE_CMD -f docker-compose.yml start heytrip-supplier       # 启动后端服务"
+                echo "$COMPOSE_CMD -f docker-compose.yml down                         # 停止并删除容器"
+                ;;
+            "web")
+                echo "$COMPOSE_CMD -f docker-compose.yml logs -f heytrip-web          # 查看前端日志"
+                echo "$COMPOSE_CMD -f docker-compose.yml stop heytrip-web             # 停止前端服务"
+                echo "$COMPOSE_CMD -f docker-compose.yml start heytrip-web            # 启动前端服务"
+                echo "$COMPOSE_CMD -f docker-compose.yml down                         # 停止并删除容器"
+                ;;
+            "full")
+                echo "$COMPOSE_CMD -f docker-compose.yml logs -f                      # 查看所有日志"
+                echo "$COMPOSE_CMD -f docker-compose.yml stop                         # 停止所有服务"
+                echo "$COMPOSE_CMD -f docker-compose.yml start                        # 启动所有服务"
+                echo "$COMPOSE_CMD -f docker-compose.yml down                         # 停止并删除所有容器"
+                ;;
+        esac
+    fi
 }
 
 main() {
@@ -529,6 +670,7 @@ main() {
     local CLEAN=false
     local IMAGE_TAG=""
     local DEPLOY_TYPE="backend"
+    local COMPOSE_TOOL=""  # 手动指定的编排工具: dockerV1|dockerV2|podman
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -546,6 +688,10 @@ main() {
                 ;;
             --type)
                 DEPLOY_TYPE="$2"
+                shift 2
+                ;;
+            --compose)
+                COMPOSE_TOOL="$2"
                 shift 2
                 ;;
             --clean)
@@ -599,7 +745,7 @@ main() {
         fi
     fi
 
-    check_dependencies
+    check_dependencies "$COMPOSE_TOOL"
 
     if [[ "$CLEAN" = true ]]; then
         clean_old_deployment

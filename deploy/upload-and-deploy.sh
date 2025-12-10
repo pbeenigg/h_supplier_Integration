@@ -21,6 +21,15 @@ usage() {
   # 部署后端JAR包（默认）
   ./upload-and-deploy.sh --key ~/.ssh/id_rsa
 
+  # 使用密码认证部署
+  ./upload-and-deploy.sh --password 'your_password'
+
+  # 部署到 Podman 环境
+  ./upload-and-deploy.sh --password 'your_password' --compose podman
+
+  # 强制使用 Docker Compose v2
+  ./upload-and-deploy.sh --password 'your_password' --compose dockerV2
+
   # 部署前端Web
   ./upload-and-deploy.sh --key ~/.ssh/id_rsa --deploy-type web
 
@@ -42,6 +51,10 @@ usage() {
                  backend: 仅部署后端JAR包
                  web: 仅部署前端Web
                  full: 部署前后端完整应用
+  --compose      指定容器编排工具：dockerV1|dockerV2|podman，默认自动检测
+                 dockerV1: 使用 docker-compose
+                 dockerV2: 使用 docker compose
+                 podman: 使用 podman-compose
   --extra-ssh    追加到 ssh/scp/sftp 命令的参数，例如 "-o ProxyJump=bastion"
   --help         查看帮助
 EOF
@@ -60,6 +73,7 @@ SSH_PORT="${UPLOAD_PORT:-22}"
 REMOTE_DIR="${UPLOAD_REMOTE_DIR:-$REMOTE_WORKDIR}"
 EXTRA_SSH_OPTIONS="${UPLOAD_SSH_OPTIONS:-}"
 DEPLOY_TYPE="${DEPLOY_TYPE:-backend}"  # backend, web, full
+COMPOSE_TOOL=""  # dockerV1, dockerV2, podman
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -77,6 +91,8 @@ while [[ $# -gt 0 ]]; do
       REMOTE_DIR="$2"; shift 2;;
     --deploy-type)
       DEPLOY_TYPE="$2"; shift 2;;
+    --compose)
+      COMPOSE_TOOL="$2"; shift 2;;
     --extra-ssh)
       EXTRA_SSH_OPTIONS="$2"; shift 2;;
     --help|-h)
@@ -411,8 +427,8 @@ EOF
   fi
 fi
 
-SSH_COMMON_OPTS=(-p "$SSH_PORT" -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o ConnectTimeout=10)
-SCP_COMMON_OPTS=(-P "$SSH_PORT" -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o ConnectTimeout=10 -C)
+SSH_COMMON_OPTS=(-p "$SSH_PORT" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o ConnectTimeout=10)
+SCP_COMMON_OPTS=(-P "$SSH_PORT" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o ConnectTimeout=10 -C)
 
 # 缓存远程rsync检查结果，避免重复检查
 REMOTE_RSYNC_AVAILABLE="unknown"
@@ -610,17 +626,32 @@ done
 
 default_ssh "chmod +x '${REMOTE_DIR}/supplier-aos/deploy-jar.sh'"
 
+# 构建 compose 工具参数
+COMPOSE_TOOL_ARG=""
+if [[ -n "$COMPOSE_TOOL" ]]; then
+  case "$COMPOSE_TOOL" in
+    dockerV1|dockerV2|podman)
+      COMPOSE_TOOL_ARG="--compose ${COMPOSE_TOOL}"
+      ;;
+    *)
+      echo "[WARN] 未知的 compose 工具: $COMPOSE_TOOL，将使用自动检测" >&2
+      echo "[INFO] 支持的选项: dockerV1, dockerV2, podman" >&2
+      COMPOSE_TOOL_ARG=""
+      ;;
+  esac
+fi
+
 # 根据部署类型生成部署脚本
 DEPLOY_COMMAND=""
 case "$DEPLOY_TYPE" in
   "backend")
-    DEPLOY_COMMAND="./deploy-jar.sh './${TARGET_JAR_NAME}' --clean --type backend"
+    DEPLOY_COMMAND="./deploy-jar.sh './${TARGET_JAR_NAME}' --clean --type backend ${COMPOSE_TOOL_ARG}"
     ;;
   "web")
-    DEPLOY_COMMAND="./deploy-jar.sh dummy.jar --clean --type web"
+    DEPLOY_COMMAND="./deploy-jar.sh dummy.jar --clean --type web ${COMPOSE_TOOL_ARG}"
     ;;
   "full")
-    DEPLOY_COMMAND="./deploy-jar.sh './${TARGET_JAR_NAME}' --clean --type full"
+    DEPLOY_COMMAND="./deploy-jar.sh './${TARGET_JAR_NAME}' --clean --type full ${COMPOSE_TOOL_ARG}"
     ;;
 esac
 
