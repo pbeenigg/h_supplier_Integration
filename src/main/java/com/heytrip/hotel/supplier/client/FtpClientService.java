@@ -50,7 +50,9 @@ public class FtpClientService {
                     return is;
                 }
             } catch (Exception e) {
-                logger.warn("FTP 下载失败，第{}次，路径:{}，原因:{}", attempt, remotePath, e.getMessage());
+
+                logger.error("FTP 下载失败，第{}次，路径:{}，原因:{}", attempt, remotePath, e.getMessage());
+                logger.error("FTP 下载异常堆栈：", e);
             }
             try {
                 Thread.sleep(Duration.ofSeconds(backoffSeconds * attempt).toMillis());
@@ -68,10 +70,31 @@ public class FtpClientService {
     private InputStream downloadSmart(String host, int port, String username, String password, String remotePath) throws IOException {
         FTPClient ftp = new FTPClient();
         try {
+            // 密码诊断信息（不输出明文密码，仅输出特征）
+            String pwdInfo = password != null ? 
+                String.format("长度=%d, 首字符=%c, 尾字符=%c, 含空格=%b", 
+                    password.length(), 
+                    password.charAt(0), 
+                    password.charAt(password.length()-1),
+                    password.contains(" ")) : "null";
+            logger.info("[FTP连接] 尝试连接 {}:{}, 用户: {}, 密码特征: {}", host, port, username, pwdInfo);
             ftp.setControlEncoding(StandardCharsets.UTF_8.name());
+            
+            // 尝试连接
             ftp.connect(host, port);
-            if (!ftp.login(username, password)) {
-                throw new IOException("FTP 登录失败");
+            logger.info("[FTP连接] 连接成功，服务器响应: {}", ftp.getReplyString().trim());
+            
+            // 尝试登录
+            boolean loginSuccess = ftp.login(username, password);
+            int replyCode = ftp.getReplyCode();
+            String replyString = ftp.getReplyString();
+            
+            logger.info("[FTP登录] 登录结果: {}, 响应码: {}, 响应信息: {}", 
+                loginSuccess, replyCode, replyString != null ? replyString.trim() : "无");
+            
+            if (!loginSuccess) {
+                throw new IOException(String.format("FTP 登录失败 - 响应码: %d, 响应信息: %s", 
+                    replyCode, replyString != null ? replyString.trim() : "无"));
             }
             ftp.enterLocalPassiveMode();
             ftp.setFileType(FTP.BINARY_FILE_TYPE);

@@ -1,0 +1,251 @@
+CODE,nationality,iso_code
+1,American,US
+2,Canadian,CA
+3,Bahamian,BS
+4,Barbadian,BB
+5,Belizean,BZ
+6,Bermuda,BM
+7,"British Virgin Islands",VG
+8,"Cayman Islands",KY
+9,"Costa Rican",CR
+10,Cuba,CU
+11,Dominica,DM
+12,"Dominican (Dominican Republic)",DO
+13,Salvadoran,SV
+14,Greenland,GL
+15,Grenadian,GD
+16,Guadeloupe,GP
+17,Guatemalan,GT
+18,Haiti,HT
+19,Honduras,HN
+20,Jamaican,JM
+21,Martiniquais,MQ
+22,Mexican,MX
+23,Montserrat,MS
+24,Nicaragua,NI
+25,Panamanian,PA
+26,"Puerto Rican",PR
+27,"Trinidad and Tobago",TT
+28,"United States Virgin Islands",VI
+29,Argentina,AR
+30,Bolivian,BO
+31,Brazilian,BR
+32,Chilean,CL
+33,Colombian,CO
+34,Ecuador,EC
+35,"Falkland Islands",FK
+36,"French Guiana",GF
+37,Guyana,GY
+38,Paraguayan,PY
+39,Peruvian,PE
+40,Suriname,SR
+41,Uruguayan,UY
+42,Venezuelan,VE
+43,Albania,AL
+44,Andorran,AD
+45,Armenian,AM
+46,Austrian,AT
+47,Azerbaijani,AZ
+48,Belarusian,BY
+49,Belgian,BE
+50,"Bosnia and Herzegovina",BA
+51,Bulgarian,BG
+52,Croatian,HR
+53,Cypriot,CY
+54,Czech,CZ
+55,Danish,DK
+56,Estonian,EE
+57,Finnish,FI
+58,French,FR
+59,Georgian,GE
+60,German,DE
+61,Gibraltarian,GI
+62,Greece,GR
+63,Guernsey,GG
+64,Hungarian,HU
+65,Icelander,IS
+66,Irish,IE
+67,"Isle of Man",IM
+68,Italian,IT
+69,Jersey,JE
+70,Kosovo,XK
+71,Latvian,LV
+72,Liechtenstein,LI
+73,Lithuanian,LT
+74,Luxembourger,LU
+75,Macedonia,MK
+76,Maltese,MT
+77,Moldova,MD
+78,Monacan,MC
+79,Montenegrin,ME
+80,Netherlander,NL
+81,Norwegian,NO
+82,Polish,PL
+83,Portuguese,PT
+84,Romanian,RO
+85,Russian,RU
+86,"San Marino",SM
+87,Serbian,RS
+88,Slovakian,SK
+89,Slovenian,SI
+90,Spanish,ES
+91,Swedish,SE
+92,Swiss,CH
+93,Turkish,TR
+94,Ukrainian,UA
+95,British,GB
+96,"Vatican City",VA
+97,Afghanistan,AF
+98,Bahraini,BH
+99,Bangladeshi,BD
+100,Bhutan,BT
+101,Bruneian,BN
+102,Cambodian,KH
+103,Chinese,CN
+104,"East Timor",TL
+105,"Hong Kong",HK
+106,Indian,IN
+107,Indonesian,ID
+108,Iranian,IR
+109,IRAQI,IQ
+110,Israeli,IL
+111,Japanese,JP
+112,Jordanian,JO
+113,Kazakhstani,KZ
+114,Kuwaiti,KW
+115,Kyrgyzstan,KG
+116,Lao,LA
+117,Lebanese,LB
+118,Macau,MO
+119,Malaysian,MY
+120,Maldivian,MV
+121,Mongolia,MN
+122,"Myanmar (Burma)",MM
+123,Nepalese,NP
+124,"North Korea",KP
+125,Omani,OM
+126,Pakistani,PK
+127,Philippines,PH
+128,Qatari,QA
+129,Saudi,SA
+130,Singaporean,SG
+131,KOREAN,KR
+132,"Sri Lankan",LK
+133,"Syrian Arab Republic",SY
+134,Taiwan,TW
+135,Tajikistan,TJ
+136,Thai,TH
+137,Turkmenistan,TM
+138,Emirati,AE
+139,Uzbekistan,UZ
+140,Vietnamese,VN
+141,Yemen,YE
+142,Algerian,DZ
+143,ANGOLA,AO
+144,Benin,BJ
+145,Batswana,BW
+146,"BURKINA FASO",BF
+147,Burundi,BI
+148,Cameroonian,CM
+149,Verdean,CV
+150,"African(Central African Republic)",CF
+151,Chad,TD
+152,"Republic of the Congo",CG
+153,Congolese,CD
+154,Djibouti,DJ
+155,Egyptian,EG
+156,"Equatorial Guinea",GQ
+157,Eritrea,ER
+158,Ethiopia,ET
+159,Gabon,GA
+160,Gambian,GM
+161,Ghanaian,GH
+162,Guinea,GN
+163,Guinea-Bissau,GW
+164,"Ivory Coast",CI
+165,Kenyan,KE
+166,Lesotho,LS
+167,Liberia,LR
+168,Libyan,LY
+169,Madagascar,MG
+170,Malawi,MW
+171,Mali,ML
+172,Mauritania,MR
+173,Mauritius,MU
+174,Moroccan,MA
+175,Mozambican,MZ
+176,Namibian,NA
+177,Niger,NE
+178,Nigerian,NG
+179,Reunion,RE
+180,Rwanda,RW
+181,"Sao Tome and Principe",ST
+182,Senegalese,SN
+183,Seychelles,SC
+184,"Sierra Leone",SL
+185,Somalia,SO
+186,"African(south africa)",ZA
+187,Sudanese,SD
+188,Swaziland,SZ
+189,Tanzanian,TZ
+190,Togo,TG
+191,Tunisian,TN
+192,Ugandan,UG
+193,"Western Sahara",EH
+194,Zambian,ZM
+195,Zimbabwe,ZW
+196,Australian,AU
+197,"New Zealander",NZ
+198,Fiji,FJ
+199,"French Polynesia",PF
+200,Guam,GU
+201,Kiribati,KI
+202,"Marshall Islands",MH
+203,Micronesia,FM
+204,Nauru,NR
+205,"New Caledonia",NC
+206,"Papua New Guinea",PG
+207,Samoa,WS
+208,"Solomon Islands",SB
+209,Tonga,TO
+210,Tuvalu,TV
+211,Vanuatu,VU
+212,"Wallis and Futuna",WF
+230,"Antiguan - Barbudan",AG
+231,Aruban,AW
+228,Palestinia,PS
+400,"SAINT BARTHELEMY",BL
+401,"Saint Lucia",LC
+402,African(comoros),KM
+403,"Sudanese(south sudan)",SS
+410,"Turks and Caicos Islands",TC
+412,NewZealand,CK
+413,"Carribean(Saint Kitts and Nevis)",KN
+414,"Northern Mariana Islands(American)",MP
+415,Curacao(Dutch),CW
+416,"Bonaire, Sint Eustatius and Saba(Dutch)",BQ
+417,"Saint Martin(Carribean)",MF
+418,Palaun,PW
+419,"Dutch(Saint Vincent and The Grenadines)",VC
+423,Anguillan,AI
+424,Danish(Faroe),FO
+425,"Australian(Norfolk Island)",NF
+426,Niuean,NU
+427,Antarctic,AQ
+428,"American Samoan",AS
+429,"Aland Islands",AX
+430,"Bouvet Island",BV
+431,"Cocos Island",CC
+432,"CHRISTMAS ISLAND",CX
+433,"South Georgia",GS
+434,"Heard Island",HM
+435,"British(indian Overseas Territory)",IO
+436,"Saint Pierre and Miquelon(french)",PM
+437,PITCAIRN,PN
+438,"Saint Helenian",SH
+439,"Svalbard and Jan Mayen",SJ
+440,French(dutch),SX
+441,"French Southern Territories",TF
+442,Tokelauan,TK
+443,"United States Minor Outlying Islands",UM
+444,Mahoran,YT
