@@ -27,6 +27,7 @@
         <lombok.version>1.18.30</lombok.version>
         <commons-net.version>3.9.0</commons-net.version>
         <p6spy.version>3.9.1</p6spy.version>
+        <dynamic-datasource.version>4.3.0</dynamic-datasource.version>
         <supplier-data-standard-version>1.2.2-RELEASES</supplier-data-standard-version>
     </properties>
 
@@ -104,6 +105,13 @@
             <groupId>p6spy</groupId>
             <artifactId>p6spy</artifactId>
             <version>${p6spy.version}</version>
+        </dependency>
+
+        <!-- 动态多数据源 -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>dynamic-datasource-spring-boot3-starter</artifactId>
+            <version>${dynamic-datasource.version}</version>
         </dependency>
 
         <!-- 缓存支持：Spring Cache + Caffeine -->

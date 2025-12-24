@@ -1,14 +1,14 @@
 package com.heytrip.hotel.supplier.controller.system;
 
 import com.heytrip.hotel.supplier.dto.R;
-import com.heytrip.hotel.supplier.entity.ApiCallLog;
-import com.heytrip.hotel.supplier.entity.DistributionCallLog;
-import com.heytrip.hotel.supplier.entity.DistributionOrdersLog;
-import com.heytrip.hotel.supplier.entity.SyncLog;
-import com.heytrip.hotel.supplier.repository.ApiCallLogRepository;
-import com.heytrip.hotel.supplier.repository.DistributionCallLogRepository;
-import com.heytrip.hotel.supplier.repository.DistributionOrdersLogRepository;
-import com.heytrip.hotel.supplier.repository.SyncLogRepository;
+import com.heytrip.hotel.supplier.entity.primary.SyncLog;
+import com.heytrip.hotel.supplier.entity.supplier.ApiCallLog;
+import com.heytrip.hotel.supplier.entity.supplier.DistributionCallLog;
+import com.heytrip.hotel.supplier.entity.supplier.DistributionOrdersLog;
+import com.heytrip.hotel.supplier.repository.primary.SyncLogRepository;
+import com.heytrip.hotel.supplier.repository.supplier.ApiCallLogRepository;
+import com.heytrip.hotel.supplier.repository.supplier.DistributionCallLogRepository;
+import com.heytrip.hotel.supplier.repository.supplier.DistributionOrdersLogRepository;
 import jakarta.persistence.criteria.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -125,11 +125,6 @@ public class LogController {
             // 执行查询
             Page<ApiCallLog> pageResult = apiCallLogRepository.findAll(spec, pageable);
 
-            pageResult.getContent().forEach(log -> {
-                if(log.getSupplierConfig()!=null){
-                    log.setSupplierCode(log.getSupplierConfig().getSupplierCode());
-                }
-            });
 
             // 构建返回结果
             Map<String, Object> response = new HashMap<>();
@@ -239,12 +234,6 @@ public class LogController {
             // 执行查询
             Page<DistributionCallLog> pageResult = distributionCallLogRepository.findAll(spec, pageable);
 
-            // 设置供应商代码
-            pageResult.getContent().forEach(log -> {
-               if(log.getSupplierConfig()!=null){
-                   log.setSupplierCode(log.getSupplierConfig().getSupplierCode());
-               }
-            });
 
             // 构建返回结果
             Map<String, Object> response = new HashMap<>();
@@ -360,12 +349,6 @@ public class LogController {
             // 执行查询
             Page<DistributionOrdersLog> pageResult = distributionOrdersLogRepository.findAll(spec, pageable);
 
-            // 设置供应商代码
-            pageResult.getContent().forEach(log -> {
-                if(log.getSupplierConfig()!=null){
-                    log.setSupplierCode(log.getSupplierConfig().getSupplierCode());
-                }
-            });
 
             // 构建返回结果
             Map<String, Object> response = new HashMap<>();
@@ -454,11 +437,6 @@ public class LogController {
 
             // 执行查询
             Page<SyncLog> pageResult = syncLogRepository.findAll(spec, pageable);
-            pageResult.getContent().forEach(log -> {
-                if(log.getSupplierConfig()!=null){
-                    log.setSupplierCode(log.getSupplierConfig().getSupplierCode());
-                }
-            });
 
             // 构建返回结果
             Map<String, Object> response = new HashMap<>();

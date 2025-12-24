@@ -4,6 +4,7 @@ import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.collection.ListUtil;
 import cn.hutool.core.util.NumberUtil;
 import cn.hutool.core.util.StrUtil;
+import com.baomidou.dynamic.datasource.annotation.DS;
 import com.heytrip.common.enums.XEnumNoSmoking;
 import com.heytrip.common.response.base.XHotel;
 import com.heytrip.hotel.supplier.adapter.impl.AsianOverlandAdapter;
@@ -12,8 +13,17 @@ import com.heytrip.hotel.supplier.adapter.service.StaticDataQueryService;
 import com.heytrip.hotel.supplier.config.CacheEvictor;
 import com.heytrip.hotel.supplier.dto.qtech.req.QTechSearchRequest;
 import com.heytrip.hotel.supplier.dto.qtech.resp.QTechSearchResponse;
-import com.heytrip.hotel.supplier.entity.*;
-import com.heytrip.hotel.supplier.repository.*;
+import com.heytrip.hotel.supplier.entity.primary.SupplierConfig;
+import com.heytrip.hotel.supplier.entity.primary.SyncLog;
+import com.heytrip.hotel.supplier.entity.supplier.Hotel;
+import com.heytrip.hotel.supplier.entity.supplier.HotelBookable;
+import com.heytrip.hotel.supplier.entity.supplier.Room;
+import com.heytrip.hotel.supplier.repository.primary.SupplierConfigRepository;
+import com.heytrip.hotel.supplier.repository.primary.SyncLogRepository;
+import com.heytrip.hotel.supplier.repository.supplier.HotelBookableRepository;
+import com.heytrip.hotel.supplier.repository.supplier.HotelRepository;
+import com.heytrip.hotel.supplier.repository.supplier.RatePlanRepository;
+import com.heytrip.hotel.supplier.repository.supplier.RoomRepository;
 import com.heytrip.hotel.supplier.utils.HeyUtil;
 import com.heytrip.hotel.supplier.utils.MD5Util;
 import jakarta.annotation.PostConstruct;
@@ -146,6 +156,7 @@ public class HotelSyncSyncService {
      * 同步指定供应商的酒店详情数据，包括房型、房价、可售状态
      */
     @Transactional
+    @DS("aos")
     public void syncAllForSupplier(Long supplierId, String supplierCode) {
         SupplierConfig sc = supplierConfigRepo.findById(supplierId).orElse(null);
         if (sc == null || sc.getFtpConfig() == null) {

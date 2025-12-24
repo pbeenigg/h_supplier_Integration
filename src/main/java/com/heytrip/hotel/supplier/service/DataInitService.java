@@ -1,9 +1,9 @@
 package com.heytrip.hotel.supplier.service;
 
-import com.heytrip.hotel.supplier.entity.App;
-import com.heytrip.hotel.supplier.entity.User;
-import com.heytrip.hotel.supplier.repository.AppRepository;
-import com.heytrip.hotel.supplier.repository.UserRepository;
+import com.heytrip.hotel.supplier.entity.primary.App;
+import com.heytrip.hotel.supplier.entity.primary.User;
+import com.heytrip.hotel.supplier.repository.primary.AppRepository;
+import com.heytrip.hotel.supplier.repository.primary.UserRepository;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;

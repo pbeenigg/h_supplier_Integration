@@ -2,10 +2,10 @@ package com.heytrip.hotel.supplier.service;
 
 import cn.hutool.core.util.StrUtil;
 import com.heytrip.hotel.supplier.constant.CacheNames;
-import com.heytrip.hotel.supplier.entity.App;
-import com.heytrip.hotel.supplier.entity.User;
+import com.heytrip.hotel.supplier.entity.primary.App;
+import com.heytrip.hotel.supplier.entity.primary.User;
 import com.heytrip.hotel.supplier.exception.BasicException;
-import com.heytrip.hotel.supplier.repository.UserRepository;
+import com.heytrip.hotel.supplier.repository.primary.UserRepository;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

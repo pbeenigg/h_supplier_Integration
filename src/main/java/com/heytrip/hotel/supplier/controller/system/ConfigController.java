@@ -2,9 +2,9 @@ package com.heytrip.hotel.supplier.controller.system;
 
 import com.heytrip.hotel.supplier.adapter.SupplierAdapterManager;
 import com.heytrip.hotel.supplier.dto.R;
-import com.heytrip.hotel.supplier.entity.SystemConfig;
-import com.heytrip.hotel.supplier.repository.SupplierConfigRepository;
-import com.heytrip.hotel.supplier.repository.SystemConfigRepository;
+import com.heytrip.hotel.supplier.entity.primary.SystemConfig;
+import com.heytrip.hotel.supplier.repository.primary.SupplierConfigRepository;
+import com.heytrip.hotel.supplier.repository.primary.SystemConfigRepository;
 import com.heytrip.hotel.supplier.service.SystemConfigService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -1,5 +1,6 @@
 package com.heytrip.hotel.supplier.adapter.tasks.impl;
 
+import com.baomidou.dynamic.datasource.annotation.DS;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.heytrip.hotel.supplier.adapter.parser.StaticDataParser;
 import com.heytrip.hotel.supplier.client.FtpClientService;
@@ -7,8 +8,12 @@ import com.heytrip.hotel.supplier.config.CacheEvictor;
 import com.heytrip.hotel.supplier.config.FtpClientConfig;
 import com.heytrip.hotel.supplier.constant.SyncTypeNames;
 import com.heytrip.hotel.supplier.dto.supplier.SupplierFtp;
-import com.heytrip.hotel.supplier.entity.*;
-import com.heytrip.hotel.supplier.repository.*;
+import com.heytrip.hotel.supplier.entity.primary.SupplierConfig;
+import com.heytrip.hotel.supplier.entity.primary.SyncLog;
+import com.heytrip.hotel.supplier.entity.supplier.*;
+import com.heytrip.hotel.supplier.repository.primary.SupplierConfigRepository;
+import com.heytrip.hotel.supplier.repository.primary.SyncLogRepository;
+import com.heytrip.hotel.supplier.repository.supplier.*;
 import com.heytrip.hotel.supplier.utils.CsvStreamReaderUtil;
 import jakarta.annotation.Resource;
 import jakarta.persistence.EntityManager;
@@ -61,6 +66,7 @@ public class StaticDataSyncService {
      * 同步指定供应商的全部静态数据
      */
     @Transactional
+    @DS("aos")
     public void syncAllForSupplier(Long supplierId, String supplierCode) {
         SupplierConfig sc = supplierConfigRepository.findById(supplierId).orElse(null);
         if (sc == null || sc.getFtpConfig() == null) {
@@ -395,7 +401,7 @@ public class StaticDataSyncService {
         int deleted = deleteBySupplier(Hotel.class, supplierId, supplierCode);
         logger.info("已清理旧酒店数据，supplierId={}, supplierCode={}, 删除行数={}", supplierId, supplierCode, deleted);
         // 预加载国家数据，供解析时关联使用
-       Map<String ,Country> countryMap = countryRepo.findAll().stream()
+       Map<String , Country> countryMap = countryRepo.findAll().stream()
                 .filter(c -> c.getSupplierId().equals(supplierId) && c.getSupplierCode().equals(supplierCode))
                 .collect(HashMap::new, (m, c) -> m.put(c.getCountryId(), c), HashMap::putAll);
 

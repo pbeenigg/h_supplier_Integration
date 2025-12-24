@@ -2,8 +2,8 @@ package com.heytrip.hotel.supplier.controller.system;
 
 import cn.hutool.core.util.StrUtil;
 import com.heytrip.hotel.supplier.dto.R;
-import com.heytrip.hotel.supplier.entity.App;
-import com.heytrip.hotel.supplier.entity.User;
+import com.heytrip.hotel.supplier.entity.primary.App;
+import com.heytrip.hotel.supplier.entity.primary.User;
 import com.heytrip.hotel.supplier.service.AppService;
 import com.heytrip.hotel.supplier.service.UserService;
 import com.heytrip.hotel.supplier.utils.AuthHelper;

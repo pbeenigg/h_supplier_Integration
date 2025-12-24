@@ -1,0 +1,246 @@
+server:
+  port: ${SERVER_PORT:19090}
+  servlet:
+    context-path: ${SERVER_PATH:/}
+
+spring:
+  application:
+    name: ${SERVER_NAME:heytrip-supplier}
+  # dynamic-datasource 动态多数据源配置
+  datasource:
+    dynamic:
+      primary: primary  # 默认数据源
+      strict: false     # 严格模式，false允许未匹配的数据源使用默认数据源
+      p6spy: true       # 启用SQL日志
+      seata: false      # 不使用Seata分布式事务
+      datasource:
+        # ====================================
+        # 主数据源（系统配置、供应商配置、认证、日志）
+        # ====================================
+        primary:
+          url: ${DB_PRIMARY_URL:jdbc:mysql://127.0.0.1:3306/supplier_pax?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai}
+          username: ${DB_PRIMARY_USERNAME:root}
+          password: ${DB_PRIMARY_PASSWORD:Root@123456}
+          driver-class-name: ${DB_PRIMARY_DRIVER:com.mysql.cj.jdbc.Driver}
+          hikari:
+            pool-name: Primary-HikariCP
+            maximum-pool-size: 20
+            minimum-idle: 5
+            connection-timeout: 30000
+            idle-timeout: 600000
+            max-lifetime: 1800000
+
+        # ====================================
+        # AsianOverland Via QTECH 数据源
+        # ====================================
+        aos:
+          url: ${DB_AOS_URL:jdbc:mysql://127.0.0.1:3306/supplier_aos_pax?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai}
+          username: ${DB_AOS_USERNAME:root}
+          password: ${DB_AOS_PASSWORD:Root@123456}
+          driver-class-name: ${DB_AOS_DRIVER:com.mysql.cj.jdbc.Driver}
+          hikari:
+            pool-name: AOS-HikariCP
+            maximum-pool-size: 15
+            minimum-idle: 3
+            connection-timeout: 30000
+            idle-timeout: 600000
+            max-lifetime: 1800000
+
+        # ====================================
+        # Global United Esales 数据源
+        # ====================================
+        gue:
+          url: ${DB_GUE_URL:jdbc:mysql://127.0.0.1:3306/supplier_gue_pax?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai}
+          username: ${DB_GUE_USERNAME:root}
+          password: ${DB_GUE_PASSWORD:Root@123456}
+          driver-class-name: ${DB_GUE_DRIVER:com.mysql.cj.jdbc.Driver}
+          hikari:
+            pool-name: GUE-HikariCP
+            maximum-pool-size: 15
+            minimum-idle: 3
+            connection-timeout: 30000
+            idle-timeout: 600000
+            max-lifetime: 1800000
+
+        # ====================================
+        # Go West Tours 数据源
+        # ====================================
+        gwt:
+          url: ${DB_GWT_URL:jdbc:mysql://127.0.0.1:3306/supplier_gwt_pax?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai}
+          username: ${DB_GWT_USERNAME:root}
+          password: ${DB_GWT_PASSWORD:Root@123456}
+          driver-class-name: ${DB_GWT_DRIVER:com.mysql.cj.jdbc.Driver}
+          hikari:
+            pool-name: GWT-HikariCP
+            maximum-pool-size: 15
+            minimum-idle: 3
+            connection-timeout: 30000
+            idle-timeout: 600000
+            max-lifetime: 1800000
+
+  #Spring Data JPA配置
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+        format_sql: true
+        use_sql_comments: true
+        jdbc:
+          batch_size: 1000
+        order_inserts: true
+        order_updates: true
+
+    # 缓存配置
+  cache:
+    type: caffeine
+    caffeine:
+      spec: maximumSize=1000,expireAfterWrite=30m
+
+  # JSON配置 - 强制设置时区
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+    default-property-inclusion: non_null
+    # 序列化时区配置
+    serialization:
+      write-dates-as-timestamps: false
+    deserialization:
+      adjust-dates-to-context-time-zone: false
+
+# 日志配置
+logging:
+  level:
+    # 根据环境动态设置日志级别：dev=DEBUG, 其他环境=INFO
+    com.heytrip.hotel.supplier: ${LOG_LEVEL:INFO}
+    org.springframework.web:  ${LOG_LEVEL:INFO}
+    com.p6spy:  ${LOG_LEVEL:INFO}  # P6Spy日志级别
+    p6spy:  ${LOG_LEVEL:INFO}      # P6Spy日志输出
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/heytrip-supplier.log
+
+---
+# dev环境配置
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+logging:
+  level:
+    com.heytrip.hotel.supplier: DEBUG  # dev环境使用DEBUG级别
+    org.springframework.web: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG           # 显示SQL语句
+    org.hibernate.type.descriptor.sql: TRACE  # 显示SQL参数
+
+---
+# prod环境配置
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+logging:
+  level:
+    com.heytrip.hotel.supplier: INFO   # prod环境使用INFO级别
+    org.springframework.web: WARN
+    org.springframework.security: WARN
+    root: WARN
+---                   # 根日志级别设为WARN减少日志输出
+
+
+# SpringDoc配置
+springdoc:
+  api-docs:
+    enabled: ${SWAGGER_UI:true}
+    path: /v1/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: ${API_DOCS:true}
+    tags-sorter: alpha
+    operations-sorter: alpha
+  packages-to-scan: com.heytrip.hotel.supplier.controller
+
+
+
+
+
+# 管理端点配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+
+
+# 自定义配置
+app:
+  supplier:
+    timeout: 30000
+    retry:
+      max-attempts: 3
+      delay: 1000
+      multiplier: 2
+  authorization:
+    app-id: ${APP_ID:heytrip_supplier_integration_pax}
+    secret-key: ${APP_SECRET:HeyTrip@Pax#SupplierIntegration!2025}
+  encryption:
+    key: ${ENCRYPTION_KEY:427ae41e4649b934ca495991b7852b855}
+  api:
+    rate-limit:
+      requests-per-minute: 1000 # 每分钟请求数限制
+    timeout: 30000 # API请求超时时间（毫秒）
+  security:
+    permit-all-patterns: # 无需认证的路径模式
+      - /actuator
+      - /actuator/metrics/**
+      - /actuator/health
+      - /version
+      - /swagger-ui/**
+      - /v1/api-docs/**
+      - /swagger-ui.html
+      - /auth/login
+      - /auth/logout
+      #- /suppliers/**
+    authenticated-patterns: # 需要认证的路径模式
+      - /pax/**
+      - /config/**
+      - /suppliers/**
+      - /cache/**
+      - /auth/user/**
+      - /admin/**
+      - /logs/**
+      - /monitor/**
+
+  # API日志配置
+  api-log:
+    enabled: ${API_LOG_ENABLED:true} # 是否启用API日志记录
+    max-content-length: ${API_LOG_MAX_CONTENT:10000} # 最大内容长度
+    # JSON压缩配置
+    compression:
+      enabled: ${API_LOG_COMPRESSION_ENABLED:true} # 是否启用JSON压缩
+      threshold: ${API_LOG_COMPRESSION_THRESHOLD:5000} # 超过此长度启用压缩
+      algorithm: ${API_LOG_COMPRESSION_ALGORITHM:gzip} # 压缩算法：gzip, deflate, lz4
+      level: ${API_LOG_COMPRESSION_LEVEL:6} # 压缩级别(1-9，9为最高压缩率)
+
+  # 异步线程池配置
+  async:
+    api-log:
+      core-pool-size: ${API_LOG_CORE_POOL_SIZE:5} # 核心线程数
+      max-pool-size: ${API_LOG_MAX_POOL_SIZE:10} # 最大线程数
+      queue-capacity: ${API_LOG_QUEUE_CAPACITY:1000} # 队列容量
+      keep-alive-seconds: ${API_LOG_KEEP_ALIVE:60} # 线程存活时间
+
+
+
+

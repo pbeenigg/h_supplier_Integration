@@ -2,10 +2,10 @@ package com.heytrip.hotel.supplier.adapter.tasks;
 
 import com.heytrip.hotel.supplier.adapter.tasks.impl.HotelSyncSyncService;
 import com.heytrip.hotel.supplier.constant.SyncTypeNames;
-import com.heytrip.hotel.supplier.entity.SupplierConfig;
-import com.heytrip.hotel.supplier.entity.SyncLog;
-import com.heytrip.hotel.supplier.repository.SupplierConfigRepository;
-import com.heytrip.hotel.supplier.repository.SyncLogRepository;
+import com.heytrip.hotel.supplier.entity.primary.SupplierConfig;
+import com.heytrip.hotel.supplier.entity.primary.SyncLog;
+import com.heytrip.hotel.supplier.repository.primary.SupplierConfigRepository;
+import com.heytrip.hotel.supplier.repository.primary.SyncLogRepository;
 import lombok.AllArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

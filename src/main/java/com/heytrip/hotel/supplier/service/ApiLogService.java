@@ -2,10 +2,10 @@ package com.heytrip.hotel.supplier.service;
 
 import cn.hutool.core.util.StrUtil;
 import com.heytrip.hotel.supplier.dto.ApiLogData;
-import com.heytrip.hotel.supplier.entity.DistributionCallLog;
-import com.heytrip.hotel.supplier.entity.DistributionOrdersLog;
-import com.heytrip.hotel.supplier.repository.DistributionCallLogRepository;
-import com.heytrip.hotel.supplier.repository.DistributionOrdersLogRepository;
+import com.heytrip.hotel.supplier.entity.supplier.DistributionCallLog;
+import com.heytrip.hotel.supplier.entity.supplier.DistributionOrdersLog;
+import com.heytrip.hotel.supplier.repository.supplier.DistributionCallLogRepository;
+import com.heytrip.hotel.supplier.repository.supplier.DistributionOrdersLogRepository;
 import com.heytrip.hotel.supplier.utils.HeyUtil;
 import com.heytrip.hotel.supplier.utils.JsonCompressionUtil;
 import org.slf4j.Logger;

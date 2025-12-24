@@ -2,8 +2,8 @@ package com.heytrip.hotel.supplier.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.heytrip.hotel.supplier.entity.SystemConfig;
-import com.heytrip.hotel.supplier.repository.SystemConfigRepository;
+import com.heytrip.hotel.supplier.entity.primary.SystemConfig;
+import com.heytrip.hotel.supplier.repository.primary.SystemConfigRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;

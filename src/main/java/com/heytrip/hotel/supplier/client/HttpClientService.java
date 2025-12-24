@@ -2,9 +2,9 @@ package com.heytrip.hotel.supplier.client;
 
 import cn.hutool.json.JSONUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.heytrip.hotel.supplier.entity.ApiCallLog;
+import com.heytrip.hotel.supplier.entity.supplier.ApiCallLog;
 import com.heytrip.hotel.supplier.exception.HttpClientException;
-import com.heytrip.hotel.supplier.repository.ApiCallLogRepository;
+import com.heytrip.hotel.supplier.repository.supplier.ApiCallLogRepository;
 import com.heytrip.hotel.supplier.utils.JsonCompressionUtil;
 import com.heytrip.hotel.supplier.utils.TraceIdHolder;
 import com.heytrip.hotel.supplier.utils.UrlUtil;

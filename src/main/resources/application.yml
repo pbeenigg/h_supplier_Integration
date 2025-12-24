@@ -5,33 +5,20 @@ server:
 
 spring:
   profiles:
-    active:  ${SPRING_PROFILES_ACTIVE:dev} # 设置默认环境为dev
+    active:  ${SPRING_PROFILES_ACTIVE:dev} # 设置默认环境为 dev
   application:
     name: ${SERVER_NAME:heytrip-supplier}
-  # 数据源配置
-  datasource:
-    #url: ${DB_URL:jdbc:mysql://127.0.0.1:3306/supplier_pax?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai}
-    url: ${DB_URL:jdbc:p6spy:mysql://127.0.0.1:3306/supplier_pax?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai}
-    username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:Root@123456}
-    #driver-class-name: com.mysql.cj.jdbc.Driver
-    driver-class-name: ${DB_DRIVER:com.p6spy.engine.spy.P6SpyDriver}
-    hikari:
-      maximum-pool-size: 20
-      minimum-idle: 5
-      connection-timeout: 30000
-      idle-timeout: 600000
-      max-lifetime: 1800000
-      pool-name: HeyTripSupplier-HikariCP
+
 
   #Spring Data JPA配置
   jpa:
+    open-in-view: false
     hibernate:
-      ddl-auto: validate
+      ddl-auto: none  # 禁用自动DDL，多数据源环境下避免在主库验证所有表
     show-sql: false
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.MySQL8Dialect
+        dialect: org.hibernate.dialect.MySQLDialect
         format_sql: true
         use_sql_comments: true
         jdbc:
@@ -55,66 +42,6 @@ spring:
       write-dates-as-timestamps: false
     deserialization:
       adjust-dates-to-context-time-zone: false
-
-# 日志配置
-logging:
-  level:
-    # 根据环境动态设置日志级别：dev=DEBUG, 其他环境=INFO
-    com.heytrip.hotel.supplier: ${LOG_LEVEL:INFO}
-    org.springframework.web:  ${LOG_LEVEL:INFO}
-    com.p6spy:  ${LOG_LEVEL:INFO}  # P6Spy日志级别
-    p6spy:  ${LOG_LEVEL:INFO}      # P6Spy日志输出
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
-    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
-  file:
-    name: logs/heytrip-supplier.log
-
----
-# dev环境配置
-spring:
-  config:
-    activate:
-      on-profile: dev
-
-logging:
-  level:
-    com.heytrip.hotel.supplier: DEBUG  # dev环境使用DEBUG级别
-    org.springframework.web: DEBUG
-    org.springframework.security: DEBUG
-    org.hibernate.SQL: DEBUG           # 显示SQL语句
-    org.hibernate.type.descriptor.sql: TRACE  # 显示SQL参数
-
----
-# prod环境配置
-spring:
-  config:
-    activate:
-      on-profile: prod
-
-logging:
-  level:
-    com.heytrip.hotel.supplier: INFO   # prod环境使用INFO级别
-    org.springframework.web: WARN
-    org.springframework.security: WARN
-    root: WARN
----                   # 根日志级别设为WARN减少日志输出
-
-
-# SpringDoc配置
-springdoc:
-  api-docs:
-    enabled: ${SWAGGER_UI:true}
-    path: /v1/api-docs
-  swagger-ui:
-    path: /swagger-ui.html
-    enabled: ${API_DOCS:true}
-    tags-sorter: alpha
-    operations-sorter: alpha
-  packages-to-scan: com.heytrip.hotel.supplier.controller
-
-
-
 
 
 # 管理端点配置

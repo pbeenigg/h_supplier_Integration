@@ -2,9 +2,8 @@ package com.heytrip.hotel.supplier.adapter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.heytrip.hotel.supplier.dto.supplier.SupplierAuth;
-import com.heytrip.hotel.supplier.entity.SupplierConfig;
-import com.heytrip.hotel.supplier.repository.SupplierConfigRepository;
-import com.heytrip.hotel.supplier.service.SupplierHealthCheckService;
+import com.heytrip.hotel.supplier.entity.primary.SupplierConfig;
+import com.heytrip.hotel.supplier.repository.primary.SupplierConfigRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,8 +34,7 @@ public abstract class AbstractSupplierAdapter implements SupplierAdapter {
     @Autowired
     protected WebClient.Builder webClientBuilder;
     
-    @Autowired
-    protected SupplierHealthCheckService healthCheckService;
+
     
     protected SupplierConfig supplierConfig;
     protected WebClient webClient;
@@ -183,7 +181,7 @@ public abstract class AbstractSupplierAdapter implements SupplierAdapter {
      * 从供应商配置中提取认证参数（Cache缓存）
      */
     @Cacheable(value = "supplierAuth", key = "#supplierName")
-    protected SupplierAuth extractFromAuthConfig(String supplierName) {
+    public SupplierAuth extractFromAuthConfig(String supplierName) {
         logger.debug("开始解析认证配置（将被缓存）");
 
         try {
@@ -299,23 +297,7 @@ public abstract class AbstractSupplierAdapter implements SupplierAdapter {
         ).onErrorReturn(false);
     }
     
-    /**
-     * 执行供应商健康检查并记录日志
-     */
-    public Mono<Boolean> performHealthCheckWithLogging() {
-        if (healthCheckService != null && supplierConfig != null) {
-            return Mono.fromFuture(healthCheckService.performHealthCheck(supplierConfig))
-                    .map(healthLog -> {
-                        boolean isHealthy = healthLog.getHealthStatus().equalsIgnoreCase("HEALTHY");
-                        logger.info("执行健康检查并记录日志，供应商: {}，结果: {}", 
-                                getSupplierName(), healthLog.getHealthStatus());
-                        return isHealthy;
-                    })
-                    .onErrorReturn(false);
-        } else {
-            return healthCheck();
-        }
-    }
+
 
 
 }

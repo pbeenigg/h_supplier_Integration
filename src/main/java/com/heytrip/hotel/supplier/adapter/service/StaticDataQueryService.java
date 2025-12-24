@@ -7,9 +7,9 @@ import com.heytrip.common.response.other.XCityResponse;
 import com.heytrip.common.response.other.XCountryResponse;
 import com.heytrip.hotel.supplier.dto.basic.XHotelGiata;
 import com.heytrip.hotel.supplier.dto.basic.XNationality;
-import com.heytrip.hotel.supplier.entity.Hotel;
-import com.heytrip.hotel.supplier.entity.Room;
-import com.heytrip.hotel.supplier.entity.SyncLog;
+import com.heytrip.hotel.supplier.entity.primary.SyncLog;
+import com.heytrip.hotel.supplier.entity.supplier.Hotel;
+import com.heytrip.hotel.supplier.entity.supplier.Room;
 import org.springframework.data.domain.Page;
 
 import java.time.LocalDateTime;

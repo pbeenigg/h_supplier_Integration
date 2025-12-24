@@ -1,8 +1,8 @@
 package com.heytrip.hotel.supplier.adapter.tasks;
 
 import com.heytrip.hotel.supplier.adapter.tasks.impl.StaticDataSyncService;
-import com.heytrip.hotel.supplier.entity.SupplierConfig;
-import com.heytrip.hotel.supplier.repository.SupplierConfigRepository;
+import com.heytrip.hotel.supplier.entity.primary.SupplierConfig;
+import com.heytrip.hotel.supplier.repository.primary.SupplierConfigRepository;
 import lombok.AllArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

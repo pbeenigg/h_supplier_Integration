@@ -1,6 +1,6 @@
 package com.heytrip.hotel.supplier.adapter.parser;
 
-import com.heytrip.hotel.supplier.entity.*;
+import com.heytrip.hotel.supplier.entity.supplier.*;
 
 import java.util.List;
 import java.util.Map;

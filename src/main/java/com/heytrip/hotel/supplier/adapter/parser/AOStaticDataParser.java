@@ -1,7 +1,7 @@
 package com.heytrip.hotel.supplier.adapter.parser;
 
 import cn.hutool.core.util.StrUtil;
-import com.heytrip.hotel.supplier.entity.*;
+import com.heytrip.hotel.supplier.entity.supplier.*;
 import com.heytrip.hotel.supplier.utils.CoordinateUtil;
 import com.heytrip.hotel.supplier.utils.MD5Util;
 import org.slf4j.Logger;

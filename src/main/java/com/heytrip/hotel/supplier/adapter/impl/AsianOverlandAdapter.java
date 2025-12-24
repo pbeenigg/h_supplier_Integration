@@ -3,6 +3,7 @@ package com.heytrip.hotel.supplier.adapter.impl;
 import cn.hutool.core.util.NumberUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
+import com.baomidou.dynamic.datasource.annotation.DS;
 import com.heytrip.common.enums.*;
 import com.heytrip.common.request.XCancelOrderRequest;
 import com.heytrip.common.request.XCreateOrderRequest;
@@ -24,16 +25,16 @@ import com.heytrip.hotel.supplier.client.HttpClientService;
 import com.heytrip.hotel.supplier.dto.qtech.req.*;
 import com.heytrip.hotel.supplier.dto.qtech.resp.*;
 import com.heytrip.hotel.supplier.dto.supplier.SupplierAuth;
-import com.heytrip.hotel.supplier.entity.DistributionOrdersLog;
-import com.heytrip.hotel.supplier.entity.Hotel;
-import com.heytrip.hotel.supplier.entity.Nationality;
-import com.heytrip.hotel.supplier.entity.SupplierConfig;
+import com.heytrip.hotel.supplier.entity.primary.SupplierConfig;
+import com.heytrip.hotel.supplier.entity.supplier.DistributionOrdersLog;
+import com.heytrip.hotel.supplier.entity.supplier.Hotel;
+import com.heytrip.hotel.supplier.entity.supplier.Nationality;
 import com.heytrip.hotel.supplier.enums.QTechBookingStatusEnum;
 import com.heytrip.hotel.supplier.exception.SupplierException;
-import com.heytrip.hotel.supplier.repository.CountryRepository;
-import com.heytrip.hotel.supplier.repository.DistributionOrdersLogRepository;
-import com.heytrip.hotel.supplier.repository.HotelRepository;
-import com.heytrip.hotel.supplier.repository.NationalityRepository;
+import com.heytrip.hotel.supplier.repository.supplier.CountryRepository;
+import com.heytrip.hotel.supplier.repository.supplier.DistributionOrdersLogRepository;
+import com.heytrip.hotel.supplier.repository.supplier.HotelRepository;
+import com.heytrip.hotel.supplier.repository.supplier.NationalityRepository;
 import com.heytrip.hotel.supplier.utils.HeyUtil;
 import com.heytrip.hotel.supplier.utils.MD5Util;
 import com.heytrip.hotel.supplier.utils.OccupancyStats;
@@ -62,6 +63,7 @@ import java.util.stream.Collectors;
  * @author Pax
  */
 @Component
+@DS("aos")
 public class AsianOverlandAdapter extends AbstractSupplierAdapter implements PricingBridge, OrderBridge, StaticBridge {
 
     @Resource
