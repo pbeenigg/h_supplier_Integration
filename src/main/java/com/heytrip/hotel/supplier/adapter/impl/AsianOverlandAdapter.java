@@ -81,8 +81,8 @@ public class AsianOverlandAdapter extends AbstractSupplierAdapter implements Pri
     //private static final String SEARCH_BASE_URL = "http://colosseum.otrams.com:8087";
     //private static final String API_BASE_URL = "https://colosseum.otrams.com";
 
-    private static final String SEARCH_BASE_URL = "http://api.aosconnect.com:8086";
-    private static final String API_BASE_URL = "https://apiproduction.aosconnect.com";
+    private static final String SEARCH_BASE_URL = "https://apiprod.aosconnect.com";
+    private static final String API_BASE_URL = "https://www.aosconnect.com";
 
     // 支持的城市列表（可扩展）
     private static final List<String> SUPPORTED_CITIES = Arrays.asList(
