@@ -1,6 +1,7 @@
 package com.heytrip.hotel.supplier.service;
 
 import cn.hutool.core.util.StrUtil;
+import com.baomidou.dynamic.datasource.annotation.DS;
 import com.heytrip.hotel.supplier.dto.ApiLogData;
 import com.heytrip.hotel.supplier.entity.supplier.DistributionCallLog;
 import com.heytrip.hotel.supplier.entity.supplier.DistributionOrdersLog;
@@ -43,6 +44,7 @@ public class ApiLogService {
      * @return CompletableFuture
      */
     @Async("apiLogExecutor")
+    @DS("aos")
     @Transactional
     public CompletableFuture<Void> recordApiLogAsync(ApiLogData logData) {
         try {

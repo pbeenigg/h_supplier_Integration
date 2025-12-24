@@ -4,6 +4,7 @@ import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.collection.ListUtil;
 import cn.hutool.core.util.NumberUtil;
 import cn.hutool.core.util.StrUtil;
+import com.baomidou.dynamic.datasource.annotation.DS;
 import com.heytrip.common.enums.XEnumNoSmoking;
 import com.heytrip.common.response.base.XHotel;
 import com.heytrip.hotel.supplier.adapter.impl.AsianOverlandAdapter;
@@ -153,8 +154,8 @@ public class HotelSyncSyncService {
 
     /**
      * 同步指定供应商的酒店详情数据，包括房型、房价、可售状态
+     * 注意：不使用 @Transactional，因为需要访问多个数据源（primary 和 aos）
      */
-    @Transactional
     public void syncAllForSupplier(Long supplierId, String supplierCode) {
         SupplierConfig sc = supplierConfigRepo.findById(supplierId).orElse(null);
         if (sc == null || sc.getFtpConfig() == null) {
@@ -183,6 +184,7 @@ public class HotelSyncSyncService {
      * 4. 按批次清理可售酒店数据
      * 5. 完善的错误处理和日志记录
      */
+    @DS("aos")
     private SyncStats syncHotels(Long supplierId, String supplierCode) {
         logger.info("[HotelSyncSyncService.syncHotels] 开始同步酒店详情数据，supplierId={}, supplierCode={}", supplierId, supplierCode);
 
@@ -1135,6 +1137,7 @@ public class HotelSyncSyncService {
      * 使用TransactionTemplate手动管理事务清理可售酒店数据
      * 解决线程池中事务代理失效的问题
      */
+    @DS("aos")
     private void clearBookableHotels(Long supplierId, String supplierCode, List<String> hotelCodes) {
         transactionTemplate.execute(status -> {
             try {

@@ -1,5 +1,6 @@
 package com.heytrip.hotel.supplier.adapter.service.impl;
 
+import com.baomidou.dynamic.datasource.annotation.DS;
 import com.heytrip.common.response.base.XHotel;
 import com.heytrip.common.response.base.XRatePlan;
 import com.heytrip.common.response.base.XRoom;
@@ -42,6 +43,7 @@ import java.util.stream.Collectors;
  * - 启用分页，默认 page>=0, size 在 Controller 层做上限 100
  */
 @Service
+@DS("aos")  // 默认使用 aos 数据源查询 supplier 数据
 public class StaticDataQueryServiceImpl implements StaticDataQueryService {
 
     private static final Logger logger = LoggerFactory.getLogger(StaticDataQueryServiceImpl.class);
@@ -111,6 +113,7 @@ public class StaticDataQueryServiceImpl implements StaticDataQueryService {
      * @return
      */
     @Override
+    @DS("primary")  // SyncLog 在 primary 数据源
     public Page<SyncLog> pageSyncLogs(Long supplierId, String supplierCode, String businessType, Boolean success, int page, int size) {
         Pageable pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100));
         Specification<SyncLog> spec = (root, q, cb) -> {

@@ -23,7 +23,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.io.InputStream;
 import java.time.LocalDateTime;
@@ -64,8 +63,8 @@ public class StaticDataSyncService {
 
     /**
      * 同步指定供应商的全部静态数据
+     * 注意：不使用 @Transactional，因为需要访问多个数据源（primary 和 aos）
      */
-    @Transactional
     public void syncAllForSupplier(Long supplierId, String supplierCode) {
         SupplierConfig sc = supplierConfigRepository.findById(supplierId).orElse(null);
         if (sc == null || sc.getFtpConfig() == null) {
