@@ -4,15 +4,6 @@ server:
     context-path: ${SERVER_PATH:/}
 
 spring:
-  application:
-    name: ${SERVER_NAME:heytrip-supplier}
-  jpa:
-    hibernate:
-      ddl-auto: none
-    properties:
-      hibernate:
-        hbm2ddl:
-          auto: none
   # dynamic-datasource 动态多数据源配置
   datasource:
     dynamic:
@@ -115,35 +106,7 @@ logging:
   file:
     name: logs/heytrip-supplier.log
 
----
-# dev环境配置
-spring:
-  config:
-    activate:
-      on-profile: dev
 
-logging:
-  level:
-    com.heytrip.hotel.supplier: DEBUG  # dev环境使用DEBUG级别
-    org.springframework.web: DEBUG
-    org.springframework.security: DEBUG
-    org.hibernate.SQL: DEBUG           # 显示SQL语句
-    org.hibernate.type.descriptor.sql: TRACE  # 显示SQL参数
-
----
-# prod环境配置
-spring:
-  config:
-    activate:
-      on-profile: prod
-
-logging:
-  level:
-    com.heytrip.hotel.supplier: INFO   # prod环境使用INFO级别
-    org.springframework.web: WARN
-    org.springframework.security: WARN
-    root: WARN
----                   # 根日志级别设为WARN减少日志输出
 
 
 # SpringDoc配置
