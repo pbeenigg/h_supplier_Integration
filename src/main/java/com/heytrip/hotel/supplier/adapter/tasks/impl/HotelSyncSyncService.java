@@ -4,7 +4,6 @@ import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.collection.ListUtil;
 import cn.hutool.core.util.NumberUtil;
 import cn.hutool.core.util.StrUtil;
-import com.baomidou.dynamic.datasource.annotation.DS;
 import com.heytrip.common.enums.XEnumNoSmoking;
 import com.heytrip.common.response.base.XHotel;
 import com.heytrip.hotel.supplier.adapter.impl.AsianOverlandAdapter;
@@ -156,7 +155,6 @@ public class HotelSyncSyncService {
      * 同步指定供应商的酒店详情数据，包括房型、房价、可售状态
      */
     @Transactional
-    @DS("aos")
     public void syncAllForSupplier(Long supplierId, String supplierCode) {
         SupplierConfig sc = supplierConfigRepo.findById(supplierId).orElse(null);
         if (sc == null || sc.getFtpConfig() == null) {

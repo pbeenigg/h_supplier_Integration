@@ -1,8 +1,8 @@
 package com.heytrip.hotel.supplier.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.heytrip.hotel.supplier.entity.SupplierConfig;
-import com.heytrip.hotel.supplier.repository.SupplierConfigRepository;
+import com.heytrip.hotel.supplier.entity.primary.SupplierConfig;
+import com.heytrip.hotel.supplier.repository.primary.SupplierConfigRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

@@ -66,7 +66,6 @@ public class StaticDataSyncService {
      * 同步指定供应商的全部静态数据
      */
     @Transactional
-    @DS("aos")
     public void syncAllForSupplier(Long supplierId, String supplierCode) {
         SupplierConfig sc = supplierConfigRepository.findById(supplierId).orElse(null);
         if (sc == null || sc.getFtpConfig() == null) {
@@ -208,6 +207,7 @@ public class StaticDataSyncService {
      * @param supplierId
      * @param supplierCode
      */
+    @DS("aos")
     private SyncStats syncCountries(SupplierFtp ftp, Long supplierId, String supplierCode) {
         try (InputStream is = openByConfig(ftp, ftp.getCountriesPath(), true);
              CsvStreamReaderUtil reader = new CsvStreamReaderUtil(is)) {
@@ -223,6 +223,7 @@ public class StaticDataSyncService {
      * @param supplierId
      * @param supplierCode
      */
+    @DS("aos")
     private SyncStats syncCities(SupplierFtp ftp, Long supplierId, String supplierCode) {
         try (InputStream is = openByConfig(ftp, ftp.getCitiesPath(), true);
              CsvStreamReaderUtil reader = new CsvStreamReaderUtil(is)) {
@@ -239,6 +240,7 @@ public class StaticDataSyncService {
      * @param supplierCode
      * @return
      */
+    @DS("aos")
     private SyncStats syncHotels(SupplierFtp ftp, Long supplierId, String supplierCode) {
         try (InputStream is = openByConfig(ftp, ftp.getHotelsPath(), true);
              CsvStreamReaderUtil reader = new CsvStreamReaderUtil(is)) {
@@ -256,6 +258,7 @@ public class StaticDataSyncService {
      * @param supplierCode
      * @return
      */
+    @DS("aos")
     private SyncStats syncNationalities(SupplierFtp ftp, Long supplierId, String supplierCode) {
         try (InputStream is = openByConfig(ftp, ftp.getNationalityPath(), true);
              CsvStreamReaderUtil reader = new CsvStreamReaderUtil(is)) {

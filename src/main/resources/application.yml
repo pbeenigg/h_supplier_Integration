@@ -25,6 +25,10 @@ spring:
           batch_size: 1000
         order_inserts: true
         order_updates: true
+        # 多数据源环境：完全禁用启动时的表验证
+        hbm2ddl:
+          auto: none
+        check_nullability: false
 
     # 缓存配置
   cache:

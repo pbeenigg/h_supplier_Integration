@@ -6,6 +6,13 @@ server:
 spring:
   application:
     name: ${SERVER_NAME:heytrip-supplier}
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        hbm2ddl:
+          auto: none
   # dynamic-datasource 动态多数据源配置
   datasource:
     dynamic:
@@ -78,20 +85,6 @@ spring:
             idle-timeout: 600000
             max-lifetime: 1800000
 
-  #Spring Data JPA配置
-  jpa:
-    hibernate:
-      ddl-auto: validate
-    show-sql: false
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.MySQL8Dialect
-        format_sql: true
-        use_sql_comments: true
-        jdbc:
-          batch_size: 1000
-        order_inserts: true
-        order_updates: true
 
     # 缓存配置
   cache:
@@ -116,8 +109,6 @@ logging:
     # 根据环境动态设置日志级别：dev=DEBUG, 其他环境=INFO
     com.heytrip.hotel.supplier: ${LOG_LEVEL:INFO}
     org.springframework.web:  ${LOG_LEVEL:INFO}
-    com.p6spy:  ${LOG_LEVEL:INFO}  # P6Spy日志级别
-    p6spy:  ${LOG_LEVEL:INFO}      # P6Spy日志输出
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
